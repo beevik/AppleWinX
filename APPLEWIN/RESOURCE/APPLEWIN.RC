@@ -1,0 +1,139 @@
+//Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+26567                   BITMAP  DISCARDABLE     "3DCHECK.BMP"
+TOFILE_BUTTON           BITMAP  DISCARDABLE     "TOFILE.BMP"
+TODISK_BUTTON           BITMAP  DISCARDABLE     "TODISK.BMP"
+RUN_BUTTON              BITMAP  DISCARDABLE     "RUN.BMP"
+DEBUG_BUTTON            BITMAP  DISCARDABLE     "DEBUG.BMP"
+DRIVE1_BUTTON           BITMAP  DISCARDABLE     "DRIVE1.BMP"
+DRIVE2_BUTTON           BITMAP  DISCARDABLE     "DRIVE2.BMP"
+SETUP_BUTTON            BITMAP  DISCARDABLE     "SETUP.BMP"
+CHARSET40               BITMAP  DISCARDABLE     "CHARSET4.BMP"
+DISKOFF_BITMAP          BITMAP  DISCARDABLE     "DISKOFF.BMP"
+DISKREAD_BITMAP         BITMAP  DISCARDABLE     "DISKREAD.BMP"
+DISKWRITE_BITMAP        BITMAP  DISCARDABLE     "DISKWRIT.BMP"
+CAPSOFF_BITMAP          BITMAP  DISCARDABLE     "CAPSOFF.BMP"
+CAPSON_BITMAP           BITMAP  DISCARDABLE     "CAPSON.BMP"
+HELP_BUTTON             BITMAP  DISCARDABLE     "HELP.BMP"
+LOCK_BITMAP             BITMAP  DISCARDABLE     "LOCK.BMP"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+CALIBRATION_DIALOG DIALOG DISCARDABLE  40, 40, 150, 43
+STYLE WS_CAPTION
+CAPTION "Apple //e Emulator"
+CLASS "APPLE2CALIBRATION"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            "APPLEWIN_ICON",101,6,10,18,20
+    LTEXT           "Calibrating emulator; please wait...",-1,30,17,118,8
+END
+
+CONFIGURATION_DIALOG DIALOG DISCARDABLE  0, 0, 210, 175
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Configuration"
+FONT 8, "MS Sans Serif"
+BEGIN
+    GROUPBOX        "Emulation Speed Control",-1,5,85,200,85
+    CONTROL         "Use &Authentic Machine Speed",106,"Button",
+                    BS_AUTORADIOBUTTON,15,96,115,10
+    CONTROL         "Select C&ustom Speed (in MHz)",107,"Button",
+                    BS_AUTORADIOBUTTON,15,108,120,10
+    CONTROL         "Generic2",108,"msctls_trackbar32",WS_TABSTOP | 0x1,25,
+                    120,160,15
+    CTEXT           "0.5",121,23,135,20,10
+    CTEXT           "1.0",122,59,135,20,10
+    CTEXT           "2.0",123,96,135,20,10
+    RTEXT           "Fastest",124,150,135,29,10
+    PUSHBUTTON      "&Benchmark Emulator",111,15,149,85,15
+    PUSHBUTTON      "&Recalibrate Emulator",112,110,149,85,15
+    DEFPUSHBUTTON   "OK",1,155,6,50,15
+    PUSHBUTTON      "Cancel",2,155,24,50,15
+    LTEXT           "&Computer:",-1,5,8,40,8
+    COMBOBOX        101,45,6,100,32,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    LTEXT           "&Video:",-1,5,23,40,8
+    COMBOBOX        105,45,21,100,56,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    LTEXT           "&Joystick:",-1,5,38,40,8
+    COMBOBOX        102,45,36,100,56,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    LTEXT           "&Sound:",-1,5,53,40,8
+    COMBOBOX        103,45,51,100,48,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    LTEXT           "S&erial Port:",-1,5,68,40,8
+    COMBOBOX        104,45,66,100,56,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+APPLEWIN_ICON           ICON    DISCARDABLE     "APPLEWIN.ICO"
+DISK_ICON               ICON    DISCARDABLE     "DISK.ICO"
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

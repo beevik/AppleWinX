@@ -1,0 +1,5 @@
+LIBRARY 6502
+EXPORTS
+CpuExecute
+CpuGetCode
+CpuInitialize
