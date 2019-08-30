@@ -1,0 +1,12 @@
+LIBRARY fastblt
+EXPORTS
+FastBlt104
+FastBlt108
+FastBlt108d
+FastBlt110d
+FastBlt118d
+FastBlt120d
+FastBlt401
+FastBlt401b
+FastBltInit
+

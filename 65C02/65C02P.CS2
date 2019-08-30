@@ -1,0 +1,2 @@
+#include "base.cs2"
+set mlopt=%mlopt% -DFASTPAGING

@@ -1,0 +1,5 @@
+LIBRARY 65c02p
+EXPORTS
+CpuExecute
+CpuGetCode
+CpuInitialize
