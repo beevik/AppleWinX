@@ -13,7 +13,7 @@
 BOOL      apple2e           = 1;
 BOOL      autoboot          = 0;
 BOOL      behind            = 0;
-BOOL      calibrating       = 0;
+DWORD     calibrating       = 0;
 DWORD     clockgran         = 0;
 DWORD     cumulativecycles  = 0;
 DWORD     cyclegran         = 0;
@@ -109,7 +109,7 @@ void ContinueExecution () {
           VideoUpdateVbl(cyclenum-startcycles,
                          (cyclestorun-cyclesneeded) < 1000);
           if (finegraintiming && finegrainlast)
-            if ((!calibrating) && (SpkrCyclesSinceSound() > 50000))
+            if ((calibrating == 0) && (SpkrCyclesSinceSound() > 50000))
               skippedfinegrain = 1;
             else {
               ranfinegrain = 1;
@@ -140,8 +140,8 @@ void ContinueExecution () {
   BOOL diskspinning  = DiskIsSpinning();
   BOOL screenupdated = VideoHasRefreshed();
   BOOL systemidle    = (KeybGetNumQueries() > (clockgran << 2))
-                         && (!calibrating) && (!ranfinegrain);
-  fullspeed = ((speed == SPEED_MAX) || (GetKeyState(VK_SCROLL) < 0)) && !calibrating;
+                         && (calibrating == 0) && (!ranfinegrain);
+  fullspeed = ((speed == SPEED_MAX) || (GetKeyState(VK_SCROLL) < 0)) && (calibrating == 0);
   if (screenupdated)
     pageflipping = 3;
 
@@ -153,7 +153,7 @@ void ContinueExecution () {
     static BOOL  lastupdates[2] = {0,0};
     anyupdates |= screenupdated;
     if ((cumulativecycles-lastcycles) >=
-          (DWORD)(50000 << (behind || fullspeed || calibrating || ranfinegrain))) {
+          (DWORD)(50000 << (behind || fullspeed || (calibrating > 0 ? 1 : 0) || ranfinegrain))) {
       lastcycles = cumulativecycles;
       if ((!anyupdates) && (!lastupdates[0]) && (!lastupdates[1]) &&
           VideoApparentlyDirty()) {
@@ -177,7 +177,7 @@ void ContinueExecution () {
 
   // IF WE ARE CURRENTLY CALIBRATING THE SYSTEM THEN ADJUST FINE
   // GRAIN TIMING
-  if (calibrating) {
+  if (calibrating > 0) {
     static DWORD lastnormaldelays = 1;
     static DWORD lastcycles       = 0;
     static DWORD lastdelay        = 1;
@@ -185,7 +185,7 @@ void ContinueExecution () {
       lastcycles = cumulativecycles;
       if (finegraintiming && finegrainlast)
         if (normaldelays+lastnormaldelays <= (DWORD)(clockgran <= 25))
-          if (calibrating < 3) {
+          if (calibrating < 16) {
             calibrating++;
             finegraindelay = lastdelay;
             normaldelays   = 1;
@@ -195,11 +195,7 @@ void ContinueExecution () {
             calibrating = 0;
         else {
           lastdelay = finegraindelay;
-          switch (calibrating) {
-            case 1: finegraindelay += 100;  break;
-            case 2: finegraindelay += 10;   break;
-            case 3: ++finegraindelay;       break;
-          }
+		  finegraindelay += (1 << (16 - calibrating));
         }
       lastnormaldelays = normaldelays;
       normaldelays     = 0;
@@ -210,7 +206,7 @@ void ContinueExecution () {
   // ON OR OFF BASED ON WHETHER THE DISK IS SPINNING, THE SCREEN IS
   // BEING UPDATED, OR THE SYSTEM IS IDLE
   finegrainlast   = finegraintiming;
-  finegraintiming = calibrating ||
+  finegraintiming = (calibrating > 0) ||
                     ((!systemidle) && (!diskspinning) && (!fullspeed) &&
                      (!pageflipping) && (!screenupdated) && 
                      SpkrNeedsFineGrainTiming() && !VideoApparentlyDirty());
@@ -223,7 +219,7 @@ void ContinueExecution () {
     if ((!fullspeed) &&
         ((!optenhancedisk) || (!diskspinning)) &&
         (!resettiming)) {
-      if ((speed == SPEED_NORMAL) || calibrating)
+      if ((speed == SPEED_NORMAL) || (calibrating > 0))
         milliseconds += clockgran;
       else {
         DWORD delta = (DWORD)((clockgran*2000.0)/pow(2.0,speed/10.0));
@@ -240,7 +236,7 @@ void ContinueExecution () {
         behind       = 0;
         milliseconds = currtime;
       }
-      else if ((currtime >= milliseconds+100) && !calibrating)
+      else if ((currtime >= milliseconds+100) && (calibrating == 0))
         behind = 1;
       else if (milliseconds > currtime) {
         static DWORD ahead     = 0;
@@ -287,9 +283,9 @@ void DetermineClockGranularity () {
   int   loop     = 40;
   while (loop-- && (clockgran >= 20)) {
     DWORD newticks;
-    do
+    do {
       newticks = GetTickCount();
-    while (oldticks >= newticks);
+	} while (oldticks >= newticks);
     if (newticks-oldticks >= 10)
       clockgran = MIN(clockgran,newticks-oldticks);
     oldticks = newticks;
@@ -318,7 +314,7 @@ LRESULT CALLBACK DlgProc (HWND   window,
 	       rect.right-rect.left,
 	       rect.bottom-rect.top,
 	       0);
-    Ctl3dSubclassDlgEx(window,0xFFFF);
+    //Ctl3dSubclassDlgEx(window,0xFFFF);
     ShowWindow(window,SW_SHOW);
   }
   if (win31 && (message == WM_CTLCOLORSTATIC)) {
@@ -334,7 +330,7 @@ void EnterMessageLoop () {
   while (GetMessage(&message,0,0,0)) {
     TranslateMessage(&message);
     DispatchMessage(&message);
-    while ((mode == MODE_RUNNING) || (mode == MODE_STEPPING) || calibrating)
+    while ((mode == MODE_RUNNING) || (mode == MODE_STEPPING) || (calibrating > 0))
       if (PeekMessage(&message,0,0,0,PM_REMOVE)) {
         if (message.message == WM_QUIT)
           return;
@@ -367,7 +363,7 @@ void GetProgramDirectory () {
 
 //===========================================================================
 BOOL LoadCalibrationData () {
-#define LOAD(a,b,c) if (!RegLoadValue(a,b,0,c)) return 0;
+#define LOAD(a,b,c) if (!RegLoadValue(a,b,1,c)) return 0;
   DWORD buildnumber = 0;
   DWORD runningonos = 0;
   LOAD(TEXT(""),TEXT("CurrentBuildNumber"),&buildnumber);
@@ -437,7 +433,7 @@ void PerformCalibration () {
   // PERFORM THE CALIBRATION
   calibrating    = 1;
   finegraindelay = 1;
-  while (calibrating)
+  while (calibrating > 0)
     ContinueExecution();
 
   // CLOSE THE DIALOG BOX
@@ -471,13 +467,11 @@ void RegisterExtensions () {
 
 //===========================================================================
 void SaveCalibrationData () {
-  RegSaveValue(TEXT(""),TEXT("CurrentBuildNumber"),0,BUILDNUMBER);
   RegSaveValue(TEXT(""),TEXT("CurrentBuildNumber"),1,BUILDNUMBER);
-  RegSaveValue(TEXT(""),TEXT("RunningOnOS")       ,0,GetVersion());
   RegSaveValue(TEXT(""),TEXT("RunningOnOS")       ,1,GetVersion());
-  RegSaveValue(TEXT("Calibration"),TEXT("Clock Granularity"),0,clockgran);
-  RegSaveValue(TEXT("Calibration"),TEXT("Cycle Granularity"),0,cyclegran);
-  RegSaveValue(TEXT("Calibration"),TEXT("Precision Timing") ,0,finegraindelay);
+  RegSaveValue(TEXT("Calibration"),TEXT("Clock Granularity"),1,clockgran);
+  RegSaveValue(TEXT("Calibration"),TEXT("Cycle Granularity"),1,cyclegran);
+  RegSaveValue(TEXT("Calibration"),TEXT("Precision Timing") ,1,finegraindelay);
 }
 
 //===========================================================================
@@ -490,7 +484,7 @@ int APIENTRY WinMain (HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
   GdiSetBatchLimit(512);
   GetProgramDirectory();
   RegisterExtensions();
-  Ctl3dRegister(instance);
+  //Ctl3dRegister(instance);
   FrameRegisterClass();
   ImageInitialize();
   if (!DiskInitialize())

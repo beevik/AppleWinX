@@ -977,11 +977,11 @@ void FrameCreateWindow () {
   int width  = VIEWPORTCX + (VIEWPORTX<<1)
                           + BUTTONCX
                           + (GetSystemMetrics(SM_CXBORDER)<<1)
-                          + (win95 ? 5 : 0);
+                          + 16;
   int height = VIEWPORTCY + (VIEWPORTY<<1)
                           + GetSystemMetrics(SM_CYBORDER)
                           + GetSystemMetrics(SM_CYCAPTION)
-                          + (win95 ? 5 : 0);
+                          + 16;
   framewindow = CreateWindow(TEXT("APPLE2FRAME"),
                              apple2e ? TITLE
                                      : TEXT("Apple ][+ Emulator"),
@@ -999,7 +999,7 @@ void FrameCreateWindow () {
                              (HMENU)0,
                              instance,
                              NULL);
-  Ctl3dAutoSubclass((HANDLE)framewindow);
+  //Ctl3dAutoSubclass((HANDLE)framewindow);
 }
 
 //===========================================================================
@@ -1056,7 +1056,7 @@ void FrameRegisterClass () {
       wndclass.hCursor       = LoadCursor(0,IDC_ARROW);
       wndclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
       wndclass.lpszClassName = TEXT("APPLE2FRAME");
-      wndclass.hIconSm       = loadimage(instance,TEXT("APPLEWIN_ICON"),
+      wndclass.hIconSm       = (HICON)loadimage(instance,TEXT("APPLEWIN_ICON"),
                                          1,16,16,0);
       if (!registerex(&wndclass))
         win95 = 0;

@@ -83,53 +83,31 @@ BOOL RegLoadValue (LPCTSTR section, LPCTSTR key, BOOL peruser, DWORD *value) {
 
 //===========================================================================
 void RegSaveString (LPCTSTR section, LPCTSTR key, BOOL peruser, LPCTSTR buffer) {
-  BOOL      usingregistry = 0;
-  HINSTANCE advapiinst    = (HINSTANCE)0;
-  if (!win31)
-    advapiinst = LoadLibrary(TEXT("ADVAPI32"));
-  if (advapiinst) {
-    regclosetype  regclose  = (regclosetype )GetProcAddress(advapiinst,TEXT("RegCloseKey"));
-#ifdef UNICODE
-    regcreatetype regcreate = (regcreatetype)GetProcAddress(advapiinst,TEXT("RegCreateKeyExW"));
-    regsettype    regset    = (regsettype   )GetProcAddress(advapiinst,TEXT("RegSetValueExW"));
-#else
-    regcreatetype regcreate = (regcreatetype)GetProcAddress(advapiinst,TEXT("RegCreateKeyExA"));
-    regsettype    regset    = (regsettype   )GetProcAddress(advapiinst,TEXT("RegSetValueExA"));
-#endif
-    BOOL success = 0;
-    if (regclose && regcreate && regset) {
-      usingregistry = 1;
-      TCHAR fullkeyname[256];
-      wsprintf(fullkeyname,
-               TEXT("Software\\AppleWin\\CurrentVersion\\%s"),
-               (LPCTSTR)section);
-      HKEY  keyhandle;
-      DWORD disposition;
-      if (!regcreate((peruser ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE),
-                     fullkeyname,
-                     0,
-                     NULL,
-                     REG_OPTION_NON_VOLATILE,
-                     KEY_READ | KEY_WRITE,
-                     (LPSECURITY_ATTRIBUTES)NULL,
-                     &keyhandle,
-                     &disposition)) {
-        regset(keyhandle,
-               key,
-               0,
-               REG_SZ,
-               (CONST BYTE *)buffer,
-               (_tcslen(buffer)+1)*sizeof(TCHAR));
-        regclose(keyhandle);
-      }
-    }
-    FreeLibrary(advapiinst);
+  BOOL success = 0;
+  TCHAR fullkeyname[256];
+  wsprintf(fullkeyname,
+          TEXT("Software\\AppleWin\\CurrentVersion\\%s"),
+          (LPCTSTR)section);
+  HKEY  keyhandle;
+  DWORD disposition;
+  LSTATUS status = RegCreateKeyExA((peruser ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE),
+                            fullkeyname,
+                            0,
+                            NULL,
+                            REG_OPTION_NON_VOLATILE,
+                            KEY_READ | KEY_WRITE,
+                            (LPSECURITY_ATTRIBUTES)NULL,
+                            &keyhandle,
+                            &disposition);
+  if (status == ERROR_SUCCESS) {
+	  RegSetValueExA(keyhandle,
+			  key,
+			  0,
+			  REG_SZ,
+			  (CONST BYTE *)buffer,
+			  (_tcslen(buffer)+1)*sizeof(TCHAR));
+	  RegCloseKey(keyhandle);
   }
-  if (!usingregistry)
-    WritePrivateProfileString(section,
-                              key,
-                              buffer,
-                              TEXT("AppleWin.ini"));
 }
 
 //===========================================================================

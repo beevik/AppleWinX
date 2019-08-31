@@ -271,7 +271,8 @@ BOOL DiskInitialize () {
   // (THIS IS MADE MORE COMPLICATED BY THE FACT THAT LONG FILE NAMES MAY
   //  BE EMBEDDED IN QUOTES, INCLUDING THE NAME OF THE PROGRAM ITSELF)
   TCHAR   imagefilename[MAX_PATH] = TEXT("");
-  LPCTSTR cmdlinename             = GetCommandLine();
+  LPCTSTR cmdlinenameIn           = GetCommandLine();
+  LPTSTR  cmdlinename             = strdup(cmdlinenameIn);
   BOOL    inquotes                = 0;
   while (cmdlinename && ((*cmdlinename != TEXT(' ')) || inquotes)) {
     if (*cmdlinename == TEXT('\"'))

@@ -1191,7 +1191,7 @@ void VideoDisplayLogo () {
                                OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
                                VARIABLE_PITCH | 4 | FF_SWISS,
                                TEXT("Arial"));
-    HFONT oldfont = SelectObject(framedc,font);
+    HFONT oldfont = (HFONT)SelectObject(framedc,font);
     SetTextAlign(framedc,TA_RIGHT | TA_TOP);
     SetBkMode(framedc,TRANSPARENT);
 #define  DRAWVERSION(x,y,c)  SetTextColor(framedc,c);                \

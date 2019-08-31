@@ -317,7 +317,7 @@ DWORD InternalCpuExecute (DWORD totalcycles) {
   WORD val;
   AF_TO_EF
   DWORD cycles = 0;
-  do
+  do {
     switch (*(mem+regs.pc++)) {
       case 0x00:       BRK           CYC(7)  break;
       case 0x01:       INDX ORA      CYC(6)  break;
@@ -576,7 +576,7 @@ DWORD InternalCpuExecute (DWORD totalcycles) {
       case 0xFE:       ABSX INC      CYC(6)  break;
       case 0xFF:       INVALID1      CYC(1)  break;
     }
-  while (cycles < totalcycles);
+  } while (cycles < totalcycles);
   EF_TO_AF
   return cycles;
 }

@@ -583,7 +583,8 @@ LPBYTE AlignedVirtualAlloc (LPVOID, DWORD size, DWORD alloctype, DWORD protectio
 
   // FIRST, TRY A NORMAL ALLOCATION.
   LPBYTE address = (LPBYTE)VirtualAlloc(NULL,size,alloctype,protection);
-  if (!(WORD)address)
+  uint64_t addrVal = (uint64_t)(ptrdiff_t)address;
+  if ((addrVal & 0xffff) == 0)
     return address;
 
   // IF THAT DIDN'T WORK THEN TRY MAKING SMALL ALLOCATIONS TO USE UP PART
@@ -591,14 +592,15 @@ LPBYTE AlignedVirtualAlloc (LPVOID, DWORD size, DWORD alloctype, DWORD protectio
   // TO A 64K BOUNDARY.
   LPVOID temp[256];
   DWORD  tempused = 0;
-  while ((tempused < 255) && (WORD)address) {
+  while ((tempused < 255) && (addrVal & 0xffff) == 0) {
     VirtualFree(address,0,MEM_RELEASE);
     temp[tempused++] = VirtualAlloc(NULL,0x1000,MEM_RESERVE,PAGE_NOACCESS);
     address = (LPBYTE)VirtualAlloc(NULL,size,alloctype,protection);
+    addrVal = (uint64_t)(ptrdiff_t)address;
   }
   while (tempused)
     VirtualFree(temp[--tempused],0,MEM_RELEASE);
-  if (!(WORD)address)
+  if ((addrVal & 0xffff) == 0)
     return address;
 
   // IF THAT DIDN'T WORK EITHER THEN NOTIFY THE USER OF THE PROBLEM.
@@ -619,10 +621,9 @@ LPBYTE AlignedVirtualAlloc (LPVOID, DWORD size, DWORD alloctype, DWORD protectio
 void BackMainImage () {
   int loop = 0;
   for (loop = 0; loop < 256; loop++) {
-    if (memshadow[0][loop] &&
-        ((*(memdirty+loop) & 1) || (loop <= 1)))
+    if (memshadow[0][loop] && ((memdirty[loop] & 1) || (loop <= 1)))
       CopyMemory(memshadow[0][loop],memimage+(loop << 8),256);
-    *(memdirty+loop) &= ~1;
+    memdirty[loop] &= ~1;
   }
 }
 
@@ -674,14 +675,14 @@ void ResetPaging (BOOL initialize) {
 void UpdateFastPaging () {
   BOOL  found    = 0;
   DWORD imagenum = 0;
-  do
+  do {
     if ((imagemode[imagenum] == memmode) ||
         ((lastimage >= 3) &&
          ((imagemode[imagenum] & MF_IMAGEMASK) == (memmode & MF_IMAGEMASK))))
       found = 1;
     else
       ++imagenum;
-  while ((imagenum <= lastimage) && !found);
+  } while ((imagenum <= lastimage) && !found);
   if (found) {
     image = imagenum;
     mem   = memimage+(image << 16);
@@ -720,15 +721,16 @@ void UpdatePaging (BOOL initialize, BOOL updatewriteonly) {
   // UPDATE THE PAGING TABLES BASED ON THE NEW PAGING SWITCH VALUES
   int loop;
   if (initialize) {
-    for (loop = 0; loop < 192; loop++)
+    for (loop = 0; loop < 0xC0; loop++)
       memwrite[image][loop] = mem+(loop << 8);
-    for (loop = 192; loop < 208; loop++)
+    for (loop = 0xC0; loop < 0xD0; loop++)
       memwrite[image][loop] = NULL;
   }
-  if (!updatewriteonly)
+  if (!updatewriteonly) {
     for (loop = 0; loop < 2; loop++)
       memshadow[image][loop] = SW_ALTZP ? memaux+(loop << 8) : memmain+(loop << 8);
-  for (loop = 2; loop < 192; loop++) {
+  }
+  for (loop = 2; loop < 0xC0; loop++) {
     memshadow[image][loop] = SW_AUXREAD ? memaux+(loop << 8)
                                         : memmain+(loop << 8);
     memwrite[image][loop]  = ((SW_AUXREAD != 0) == (SW_AUXWRITE != 0))
@@ -737,17 +739,18 @@ void UpdatePaging (BOOL initialize, BOOL updatewriteonly) {
                                              : memmain+(loop << 8);
   }
   if (!updatewriteonly) {
-    for (loop = 192; loop < 200; loop++)
-      if (loop == 195)
+    for (loop = 0xC0; loop < 0xC8; loop++) {
+      if (loop == 0xC3)
         memshadow[image][loop] = (SW_SLOTC3ROM && SW_SLOTCXROM) ? memrom+0x0300
                                                                 : memrom+0x1300;
       else
         memshadow[image][loop] = SW_SLOTCXROM ? memrom+(loop << 8)-0xC000
                                               : memrom+(loop << 8)-0xB000;
-    for (loop = 200; loop < 208; loop++)
+    }
+    for (loop = 0xC8; loop < 0xD0; loop++)
       memshadow[image][loop] = memrom+(loop << 8)-0xB000;
   }
-  for (loop = 208; loop < 224; loop++) {
+  for (loop = 0xD0; loop < 0xE0; loop++) {
     int bankoffset = (SW_BANK2 ? 0 : 0x1000);
     memshadow[image][loop] = SW_HIGHRAM ? SW_ALTZP ? memaux+(loop << 8)-bankoffset
                                                    : memmain+(loop << 8)-bankoffset
@@ -757,7 +760,7 @@ void UpdatePaging (BOOL initialize, BOOL updatewriteonly) {
                                                                  : memmain+(loop << 8)-bankoffset
                                          : NULL;
   }
-  for (loop = 224; loop < 256; loop++) {
+  for (loop = 0xE0; loop < 0x100; loop++) {
     memshadow[image][loop] = SW_HIGHRAM ? SW_ALTZP ? memaux+(loop << 8)
                                                    : memmain+(loop << 8)
                                         : memrom+(loop << 8)-0xB000;
@@ -773,7 +776,7 @@ void UpdatePaging (BOOL initialize, BOOL updatewriteonly) {
       memwrite[image][loop]  = mem+(loop << 8);
     }
     if (SW_HIRES)
-      for (loop = 32; loop < 64; loop++) {
+      for (loop = 0x20; loop < 0x40; loop++) {
         memshadow[image][loop] = SW_PAGE2 ? memaux+(loop << 8)
                                           : memmain+(loop << 8);
         memwrite[image][loop]  = mem+(loop << 8);
@@ -783,16 +786,17 @@ void UpdatePaging (BOOL initialize, BOOL updatewriteonly) {
   // MOVE MEMORY BACK AND FORTH AS NECESSARY BETWEEN THE SHADOW AREAS AND
   // THE MAIN RAM IMAGE TO KEEP BOTH SETS OF MEMORY CONSISTENT WITH THE NEW
   // PAGING SHADOW TABLE
-  if (!updatewriteonly)
-    for (loop = 0; loop < 256; loop++)
+  if (!updatewriteonly) {
+    for (loop = 0; loop < 0x100; loop++) {
       if (initialize || (oldshadow[loop] != memshadow[image][loop])) {
-        if ((!(initialize || fastpaging)) &&
-            ((*(memdirty+loop) & 1) || (loop <= 1))) {
-          *(memdirty+loop) &= ~1;
+        if (!initialize && !fastpaging && ((memdirty[loop] & 1) || (loop <= 1))) {
+          memdirty[loop] &= ~1;
           CopyMemory(oldshadow[loop],mem+(loop << 8),256);
         }
         CopyMemory(mem+(loop << 8),memshadow[image][loop],256);
       }
+    }
+  }
 
 }
 
