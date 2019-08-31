@@ -863,8 +863,8 @@ void MemInitialize() {
 
     // READ THE APPLE FIRMWARE ROMS INTO THE ROM IMAGE
     TCHAR filename[MAX_PATH];
-    _tcscpy(filename, progdir);
-    _tcscat(filename, apple2e ? "Apple2e.ROM" : "Apple2.ROM");
+    StrCopy(filename, progdir, ARRSIZE(filename));
+    StrCat(filename, apple2e ? "apple2e.rom" : "apple2.rom", ARRSIZE(filename));
     HANDLE file = CreateFile(filename,
         GENERIC_READ,
         FILE_SHARE_READ,

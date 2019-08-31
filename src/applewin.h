@@ -21,6 +21,13 @@
 #define  MAX(a,b)          (((a) > (b)) ? (a) : (b))
 #define  MIN(a,b)          (((a) < (b)) ? (a) : (b))
 
+namespace detail {
+    template <typename T, int N>
+    char (&arr(const T(&)[N]))[N];
+}
+
+#define ARRSIZE(x)          (sizeof(detail::arr(x)))
+
 #ifndef HFINDFILE
 #ifndef WIN40
 #define HFINDFILE   HANDLE
@@ -29,7 +36,7 @@
 
 typedef BYTE(__stdcall * iofunction)(WORD, BYTE, BYTE, BYTE);
 
-typedef struct {
+typedef struct _Image_ {
     int unused;
 } *HIMAGE;
 
@@ -77,90 +84,104 @@ extern DWORD      serialport;
 extern DWORD      soundtype;
 extern DWORD      speed;
 
-void    CommDestroy();
-void    CommReset();
-void    CommSetSerialPort(HWND, DWORD);
-void    CommUpdate(DWORD);
-void    CpuDestroy();
-DWORD   CpuExecute(DWORD);
-void    CpuInitialize();
-void    CpuSetupBenchmark();
-void    DebugBegin();
-void    DebugContinueStepping();
-void    DebugDestroy();
-void    DebugDisplay(BOOL);
-void    DebugEnd();
-void    DebugInitialize();
-void    DebugProcessChar(TCHAR);
-void    DebugProcessCommand(int);
-void    DiskBoot();
-void    DiskDestroy();
-void    DiskGetLightStatus(int *, int *);
-LPCTSTR DiskGetName(int);
-BOOL    DiskInitialize();
-BOOL    DiskIsSpinning();
-void    DiskSelect(int);
-void    DiskUpdatePosition(DWORD);
-void    FrameCreateWindow();
-HDC     FrameGetDC();
-void    FrameRefreshStatus();
-void    FrameRegisterClass();
-void    FrameReleaseDC(HDC);
-void    KeybGetCapsStatus(BOOL *);
-BYTE    KeybGetKeycode();
-DWORD   KeybGetNumQueries();
-void    KeybQueueKeypress(int, BOOL);
-BOOL    ImageBoot(HIMAGE);
-void    ImageClose(HIMAGE);
-void    ImageDestroy();
-void    ImageInitialize();
-BOOL    ImageOpen(LPCTSTR, HIMAGE *, BOOL *, BOOL);
-void    ImageReadTrack(HIMAGE, int, int, LPBYTE, int *);
-void    ImageWriteTrack(HIMAGE, int, int, LPBYTE, int);
-void    JoyInitialize();
-BOOL    JoyProcessKey(int, BOOL, BOOL, BOOL);
-void    JoyReset();
-void    JoySetButton(int, BOOL);
-BOOL    JoySetEmulationType(HWND, DWORD);
-void    JoySetPosition(int, int, int, int);
-void    JoyUpdatePosition(DWORD);
-BOOL    JoyUsingMouse();
-void    MemDestroy();
-LPBYTE  MemGetAuxPtr(WORD);
-LPBYTE  MemGetMainPtr(WORD);
-void    MemInitialize();
-void    MemReset();
-void    MemResetPaging();
-BYTE    MemReturnRandomData(BYTE highbit);
-BOOL    RegLoadString(LPCTSTR, LPCTSTR, BOOL, LPTSTR, DWORD);
-BOOL    RegLoadValue(LPCTSTR, LPCTSTR, BOOL, DWORD *);
-void    RegSaveString(LPCTSTR, LPCTSTR, BOOL, LPCTSTR);
-void    RegSaveValue(LPCTSTR, LPCTSTR, BOOL, DWORD);
-DWORD   SpkrCyclesSinceSound();
-void    SpkrDestroy();
-void    SpkrInitialize();
-BOOL    SpkrNeedsAccurateCycleCount();
-BOOL    SpkrNeedsFineGrainTiming();
-BOOL    SpkrSetEmulationType(HWND, DWORD);
-void    SpkrUpdate(DWORD);
-BOOL    VideoApparentlyDirty();
-void    VideoBenchmark();
-void    VideoCheckPage(BOOL);
-void    VideoDestroy();
-void    VideoDestroyLogo();
-void    VideoDisplayLogo();
-void    VideoDisplayMode(BOOL);
-BOOL    VideoHasRefreshed();
-void    VideoInitialize();
-void    VideoLoadLogo();
-void    VideoRealizePalette(HDC);
-void    VideoRedrawScreen();
-void    VideoRefreshScreen();
-void    VideoReinitialize();
-void    VideoReleaseFrameDC();
-void    VideoResetState();
-void    VideoTestCompatibility();
-void    VideoUpdateVbl(DWORD, BOOL);
+void         CommDestroy();
+void         CommReset();
+void         CommSetSerialPort(HWND, DWORD);
+void         CommUpdate(DWORD);
+void         CpuDestroy();
+DWORD        CpuExecute(DWORD);
+void         CpuInitialize();
+void         CpuSetupBenchmark();
+void         DebugBegin();
+void         DebugContinueStepping();
+void         DebugDestroy();
+void         DebugDisplay(BOOL);
+void         DebugEnd();
+void         DebugInitialize();
+void         DebugProcessChar(TCHAR);
+void         DebugProcessCommand(int);
+void         DiskBoot();
+void         DiskDestroy();
+void         DiskGetLightStatus(int *, int *);
+LPCTSTR      DiskGetName(int);
+BOOL         DiskInitialize();
+BOOL         DiskIsSpinning();
+void         DiskSelect(int);
+void         DiskUpdatePosition(DWORD);
+void         FrameCreateWindow();
+HDC          FrameGetDC();
+void         FrameRefreshStatus();
+void         FrameRegisterClass();
+void         FrameReleaseDC(HDC);
+void         KeybGetCapsStatus(BOOL *);
+BYTE         KeybGetKeycode();
+DWORD        KeybGetNumQueries();
+void         KeybQueueKeypress(int, BOOL);
+BOOL         ImageBoot(HIMAGE);
+void         ImageClose(HIMAGE);
+void         ImageDestroy();
+void         ImageInitialize();
+BOOL         ImageOpen(LPCTSTR, HIMAGE *, BOOL *, BOOL);
+void         ImageReadTrack(HIMAGE, int, int, LPBYTE, int *);
+void         ImageWriteTrack(HIMAGE, int, int, LPBYTE, int);
+void         JoyInitialize();
+BOOL         JoyProcessKey(int, BOOL, BOOL, BOOL);
+void         JoyReset();
+void         JoySetButton(int, BOOL);
+BOOL         JoySetEmulationType(HWND, DWORD);
+void         JoySetPosition(int, int, int, int);
+void         JoyUpdatePosition(DWORD);
+BOOL         JoyUsingMouse();
+void         MemDestroy();
+LPBYTE       MemGetAuxPtr(WORD);
+LPBYTE       MemGetMainPtr(WORD);
+void         MemInitialize();
+void         MemReset();
+void         MemResetPaging();
+BYTE         MemReturnRandomData(BYTE highbit);
+BOOL         RegLoadString(LPCTSTR, LPCTSTR, BOOL, LPTSTR, DWORD);
+BOOL         RegLoadValue(LPCTSTR, LPCTSTR, BOOL, DWORD *);
+void         RegSaveString(LPCTSTR, LPCTSTR, BOOL, LPCTSTR);
+void         RegSaveValue(LPCTSTR, LPCTSTR, BOOL, DWORD);
+DWORD        SpkrCyclesSinceSound();
+void         SpkrDestroy();
+void         SpkrInitialize();
+BOOL         SpkrNeedsAccurateCycleCount();
+BOOL         SpkrNeedsFineGrainTiming();
+BOOL         SpkrSetEmulationType(HWND, DWORD);
+void         SpkrUpdate(DWORD);
+int          StrCat(char * dst, const char * src, size_t dstChars);
+char *       StrChr(char * str, char ch);
+const char * StrChr(const char * str, char ch);
+int          StrCmp(const char * str1, const char * str2);
+int          StrCmpI(const char * str1, const char * str2);
+int          StrCmpLen(const char * str1, const char * str2, size_t maxchars);
+int          StrCmpLenI(const char * str1, const char * str2, size_t maxchars);
+int          StrCopy(char * dst, const char * src, size_t dstChars);
+int          StrLen(const char * str);
+int          StrPrintf(char * dest, size_t dstChars, const char * format, ...);
+char *       StrStr(char * str1, const char * str2);
+const char * StrStr(const char * str1, const char * str2);
+char *       StrTok(char * str, const char * delimiter, char ** context);
+unsigned int StrToUnsigned(char * str, char ** endPtr, int base);
+BOOL         VideoApparentlyDirty();
+void         VideoBenchmark();
+void         VideoCheckPage(BOOL);
+void         VideoDestroy();
+void         VideoDestroyLogo();
+void         VideoDisplayLogo();
+void         VideoDisplayMode(BOOL);
+BOOL         VideoHasRefreshed();
+void         VideoInitialize();
+void         VideoLoadLogo();
+void         VideoRealizePalette(HDC);
+void         VideoRedrawScreen();
+void         VideoRefreshScreen();
+void         VideoReinitialize();
+void         VideoReleaseFrameDC();
+void         VideoResetState();
+void         VideoTestCompatibility();
+void         VideoUpdateVbl(DWORD, BOOL);
 
 BYTE __stdcall CommCommand(WORD, BYTE, BYTE, BYTE);
 BYTE __stdcall CommControl(WORD, BYTE, BYTE, BYTE);

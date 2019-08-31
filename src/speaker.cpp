@@ -42,10 +42,13 @@ static void DisplayBenchmarkResults() {
     DWORD totaltime = GetTickCount() - extbench;
     VideoRedrawScreen();
     TCHAR buffer[64];
-    wsprintf(buffer,
+    StrPrintf(
+        buffer,
+        ARRSIZE(buffer),
         "This benchmark took %u.%02u seconds.",
         (unsigned)(totaltime / 1000),
-        (unsigned)((totaltime / 10) % 100));
+        (unsigned)((totaltime / 10) % 100)
+    );
     MessageBox(framewindow,
         buffer,
         "Benchmark Results",
@@ -281,8 +284,8 @@ BYTE __stdcall SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
     }
     if (waveout) {
         ++toggles;
-        int loop = (lastcyclenum >> cycleshift) + waveoffset;
-        int max = (cyclenum >> cycleshift) + waveoffset;
+        DWORD loop = (lastcyclenum >> cycleshift) + waveoffset;
+        DWORD max  = (cyclenum >> cycleshift) + waveoffset;
         if (max <= loop)
             max = loop + 1;
         if (max > buffersize - 1)

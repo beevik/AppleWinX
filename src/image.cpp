@@ -790,10 +790,10 @@ BOOL ImageOpen(LPCTSTR  imagefilename,
 
             // DETERMINE THE FILE'S EXTENSION
             LPCTSTR ext = imagefilename;
-            while (_tcschr(ext, '\\'))
-                ext = _tcschr(ext, '\\') + 1;
-            while (_tcschr(ext + 1, '.'))
-                ext = _tcschr(ext + 1, '.');
+            while (StrChr(ext, '\\'))
+                ext = StrChr(ext, '\\') + 1;
+            while (StrChr(ext + 1, '.'))
+                ext = StrChr(ext + 1, '.');
 
               // CALL THE DETECTION FUNCTIONS IN ORDER, LOOKING FOR A MATCH
             DWORD possibleformat = 0xFFFFFFFF;
@@ -803,10 +803,10 @@ BOOL ImageOpen(LPCTSTR  imagefilename,
                 if (ext && *ext) {
                     LPCTSTR rejectexts = imagetype[loop].rejectexts;
                     while (rejectexts && *rejectexts && !reject)
-                        if (!_tcsnicmp(ext, rejectexts, _tcslen(ext)))
+                        if (!StrCmpLenI(ext, rejectexts, StrLen(ext)))
                             reject = 1;
-                        else if (_tcschr(rejectexts, ';'))
-                            rejectexts = _tcschr(rejectexts, ';') + 1;
+                        else if (StrChr(rejectexts, ';'))
+                            rejectexts = StrChr(rejectexts, ';') + 1;
                         else
                             rejectexts = NULL;
                 }

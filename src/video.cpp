@@ -728,11 +728,14 @@ static BOOL LoadSourceImages() {
     if (!sourcebits)
         return 0;
     TCHAR filename[MAX_PATH];
-    wsprintf(filename,
+    StrPrintf(
+        filename,
+        ARRSIZE(filename),
         "%sVid%03X%s.dat",
         (LPCTSTR)progdir,
         (unsigned)(srcpixelformat & 0xFFF),
-        (LPCTSTR)(optmonochrome ? "m" : "c"));
+        optmonochrome ? "m" : "c"
+    );
     HANDLE file = CreateFile(filename,
         GENERIC_READ,
         FILE_SHARE_READ,
@@ -756,11 +759,14 @@ static void SaveSourceImages() {
     if (!sourcebits)
         return;
     TCHAR filename[MAX_PATH];
-    wsprintf(filename,
+    StrPrintf(
+        filename,
+        ARRSIZE(filename),
         "%sVid%03X%s.dat",
-        (LPCTSTR)progdir,
+        progdir,
         (unsigned)(srcpixelformat & 0xFFF),
-        (LPCTSTR)(optmonochrome ? "m" : "c"));
+        optmonochrome ? "m" : "c"
+    );
     HANDLE file = CreateFile(filename,
         GENERIC_WRITE,
         0,
@@ -1039,14 +1045,17 @@ void VideoBenchmark() {
             }
             if (error) {
                 TCHAR outstr[256];
-                wsprintf(outstr,
+                StrPrintf(
+                    outstr,
+                    ARRSIZE(outstr),
                     "The emulator experienced an error %u clock cycles "
                     "into the CPU benchmark.  Prior to the error, the "
                     "program counter was at $%04X.  After the error, it "
                     "had jumped to $%04X.",
                     (unsigned)loop,
                     (unsigned)lastpc,
-                    (unsigned)regs.pc);
+                    (unsigned)regs.pc
+                );
                 MessageBox(framewindow,
                     outstr,
                     "Benchmarks",
@@ -1100,7 +1109,9 @@ void VideoBenchmark() {
     VideoDisplayLogo();
     {
         TCHAR outstr[256];
-        wsprintf(outstr,
+        StrPrintf(
+            outstr,
+            ARRSIZE(outstr),
             "Pixel Format:\t%x\n"
             "Pure Video FPS:\t%u hires, %u text\n"
             "Pure CPU MHz:\t%u.%u%s\n\n"
@@ -1111,8 +1122,9 @@ void VideoBenchmark() {
             (unsigned)totaltextfps,
             (unsigned)(totalmhz10 / 10),
             (unsigned)(totalmhz10 % 10),
-            (LPCTSTR)(apple2e ? "" : " (6502)"),
-            (unsigned)realisticfps);
+            apple2e ? "" : " (6502)",
+            (unsigned)realisticfps
+        );
         MessageBox(framewindow,
             outstr,
             "Benchmarks",
@@ -1491,8 +1503,8 @@ void VideoLoadLogo() {
     if (logoptr)
         return;
     TCHAR filename[MAX_PATH];
-    _tcscpy(filename, progdir);
-    _tcscat(filename, "applewin.lgo");
+    StrCopy(filename, progdir, ARRSIZE(filename));
+    StrCat(filename, "applewin.lgo", ARRSIZE(filename));
     logofile = CreateFile(filename,
         GENERIC_READ,
         FILE_SHARE_READ,
@@ -1822,11 +1834,14 @@ void VideoTestCompatibility() {
 
     // DETERMINE THE NAME OF THIS VIDEO MODE
     TCHAR modename[64];
-    wsprintf(modename,
+    StrPrintf(
+        modename,
+        ARRSIZE(modename),
         "Video Mode %ux%u %ubpp",
         (unsigned)GetSystemMetrics(SM_CXSCREEN),
         (unsigned)GetSystemMetrics(SM_CYSCREEN),
-        (unsigned)bitsperpixel);
+        (unsigned)bitsperpixel
+    );
 
     // IF WE HAVE ALREADY TESTED THIS VIDEO MODE AND FOUND IT COMPATIBLE,
     // JUST RETURN
@@ -1839,7 +1854,7 @@ void VideoTestCompatibility() {
         TCHAR savedmodename[64] = "";
         RegLoadString("Compatibility", "Last Video Mode", 0,
             savedmodename, 63);
-        if (_tcscmp(modename, savedmodename) || rebuiltsource)
+        if (StrCmp(modename, savedmodename) || rebuiltsource)
             samemode = 0;
     }
     if (samemode && videocompatible)
@@ -1880,11 +1895,14 @@ void VideoTestCompatibility() {
         }
         if (interference[0]) {
             TCHAR buffer[256];
-            wsprintf(buffer,
+            StrPrintf(
+                buffer,
+                ARRSIZE(buffer),
                 "AppleWin needs to perform a routine test on your "
                 "video driver.  Please move %s so that it does not "
                 "obscure the emulator window, then click OK.",
-                (LPCTSTR)interference);
+                interference
+            );
             MessageBox(framewindow,
                 buffer,
                 TITLE,

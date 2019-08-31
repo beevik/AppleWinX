@@ -38,9 +38,12 @@ BOOL RegLoadString(
         if (regclose && regopen && regquery) {
             usingregistry = 1;
             TCHAR fullkeyname[256];
-            wsprintf(fullkeyname,
+            StrPrintf(
+                fullkeyname,
+                ARRSIZE(fullkeyname),
                 "Software\\AppleWin\\CurrentVersion\\%s",
-                (LPCTSTR)section);
+                section
+            );
             HKEY keyhandle;
             if (!regopen((peruser ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE),
                 fullkeyname,
@@ -84,9 +87,12 @@ BOOL RegLoadValue(LPCTSTR section, LPCTSTR key, BOOL peruser, DWORD * value) {
 void RegSaveString(LPCTSTR section, LPCTSTR key, BOOL peruser, LPCTSTR buffer) {
     BOOL success = 0;
     TCHAR fullkeyname[256];
-    wsprintf(fullkeyname,
+    StrPrintf(
+        fullkeyname,
+        ARRSIZE(fullkeyname),
         "Software\\AppleWin\\CurrentVersion\\%s",
-        (LPCTSTR)section);
+        section
+    );
     HKEY  keyhandle;
     DWORD disposition;
     LSTATUS status = RegCreateKeyExA((peruser ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE),
@@ -99,12 +105,14 @@ void RegSaveString(LPCTSTR section, LPCTSTR key, BOOL peruser, LPCTSTR buffer) {
         &keyhandle,
         &disposition);
     if (status == ERROR_SUCCESS) {
-        RegSetValueExA(keyhandle,
+        RegSetValueExA(
+            keyhandle,
             key,
             0,
             REG_SZ,
             (CONST BYTE *)buffer,
-            (_tcslen(buffer) + 1) * sizeof(TCHAR));
+            StrLen(buffer) + 1
+        );
         RegCloseKey(keyhandle);
     }
 }
@@ -112,6 +120,6 @@ void RegSaveString(LPCTSTR section, LPCTSTR key, BOOL peruser, LPCTSTR buffer) {
 //===========================================================================
 void RegSaveValue(LPCTSTR section, LPCTSTR key, BOOL peruser, DWORD value) {
     TCHAR buffer[32] = "";
-    _ultot(value, buffer, 10);
+    StrPrintf(buffer, ARRSIZE(buffer), "%u", value);
     RegSaveString(section, key, peruser, buffer);
 }

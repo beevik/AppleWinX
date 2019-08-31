@@ -607,7 +607,7 @@ static BOOL CmdBreakpointClear(int args) {
 
     // CLEAR EACH BREAKPOINT IN THE LIST
     while (args) {
-        if (!_tcscmp(arg[args].str, "*")) {
+        if (!StrCmp(arg[args].str, "*")) {
             int loop = BREAKPOINTS;
             while (loop--)
                 breakpoint[loop].length = 0;
@@ -643,7 +643,7 @@ static BOOL CmdBreakpointDisable(int args) {
 
     // DISABLE EACH BREAKPOINT IN THE LIST
     while (args) {
-        if (!_tcscmp(arg[args].str, "*")) {
+        if (!StrCmp(arg[args].str, "*")) {
             int loop = BREAKPOINTS;
             while (loop--)
                 breakpoint[loop].enabled = 0;
@@ -667,7 +667,7 @@ static BOOL CmdBreakpointEnable(int args) {
 
     // ENABLE EACH BREAKPOINT IN THE LIST
     while (args) {
-        if (!_tcscmp(arg[args].str, "*")) {
+        if (!StrCmp(arg[args].str, "*")) {
             int loop = BREAKPOINTS;
             while (loop--)
                 breakpoint[loop].enabled = 1;
@@ -767,8 +767,8 @@ static BOOL CmdInternalCodeDump(int args) {
     if (!arg[1].val1)
         arg[1].val1 = GetAddress(arg[1].str);
     TCHAR filename[MAX_PATH];
-    _tcscpy(filename, progdir);
-    _tcscat(filename, "Output.bin");
+    StrCopy(filename, progdir, ARRSIZE(filename));
+    StrCat(filename, "output.bin", ARRSIZE(filename));
     HANDLE file = CreateFile(filename,
         GENERIC_WRITE,
         0,
@@ -784,8 +784,8 @@ static BOOL CmdInternalCodeDump(int args) {
 //===========================================================================
 static BOOL CmdInternalMemoryDump(int args) {
     TCHAR filename[MAX_PATH];
-    _tcscpy(filename, progdir);
-    _tcscat(filename, "Output.bin");
+    StrCopy(filename, progdir, ARRSIZE(filename));
+    StrCat(filename, "output.bin", ARRSIZE(filename));
     HANDLE file = CreateFile(filename,
         GENERIC_WRITE,
         0,
@@ -917,12 +917,23 @@ static BOOL CmdRegisterSet(int args) {
     else if ((args < 2) || ((arg[2].str[0] != '0') && !arg[2].val1))
         return DisplayHelp(CmdMemoryEnter);
     else switch (arg[1].str[0]) {
-        case 'A': regs.a = (BYTE)(arg[2].val1 & 0xFF);    break;
-        case 'P': regs.pc = arg[2].val1;                   break;
-        case 'S': regs.sp = 0x100 | (arg[2].val1 & 0xFF);  break;
-        case 'X': regs.x = (BYTE)(arg[2].val1 & 0xFF);    break;
-        case 'Y': regs.y = (BYTE)(arg[2].val1 & 0xFF);    break;
-        default:        return DisplayHelp(CmdMemoryEnter);
+        case 'A':
+            regs.a = (BYTE)(arg[2].val1 & 0xFF);
+            break;
+        case 'P':
+            regs.pc = arg[2].val1;
+            break;
+        case 'S':
+            regs.sp = 0x100 | (arg[2].val1 & 0xFF);
+            break;
+        case 'X':
+            regs.x = (BYTE)(arg[2].val1 & 0xFF);
+            break;
+        case 'Y':
+            regs.y = (BYTE)(arg[2].val1 & 0xFF);
+            break;
+        default:
+            return DisplayHelp(CmdMemoryEnter);
     }
     ComputeTopOffset(regs.pc);
     return 1;
@@ -944,8 +955,8 @@ static BOOL CmdTraceFile(int args) {
     if (tracefile)
         fclose(tracefile);
     TCHAR filename[MAX_PATH];
-    _tcscpy(filename, progdir);
-    _tcscat(filename, (args && arg[1].str[0]) ? arg[1].str : "Trace.txt");
+    StrCopy(filename, progdir, ARRSIZE(filename));
+    StrCat(filename, (args && arg[1].str[0]) ? arg[1].str : "trace.txt", ARRSIZE(filename));
     tracefile = fopen(filename, "wt");
     return 0;
 }
@@ -1015,7 +1026,7 @@ static BOOL CmdWatchClear(int args) {
 
     // CLEAR EACH WATCH IN THE LIST
     while (args) {
-        if (!_tcscmp(arg[args].str, "*")) {
+        if (StrCmp(arg[args].str, "*") == 0) {
             int loop = WATCHES;
             while (loop--)
                 watch[loop] = -1;
@@ -1096,18 +1107,26 @@ static void DrawBreakpoints(HDC dc, int line) {
     do {
         ExtTextOut(dc, linerect.left, linerect.top,
             ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            fulltext, _tcslen(fulltext), NULL);
+            fulltext, StrLen(fulltext), NULL);
         linerect.top += 16;
         linerect.bottom += 16;
         if ((loop < BREAKPOINTS) && breakpoint[loop].length) {
-            wsprintf(fulltext,
+            StrPrintf(
+                fulltext,
+                ARRSIZE(fulltext),
                 "%d: %04X",
                 loop + 1,
-                (unsigned)breakpoint[loop].address);
-            if (breakpoint[loop].length > 1)
-                wsprintf(fulltext + _tcslen(fulltext),
+                (unsigned)breakpoint[loop].address
+            );
+            if (breakpoint[loop].length > 1) {
+                int offset = StrLen(fulltext);
+                StrPrintf(
+                    fulltext + offset,
+                    ARRSIZE(fulltext) - offset,
                     "-%04X",
-                    (unsigned)(breakpoint[loop].address + breakpoint[loop].length - 1));
+                    (unsigned)(breakpoint[loop].address + breakpoint[loop].length - 1)
+                );
+            }
             SetTextColor(dc, color[colorscheme][breakpoint[loop].enabled ? COLOR_BPDATA
                 : COLOR_STATIC]);
         }
@@ -1135,11 +1154,11 @@ static void DrawCommandLine(HDC dc, int line) {
     linerect.right = 560;
     ExtTextOut(dc, linerect.left, linerect.top,
         ETO_CLIPPED | ETO_OPAQUE, &linerect,
-        commandstring[line] + title, _tcslen(commandstring[line] + title), NULL);
+        commandstring[line] + title, StrLen(commandstring[line] + title), NULL);
 }
 
 //===========================================================================
-static WORD DrawDisassembly(HDC dc, int line, WORD offset, LPTSTR text) {
+static WORD DrawDisassembly(HDC dc, int line, WORD offset, LPTSTR text, size_t textchars) {
     TCHAR addresstext[40] = "";
     TCHAR bytestext[10] = "";
     TCHAR fulltext[50] = "";
@@ -1154,43 +1173,57 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, LPTSTR text) {
             address &= 0xFF;
         if (addrmode == ADDR_REL)
             address = offset + 2 + (int)(signed char)address;
-        if (_tcsstr(addressmode[addrmode].format, "%s"))
-            wsprintf(addresstext,
+        if (StrStr(addressmode[addrmode].format, "%s"))
+            StrPrintf(
+                addresstext,
+                ARRSIZE(addresstext),
                 addressmode[addrmode].format,
-                (LPCTSTR)GetSymbol(address, bytes));
+                (LPCTSTR)GetSymbol(address, bytes)
+            );
         else
-            wsprintf(addresstext,
+            StrPrintf(
+                addresstext,
+                ARRSIZE(addresstext),
                 addressmode[addrmode].format,
-                (unsigned)address);
+                (unsigned)address
+            );
         if ((addrmode == ADDR_REL) && (offset == regs.pc) && CheckJump(address))
             if (address > offset)
-                _tcscat(addresstext, " \x19");
+                StrCat(addresstext, " \x19", ARRSIZE(addresstext));
             else
-                _tcscat(addresstext, " \x18");
+                StrCat(addresstext, " \x18", ARRSIZE(addresstext));
     }
 
     // BUILD A STRING CONTAINING THE ACTUAL BYTES THAT MAKE UP THIS
     // INSTRUCTION
     {
         int loop = 0;
-        while (loop < bytes)
-            wsprintf(bytestext + _tcslen(bytestext),
+        while (loop < bytes) {
+            int offset = StrLen(bytestext);
+            StrPrintf(
+                bytestext + offset,
+                ARRSIZE(bytestext) - offset,
                 "%02X",
-                (unsigned) * (mem + offset + (loop++)));
-        while (_tcslen(bytestext) < 6)
-            _tcscat(bytestext, " ");
+                (unsigned) * (mem + offset + (loop++))
+            );
+        }
+        while (StrLen(bytestext) < 6)
+            StrCat(bytestext, " ", ARRSIZE(bytestext));
     }
 
     // PUT TOGETHER ALL OF THE DIFFERENT ELEMENTS THAT WILL MAKE UP THE LINE
-    wsprintf(fulltext,
+    StrPrintf(
+        fulltext,
+        ARRSIZE(fulltext),
         "%04X  %s  %-9s %s %s",
         (unsigned)offset,
         (LPCTSTR)bytestext,
         (LPCTSTR)GetSymbol(offset, 0),
         (LPCTSTR)instruction[inst].mnemonic,
-        (LPCTSTR)addresstext);
+        (LPCTSTR)addresstext
+    );
     if (text)
-        _tcscpy(text, fulltext);
+        StrCopy(text, fulltext, textchars);
 
     // DRAW THE LINE
     if (dc) {
@@ -1208,14 +1241,14 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, LPTSTR text) {
             : COLOR_INSTBKG]);
         ExtTextOut(dc, 12, linerect.top,
             ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            fulltext, _tcslen(fulltext), NULL);
+            fulltext, StrLen(fulltext), NULL);
     }
 
     return bytes;
 }
 
 //===========================================================================
-static void DrawFlags(HDC dc, int line, WORD value, LPTSTR text) {
+static void DrawFlags(HDC dc, int line, WORD value, LPTSTR text, size_t textchars) {
     TCHAR mnemonic[9] = "NVRBDIZC";
     TCHAR fulltext[2] = "?";
     RECT  linerect;
@@ -1243,7 +1276,7 @@ static void DrawFlags(HDC dc, int line, WORD value, LPTSTR text) {
         value >>= 1;
     }
     if (text)
-        _tcscpy(text, mnemonic);
+        StrCopy(text, mnemonic, textchars);
 }
 
 //===========================================================================
@@ -1254,27 +1287,41 @@ static void DrawMemory(HDC dc, int line) {
     linerect.right = 560;
     linerect.bottom = linerect.top + 16;
     TCHAR fulltext[16];
-    wsprintf(fulltext, "Mem at %04X", (unsigned)memorydump);
+    StrPrintf(fulltext, ARRSIZE(fulltext), "Mem at %04X", (unsigned)memorydump);
     SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
     SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
     WORD curraddr = memorydump;
     int  loop = 0;
     do {
-        ExtTextOut(dc, linerect.left, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            fulltext, _tcslen(fulltext), NULL);
+        ExtTextOut(
+            dc,
+            linerect.left,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            fulltext,
+            StrLen(fulltext),
+            NULL
+        );
         linerect.top += 16;
         linerect.bottom += 16;
         fulltext[0] = 0;
         if (loop < 4) {
             int loop2 = 0;
             while (loop2++ < 4) {
-                if ((curraddr >= 0xC000) && (curraddr <= 0xC0FF))
-                    _tcscpy(fulltext + _tcslen(fulltext), "IO ");
-                else
-                    wsprintf(fulltext + _tcslen(fulltext),
+                if ((curraddr >= 0xC000) && (curraddr <= 0xC0FF)) {
+                    int offset = StrLen(fulltext);
+                    StrCopy(fulltext + offset, "IO ", ARRSIZE(fulltext) - offset);
+                }
+                else {
+                    int offset = StrLen(fulltext);
+                    StrPrintf(
+                        fulltext + offset,
+                        ARRSIZE(fulltext) - offset,
                         "%02X ",
-                        (unsigned) * (LPBYTE)(membank + curraddr));
+                        *(LPBYTE)(membank + curraddr)
+                    );
+                }
                 curraddr++;
             }
         }
@@ -1291,20 +1338,34 @@ static void DrawRegister(HDC dc, int line, LPCTSTR name, int bytes, WORD value) 
     linerect.bottom = linerect.top + 16;
     SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
     SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
-    ExtTextOut(dc, linerect.left, linerect.top,
-        ETO_CLIPPED | ETO_OPAQUE, &linerect,
-        name, _tcslen(name), NULL);
+    ExtTextOut(
+        dc,
+        linerect.left,
+        linerect.top,
+        ETO_CLIPPED | ETO_OPAQUE,
+        &linerect,
+        name,
+        StrLen(name),
+        NULL
+    );
     TCHAR valuestr[8];
     if (bytes == 2)
-        wsprintf(valuestr, "%04X", (unsigned)value);
+        StrPrintf(valuestr, ARRSIZE(valuestr), "%04X", (unsigned)value);
     else
-        wsprintf(valuestr, "%02X", (unsigned)value);
+        StrPrintf(valuestr, ARRSIZE(valuestr), "%02X", (unsigned)value);
     linerect.left = SCREENSPLIT1 + 40;
     linerect.right = SCREENSPLIT2;
     SetTextColor(dc, color[colorscheme][COLOR_DATATEXT]);
-    ExtTextOut(dc, linerect.left, linerect.top,
-        ETO_CLIPPED | ETO_OPAQUE, &linerect,
-        valuestr, _tcslen(valuestr), NULL);
+    ExtTextOut(
+        dc,
+        linerect.left,
+        linerect.top,
+        ETO_CLIPPED | ETO_OPAQUE,
+        &linerect,
+        valuestr,
+        StrLen(valuestr),
+        NULL
+    );
 }
 
 //===========================================================================
@@ -1322,18 +1383,32 @@ static void DrawStack(HDC dc, int line) {
         SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
         TCHAR outtext[8] = "";
         if (curraddr <= 0x1FF)
-            wsprintf(outtext, "%04X", curraddr);
-        ExtTextOut(dc, linerect.left, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            outtext, _tcslen(outtext), NULL);
+            StrPrintf(outtext, ARRSIZE(outtext), "%04X", curraddr);
+        ExtTextOut(
+            dc,
+            linerect.left,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            outtext,
+            StrLen(outtext),
+            NULL
+        );
         linerect.left = SCREENSPLIT1 + 40;
         linerect.right = SCREENSPLIT2;
         SetTextColor(dc, color[colorscheme][COLOR_DATATEXT]);
         if (curraddr <= 0x1FF)
-            wsprintf(outtext, "%02X", (unsigned) * (LPBYTE)(mem + curraddr));
-        ExtTextOut(dc, linerect.left, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            outtext, _tcslen(outtext), NULL);
+            StrPrintf(outtext, ARRSIZE(outtext), "%02X", (unsigned) * (LPBYTE)(mem + curraddr));
+        ExtTextOut(
+            dc,
+            linerect.left,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            outtext,
+            StrLen(outtext),
+            NULL
+        );
         loop++;
     }
 }
@@ -1349,11 +1424,11 @@ static void DrawTargets(HDC dc, int line) {
         TCHAR addressstr[8] = "";
         TCHAR valuestr[8] = "";
         if (address[loop] >= 0) {
-            wsprintf(addressstr, "%04X", address[loop]);
+            StrPrintf(addressstr, ARRSIZE(addressstr), "%04X", address[loop]);
             if (loop)
-                wsprintf(valuestr, "%02X", *(LPBYTE)(mem + address[loop]));
+                StrPrintf(valuestr, ARRSIZE(valuestr), "%02X", *(LPBYTE)(mem + address[loop]));
             else
-                wsprintf(valuestr, "%04X", *(LPWORD)(mem + address[loop]));
+                StrPrintf(valuestr, ARRSIZE(valuestr), "%04X", *(LPWORD)(mem + address[loop]));
         }
         RECT linerect;
         linerect.left = SCREENSPLIT1;
@@ -1362,15 +1437,29 @@ static void DrawTargets(HDC dc, int line) {
         linerect.bottom = linerect.top + 16;
         SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
         SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
-        ExtTextOut(dc, linerect.left, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            addressstr, _tcslen(addressstr), NULL);
+        ExtTextOut(
+            dc,
+            linerect.left,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            addressstr,
+            StrLen(addressstr),
+            NULL
+        );
         linerect.left = SCREENSPLIT1 + 40;
         linerect.right = SCREENSPLIT2;
         SetTextColor(dc, color[colorscheme][COLOR_DATATEXT]);
-        ExtTextOut(dc, linerect.left, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            valuestr, _tcslen(valuestr), NULL);
+        ExtTextOut(
+            dc,
+            linerect.left,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            valuestr,
+            StrLen(valuestr),
+            NULL
+        );
     }
 }
 
@@ -1384,21 +1473,35 @@ static void DrawWatches(HDC dc, int line) {
     TCHAR outstr[16] = "Watches";
     SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
     SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
-    ExtTextOut(dc, linerect.left, linerect.top,
-        ETO_CLIPPED | ETO_OPAQUE, &linerect,
-        outstr, _tcslen(outstr), NULL);
+    ExtTextOut(
+        dc,
+        linerect.left,
+        linerect.top,
+        ETO_CLIPPED | ETO_OPAQUE,
+        &linerect,
+        outstr,
+        StrLen(outstr),
+        NULL
+    );
     linerect.right = SCREENSPLIT2 + 64;
     int loop = 0;
     while (loop < WATCHES) {
         if (watch[loop] >= 0)
-            wsprintf(outstr, "%d: %04X", loop + 1, watch[loop]);
+            StrPrintf(outstr, ARRSIZE(outstr), "%d: %04X", loop + 1, watch[loop]);
         else
             outstr[0] = 0;
         linerect.top += 16;
         linerect.bottom += 16;
-        ExtTextOut(dc, linerect.left, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            outstr, _tcslen(outstr), NULL);
+        ExtTextOut(
+            dc,
+            linerect.left,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            outstr,
+            StrLen(outstr),
+            NULL
+        );
         loop++;
     }
     linerect.left = SCREENSPLIT2 + 64;
@@ -1409,31 +1512,39 @@ static void DrawWatches(HDC dc, int line) {
     loop = 0;
     while (loop < WATCHES) {
         if (watch[loop] >= 0)
-            wsprintf(outstr, "%02X", (unsigned) * (LPBYTE)(mem + watch[loop]));
+            StrPrintf(outstr, ARRSIZE(outstr), "%02X", (unsigned) * (LPBYTE)(mem + watch[loop]));
         else
             outstr[0] = 0;
         linerect.top += 16;
         linerect.bottom += 16;
-        ExtTextOut(dc, linerect.left, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            outstr, _tcslen(outstr), NULL);
+        ExtTextOut(
+            dc,
+            linerect.left,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            outstr,
+            StrLen(outstr),
+            NULL
+        );
         loop++;
     }
 }
 
 //===========================================================================
 static BOOL ExecuteCommand(int args) {
-    LPTSTR name = _tcstok(commandstring[0], " ,-=");
+    char * context = NULL;
+    char * name = StrTok(commandstring[0], " ,-=", &context);
     if (!name)
         name = commandstring[0];
     int         found = 0;
     cmdfunction function = NULL;
-    int         length = _tcslen(name);
+    int         length = StrLen(name);
     int         loop = 0;
     while ((loop < COMMANDS) && (name[0] >= command[loop].name[0])) {
-        if (!_tcsncmp(name, command[loop].name, length)) {
+        if (!StrCmpLen(name, command[loop].name, length)) {
             function = command[loop].function;
-            if (!_tcscmp(name, command[loop].name)) {
+            if (!StrCmp(name, command[loop].name)) {
                 found = 1;
                 loop = COMMANDS;
             }
@@ -1462,7 +1573,7 @@ static void FreeSymbolTable() {
 static WORD GetAddress(LPCTSTR symbol) {
     int loop = symbolnum;
     while (loop--)
-        if (!_tcsicmp(symboltable[loop].name, symbol))
+        if (!StrCmpI(symboltable[loop].name, symbol))
             return symboltable[loop].value;
     return 0;
 }
@@ -1493,11 +1604,17 @@ static LPCTSTR GetSymbol(WORD address, int bytes) {
 
     // IF THERE IS NO SYMBOL FOR THIS ADDRESS, THEN JUST RETURN A STRING
     // CONTAINING THE ADDRESS NUMBER
-    static TCHAR buffer[8];
+    static TCHAR buffer[16];
     switch (bytes) {
-        case 2:   wsprintf(buffer, "$%02X", (unsigned)address);  break;
-        case 3:   wsprintf(buffer, "$%04X", (unsigned)address);  break;
-        default:  buffer[0] = 0;                                     break;
+        case 2:
+            StrPrintf(buffer, ARRSIZE(buffer), "$%02X", (unsigned)address);
+            break;
+        case 3:
+            StrPrintf(buffer, ARRSIZE(buffer), "$%04X", (unsigned)address);
+            break;
+        default:
+            buffer[0] = 0;
+            break;
     }
     return buffer;
 
@@ -1506,9 +1623,9 @@ static LPCTSTR GetSymbol(WORD address, int bytes) {
 //===========================================================================
 static void GetTargets(int * intermediate, int * final) {
     *intermediate = -1;
-    *final = -1;
-    int  addrmode = instruction[*(mem + regs.pc)].addrmode;
-    BYTE argument8 = *(LPBYTE)(mem + regs.pc + 1);
+    *final        = -1;
+    int  addrmode   = instruction[*(mem + regs.pc)].addrmode;
+    BYTE argument8  = *(LPBYTE)(mem + regs.pc + 1);
     WORD argument16 = *(LPWORD)(mem + regs.pc + 1);
     switch (addrmode) {
 
@@ -1567,20 +1684,20 @@ static void GetTargets(int * intermediate, int * final) {
 
     }
     if ((*final >= 0) &&
-        ((!_tcscmp(instruction[*(mem + regs.pc)].mnemonic, "JMP")) ||
-        (!_tcscmp(instruction[*(mem + regs.pc)].mnemonic, "JSR"))))
+        ((!StrCmp(instruction[*(mem + regs.pc)].mnemonic, "JMP")) ||
+        (!StrCmp(instruction[*(mem + regs.pc)].mnemonic, "JSR"))))
         * final = -1;
 }
 
 //===========================================================================
 static BOOL InternalSingleStep() {
     BOOL result = 0;
-    _try{
-      ++profiledata[*(mem + regs.pc)];
-      CpuExecute(stepline);
-      result = 1;
+    _try {
+        ++profiledata[mem[regs.pc]];
+        CpuExecute(stepline);
+        result = 1;
     }
-        _except(EXCEPTION_EXECUTE_HANDLER) {
+    _except(EXCEPTION_EXECUTE_HANDLER) {
         result = 0;
     }
     return result;
@@ -1588,32 +1705,36 @@ static BOOL InternalSingleStep() {
 
 //===========================================================================
 static void OutputTraceLine() {
-    TCHAR disassembly[50];  DrawDisassembly((HDC)0, 0, regs.pc, disassembly);
-    TCHAR flags[9];         DrawFlags((HDC)0, 0, regs.ps, flags);
-    _ftprintf(tracefile,
-        "a=%02x x=%02x y=%02x sp=%03x ps=%s   %s\n",
+    TCHAR disassembly[50];
+    TCHAR flags[9];
+    DrawDisassembly((HDC)0, 0, regs.pc, disassembly, ARRSIZE(disassembly));
+    DrawFlags((HDC)0, 0, regs.ps, flags, ARRSIZE(flags));
+    fprintf(
+        tracefile,
+        "a=%02x x=%02x y=%02x sp=%03x ps=%s %s\n",
         (unsigned)regs.a,
         (unsigned)regs.x,
         (unsigned)regs.y,
         (unsigned)regs.sp,
         (LPCTSTR)flags,
-        (LPCTSTR)disassembly);
+        (LPCTSTR)disassembly
+    );
 }
 
 //===========================================================================
 static int ParseCommandString() {
     int    args = 0;
     LPTSTR currptr = commandstring[0];
+    char * context = NULL;
     while (*currptr) {
-        LPTSTR   endptr = NULL;
-        unsigned length = _tcslen(currptr);
-        _tcstok(currptr, " ,-=");
-        _tcsncpy(arg[args].str, currptr, 11);
-        arg[args].str[11] = 0;
-        arg[args].val1 = (WORD)(_tcstoul(currptr, &endptr, 16) & 0xFFFF);
+        LPTSTR endptr = NULL;
+        int    length = StrLen(currptr);
+        StrTok(currptr, " ,-=", &context);
+        StrCopy(arg[args].str, currptr, ARRSIZE(arg[args].str));
+        arg[args].val1 = (WORD)(StrToUnsigned(currptr, &endptr, 16) & 0xFFFF);
         if (endptr)
             if (*endptr == 'L') {
-                arg[args].val2 = (WORD)(_tcstoul(endptr + 1, &endptr, 16) & 0xFFFF);
+                arg[args].val2 = (WORD)(StrToUnsigned(endptr + 1, &endptr, 16) & 0xFFFF);
                 if (endptr && *endptr)
                     arg[args].val2 = 0;
             }
@@ -1624,9 +1745,9 @@ static int ParseCommandString() {
             }
         else
             arg[args].val2 = 0;
-        BOOL more = ((*currptr) && (length > _tcslen(currptr)));
+        BOOL more = ((*currptr) && (length > StrLen(currptr)));
         args += more;
-        currptr += _tcslen(currptr) + more;
+        currptr += StrLen(currptr) + more;
     }
     int loop = args;
     while (loop++ < MAXARGS - 1) {
@@ -1640,8 +1761,8 @@ static int ParseCommandString() {
 //===========================================================================
 static void WriteProfileData() {
     TCHAR filename[MAX_PATH];
-    _tcscpy(filename, progdir);
-    _tcscat(filename, "Profile.txt");
+    StrCopy(filename, progdir, ARRSIZE(filename));
+    StrCat(filename, "Profile.txt", ARRSIZE(filename));
     FILE * file = fopen(filename, "wt");
     if (file) {
         DWORD maxvalue;
@@ -1746,7 +1867,7 @@ void DebugDisplay(BOOL drawbackground) {
         int  line = 0;
         WORD offset = topoffset;
         while (line < SOURCELINES) {
-            offset += DrawDisassembly(dc, line, offset, NULL);
+            offset += DrawDisassembly(dc, line, offset, NULL, 0);
             line++;
         }
     }
@@ -1759,7 +1880,7 @@ void DebugDisplay(BOOL drawbackground) {
     DrawRegister(dc, 15, "Y", 1, regs.y);
     DrawRegister(dc, 16, "PC", 2, regs.pc);
     DrawRegister(dc, 17, "SP", 2, regs.sp);
-    DrawFlags(dc, 18, regs.ps, NULL);
+    DrawFlags(dc, 18, regs.ps, NULL, 0);
     if (usingbp)
         DrawBreakpoints(dc, 0);
     if (usingwatches)
@@ -1789,7 +1910,6 @@ void DebugEnd() {
 
 //===========================================================================
 void DebugInitialize() {
-
     // CLEAR THE BREAKPOINT AND WATCH TABLES
     ZeroMemory(breakpoint, BREAKPOINTS * sizeof(bprec));
     {
@@ -1801,22 +1921,23 @@ void DebugInitialize() {
     // READ IN THE SYMBOL TABLE
     {
         TCHAR filename[MAX_PATH];
-        _tcscpy(filename, progdir);
-        _tcscat(filename, "Apple2e.sym");
-        int   symbolalloc = 0;
-        FILE * infile = fopen(filename, "rt");
-        WORD  lastvalue = 0;
+        StrCopy(filename, progdir, ARRSIZE(filename));
+        StrCat(filename, "apple2e.sym", ARRSIZE(filename));
+        int    symbolalloc = 0;
+        FILE * infile      = fopen(filename, "rt");
+        WORD   lastvalue   = 0;
         if (infile) {
             while (!feof(infile)) {
 
                 // READ IN THE NEXT LINE, AND MAKE SURE IT IS SORTED CORRECTLY IN
                 // VALUE ORDER
                 DWORD value = 0;
-                char  name[14] = "";
+                char  name[80] = "";
                 char  line[256];
-                fscanf(infile, "%x %13s", &value, name);
+                if (fscanf(infile, "%x %13s", &value, name) != 2)
+                    value = 0;
                 fgets(line, 255, infile);
-                if (value)
+                if (name[0] != '\0') {
                     if (value < lastvalue) {
                         MessageBox(GetDesktopWindow(),
                             "The symbol file is not sorted correctly.  "
@@ -1827,7 +1948,6 @@ void DebugInitialize() {
                         return;
                     }
                     else {
-
                         // IF OUR CURRENT SYMBOL TABLE IS NOT BIG ENOUGH TO HOLD THIS
                         // ADDITIONAL SYMBOL, THEN ALLOCATE A BIGGER TABLE AND COPY THE
                         // CURRENT DATA ACROSS
@@ -1857,25 +1977,36 @@ void DebugInitialize() {
                         // SAVE THE NEW SYMBOL IN THE SYMBOL TABLE
                         if (symboltable) {
                             symboltable[symbolnum].value = (WORD)(value & 0xFFFF);
-                            strncpy(symboltable[symbolnum].name, name, 12);
+                            StrCopy(symboltable[symbolnum].name, name, ARRSIZE(symboltable[symbolnum].name));
                             symboltable[symbolnum].name[13] = 0;
                             symbolnum++;
                         }
 
                         lastvalue = (WORD)value;
                     }
-
+                }
             }
             fclose(infile);
         }
     }
 
     // CREATE A FONT FOR THE DEBUGGING SCREEN
-    debugfont = CreateFont(15, 0, 0, 0, FW_MEDIUM, 0, 0, 0, OEM_CHARSET,
-        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        DEFAULT_QUALITY, FIXED_PITCH | 4 | FF_MODERN,
-        "Courier New");
-
+    debugfont = CreateFont(
+        15,
+        0,
+        0,
+        0,
+        FW_MEDIUM,
+        0,
+        0,
+        0,
+        OEM_CHARSET,
+        OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        DEFAULT_QUALITY,
+        FIXED_PITCH | 4 | FF_MODERN,
+        "Courier New"
+    );
 }
 
 //===========================================================================
@@ -1885,8 +2016,8 @@ void DebugProcessChar(TCHAR ch) {
     if ((ch == ' ') && !commandstring[0][0])
         return;
     if ((ch >= 32) && (ch <= 126)) {
-        ch = (TCHAR)CharUpper((LPTSTR)ch);
-        int length = _tcslen(commandstring[0]);
+        ch = (ch >= 'a' && ch <= 'z') ? ch - 'a' + 'A' : ch;
+        int length = StrLen(commandstring[0]);
         if (length < 68) {
             commandstring[0][length] = ch;
             commandstring[0][length + 1] = 0;
@@ -1913,7 +2044,7 @@ void DebugProcessCommand(int keycode) {
     if ((keycode == VK_SPACE) && commandstring[0][0])
         return;
     if (keycode == VK_BACK) {
-        int length = _tcslen(commandstring[0]);
+        int length = StrLen(commandstring[0]);
         if (length)
             commandstring[0][length - 1] = 0;
         needscmdrefresh = 1;
@@ -1921,10 +2052,10 @@ void DebugProcessCommand(int keycode) {
     else if (keycode == VK_RETURN) {
         if ((!commandstring[0][0]) &&
             (commandstring[1][0] != ' '))
-            _tcscpy(commandstring[0], commandstring[1]);
+            StrCopy(commandstring[0], commandstring[1], ARRSIZE(commandstring[0]));
         int loop = COMMANDLINES - 1;
         while (loop--)
-            _tcscpy(commandstring[loop + 1], commandstring[loop]);
+            StrCopy(commandstring[loop + 1], commandstring[loop], 80);
         needscmdrefresh = COMMANDLINES;
         needsfullrefresh = ExecuteCommand(ParseCommandString());
         commandstring[0][0] = 0;

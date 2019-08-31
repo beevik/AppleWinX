@@ -34,7 +34,7 @@ static DWORD lasttrimimages = 0;
 static BOOL  optpopuplabels = TRUE;
 
 //===========================================================================
-void ContinueExecution() {
+static void ContinueExecution() {
     static BOOL finegrainlast   = TRUE;
     static BOOL finegraintiming = TRUE;
     static BOOL normaldelays    = FALSE;
@@ -46,7 +46,7 @@ void ContinueExecution() {
     BOOL ranfinegrain     = FALSE;
     {
         int   loop = 1 + (cyclegran >= 20000);
-        DWORD cyclestorun = cyclegran >> (cyclegran >= 20000);
+        DWORD cyclestorun = cyclegran >> (cyclegran >= 20000 ? 1 : 0);
         while (loop--) {
             cyclenum = 0;
             if (((cumulativecycles - needsprecision) > 1500000) && !finegraintiming)
@@ -101,10 +101,9 @@ void ContinueExecution() {
     // OR THE KEYBOARD I/O PORTS WERE BEING EXCESSIVELY QUERIED THIS
     // CLOCKTICK
     VideoCheckPage(0);
-    BOOL diskspinning = DiskIsSpinning();
+    BOOL diskspinning  = DiskIsSpinning();
     BOOL screenupdated = VideoHasRefreshed();
-    BOOL systemidle = (KeybGetNumQueries() > (clockgran << 2))
-        && (calibrating == 0) && (!ranfinegrain);
+    BOOL systemidle    = (KeybGetNumQueries() > (clockgran << 2)) && (calibrating == 0) && !ranfinegrain;
     fullspeed = ((speed == SPEED_MAX) || (GetKeyState(VK_SCROLL) < 0)) && (calibrating == 0);
     if (screenupdated)
         pageflipping = 3;
@@ -112,12 +111,14 @@ void ContinueExecution() {
     // IF A TWENTIETH OF A SECOND HAS ELAPSED AND THE SCREEN HAS NOT BEEN
     // UPDATED BUT IT APPEARS TO NEED UPDATING, THEN REFRESH IT
     if (mode != MODE_LOGO) {
-        static BOOL  anyupdates = 0;
-        static DWORD lastcycles = 0;
-        static BOOL  lastupdates[2] = { 0,0 };
+        static BOOL  anyupdates     = 0;
+        static DWORD lastcycles     = 0;
+        static BOOL  lastupdates[2] = { 0, 0 };
         anyupdates |= screenupdated;
-        if ((cumulativecycles - lastcycles) >=
-            (DWORD)(50000 << (behind || fullspeed || (calibrating > 0 ? 1 : 0) || ranfinegrain))) {
+        DWORD cyclelimit = 50000;
+        if (behind || fullspeed || calibrating > 0 || ranfinegrain)
+            cyclelimit <<= 1;
+        if ((cumulativecycles - lastcycles) >= cyclelimit) {
             lastcycles = cumulativecycles;
             if ((!anyupdates) && (!lastupdates[0]) && (!lastupdates[1]) &&
                 VideoApparentlyDirty()) {
@@ -237,11 +238,10 @@ void ContinueExecution() {
             resettiming = 0;
         }
     }
-
 }
 
 //===========================================================================
-void DetermineClockGranularity() {
+static void DetermineClockGranularity() {
     clockgran = 50;
     DWORD oldticks = GetTickCount();
     int   loop = 40;
@@ -258,7 +258,7 @@ void DetermineClockGranularity() {
 }
 
 //===========================================================================
-LRESULT CALLBACK DlgProc(
+static LRESULT CALLBACK DlgProc(
     HWND    window,
     UINT    message,
     WPARAM  wparam,
@@ -286,7 +286,7 @@ LRESULT CALLBACK DlgProc(
 }
 
 //===========================================================================
-void EnterMessageLoop() {
+static void EnterMessageLoop() {
     MSG message;
     while (GetMessage(&message, 0, 0, 0)) {
         TranslateMessage(&message);
@@ -306,24 +306,26 @@ void EnterMessageLoop() {
                     ContinueExecution();
             }
     }
-    while (PeekMessage(&message, 0, 0, 0, PM_REMOVE));
+
+    while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
+        /* do nothing */;
 }
 
 //===========================================================================
-void GetProgramDirectory() {
+static void GetProgramDirectory() {
     GetModuleFileName((HINSTANCE)0, progdir, MAX_PATH);
-    progdir[MAX_PATH - 1] = 0;
-    int loop = _tcslen(progdir);
-    while (loop--)
-        if ((progdir[loop] == '\\') ||
-            (progdir[loop] == ':')) {
+    progdir[MAX_PATH - 1] = '\0';
+    int loop = StrLen(progdir);
+    while (loop--) {
+        if (progdir[loop] == '\\' || progdir[loop] == ':') {
             progdir[loop + 1] = 0;
             break;
         }
+    }
 }
 
 //===========================================================================
-BOOL LoadCalibrationData() {
+static BOOL LoadCalibrationData() {
 #define LOAD(a,b,c) if (!RegLoadValue(a,b,1,c)) return 0;
     DWORD buildnumber = 0;
     LOAD("", "CurrentBuildNumber", &buildnumber);
@@ -335,7 +337,7 @@ BOOL LoadCalibrationData() {
 }
 
 //===========================================================================
-void LoadConfiguration() {
+static void LoadConfiguration() {
 #define LOAD(a,b) RegLoadValue("Configuration",a,0,b);
     LOAD("Computer Emulation", (DWORD *)& apple2e);
     LOAD("Joystick Emulation", &joytype);
@@ -348,16 +350,16 @@ void LoadConfiguration() {
 }
 
 //===========================================================================
-void PerformCalibration() {
+static void PerformCalibration() {
 
     // REGISTER THE WINDOW CLASS OF THE CALIBRATION DIALOG BOX
     WNDCLASS wndclass;
     ZeroMemory(&wndclass, sizeof(WNDCLASS));
-    wndclass.lpfnWndProc = DlgProc;
-    wndclass.cbWndExtra = DLGWINDOWEXTRA;
-    wndclass.hInstance = instance;
-    wndclass.hIcon = LoadIcon(instance, "APPLEWIN_ICON");
-    wndclass.hCursor = LoadCursor(0, IDC_WAIT);
+    wndclass.lpfnWndProc   = DlgProc;
+    wndclass.cbWndExtra    = DLGWINDOWEXTRA;
+    wndclass.hInstance     = instance;
+    wndclass.hIcon         = LoadIcon(instance, "APPLEWIN_ICON");
+    wndclass.hCursor       = LoadCursor(0, IDC_WAIT);
     wndclass.hbrBackground = CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
     wndclass.lpszClassName = "APPLE2CALIBRATION";
     RegisterClass(&wndclass);
@@ -397,25 +399,25 @@ void PerformCalibration() {
 }
 
 //===========================================================================
-void RegisterExtensions() {
+static void RegisterExtensions() {
     TCHAR command[MAX_PATH];
     GetModuleFileName((HMODULE)0, command, MAX_PATH);
     command[MAX_PATH - 1] = 0;
     TCHAR icon[MAX_PATH];
-    wsprintf(icon, "%s,1", (LPCTSTR)command);
-    _tcscat(command, " %1");
+    StrPrintf(icon, ARRSIZE(icon), "%s,1", command);
+    StrCat(command, " %1", ARRSIZE(command));
     RegSetValue(HKEY_CLASSES_ROOT, ".bin", REG_SZ, "DiskImage", 10);
     RegSetValue(HKEY_CLASSES_ROOT, ".do", REG_SZ, "DiskImage", 10);
     RegSetValue(HKEY_CLASSES_ROOT, ".dsk", REG_SZ, "DiskImage", 10);
     RegSetValue(HKEY_CLASSES_ROOT, ".nib", REG_SZ, "DiskImage", 10);
     RegSetValue(HKEY_CLASSES_ROOT, ".po", REG_SZ, "DiskImage", 10);
     RegSetValue(HKEY_CLASSES_ROOT, "DiskImage", REG_SZ, "Disk Image", 11);
-    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage\\DefaultIcon", REG_SZ, icon, _tcslen(icon) + 1);
-    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage\\shell\\open\\command", REG_SZ, command, _tcslen(command) + 1);
+    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage\\DefaultIcon", REG_SZ, icon, StrLen(icon) + 1);
+    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage\\shell\\open\\command", REG_SZ, command, StrLen(command) + 1);
 }
 
 //===========================================================================
-void SaveCalibrationData() {
+static void SaveCalibrationData() {
     RegSaveValue("", "CurrentBuildNumber", 1, BUILDNUMBER);
     RegSaveValue("Calibration", "Clock Granularity", 1, clockgran);
     RegSaveValue("Calibration", "Cycle Granularity", 1, cyclegran);
@@ -436,7 +438,6 @@ int APIENTRY WinMain(HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
         return 1;
 
     do {
-
         // DO INITIALIZATION THAT MUST BE REPEATED FOR A RESTART
         restart = 0;
         mode = MODE_LOGO;

@@ -50,17 +50,16 @@ static void CheckSpinning() {
 }
 
 //===========================================================================
-static void GetImageTitle(LPCTSTR imagefilename, LPTSTR imagename) {
+static void GetImageTitle(LPCTSTR imagefilename, LPTSTR imagename, size_t imagenamechars) {
     TCHAR   imagetitle[128] = "";
     LPCTSTR startpos = imagefilename;
-    while (_tcschr(startpos, '\\'))
-        startpos = _tcschr(startpos, '\\') + 1;
-    _tcsncpy(imagetitle, startpos, 127);
-    imagetitle[127] = 0;
+    while (StrChr(startpos, '\\'))
+        startpos = StrChr(startpos, '\\') + 1;
+    StrCopy(imagetitle, startpos, ARRSIZE(imagetitle));
     if (imagetitle[0]) {
         LPTSTR dot = imagetitle;
-        while (_tcschr(dot + 1, '.'))
-            dot = _tcschr(dot + 1, '.');
+        while (StrChr(dot + 1, '.'))
+            dot = StrChr(dot + 1, '.');
         if (dot > imagetitle)
             * dot = 0;
     }
@@ -72,8 +71,8 @@ static void GetImageTitle(LPCTSTR imagefilename, LPTSTR imagename) {
         else
             loop++;
     if ((!found) && (loop > 2))
-        CharLowerBuff(imagetitle + 1, _tcslen(imagetitle + 1));
-    _tcsncpy(imagename, imagetitle, 15);
+        CharLowerBuff(imagetitle + 1, StrLen(imagetitle + 1));
+    StrCopy(imagename, imagetitle, imagenamechars);
     imagename[15] = 0;
 }
 
@@ -88,7 +87,7 @@ static BOOL InsertDisk(int drive, LPCTSTR imagefilename, BOOL createifnecessary)
         &fptr->writeprotected,
         createifnecessary);
     if (result)
-        GetImageTitle(imagefilename, fptr->imagename);
+        GetImageTitle(imagefilename, fptr->imagename, ARRSIZE(fptr->imagename));
     return result;
 }
 
@@ -113,29 +112,29 @@ static void ReadTrack(int drive) {
 
 //===========================================================================
 static void NotifyInvalidImage(LPCTSTR imagefilename) {
-    HANDLE file = CreateFile(imagefilename,
+    HANDLE file = CreateFile(
+        imagefilename,
         GENERIC_READ,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         (LPSECURITY_ATTRIBUTES)NULL,
         OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL,
-        NULL);
+        NULL
+    );
     TCHAR buffer[MAX_PATH + 128];
     if (file == INVALID_HANDLE_VALUE)
-        wsprintf(buffer,
-            "Unable to open the file %s.",
-            (LPCTSTR)imagefilename);
+        StrPrintf(buffer, ARRSIZE(buffer), "Unable to open the file %s.", imagefilename);
     else {
         CloseHandle(file);
-        wsprintf(buffer,
+        StrPrintf(
+            buffer,
+            ARRSIZE(buffer),
             "%s\nUnable to use the file because the disk "
             "image format is not recognized.",
-            (LPCTSTR)imagefilename);
+            imagefilename
+        );
     }
-    MessageBox(framewindow,
-        buffer,
-        TITLE,
-        MB_ICONEXCLAMATION);
+    MessageBox(framewindow, buffer, TITLE, MB_ICONEXCLAMATION);
 }
 
 //===========================================================================
@@ -264,12 +263,15 @@ BOOL DiskInitialize() {
     while (loop--)
         ZeroMemory(&floppy[loop], sizeof(floppyrec));
 
-      // PARSE THE COMMAND LINE LOOKING FOR THE NAME OF A DISK IMAGE.
-      // (THIS IS MADE MORE COMPLICATED BY THE FACT THAT LONG FILE NAMES MAY
-      //  BE EMBEDDED IN QUOTES, INCLUDING THE NAME OF THE PROGRAM ITSELF)
+    // PARSE THE COMMAND LINE LOOKING FOR THE NAME OF A DISK IMAGE.
+    // (THIS IS MADE MORE COMPLICATED BY THE FACT THAT LONG FILE NAMES MAY
+    //  BE EMBEDDED IN QUOTES, INCLUDING THE NAME OF THE PROGRAM ITSELF)
     TCHAR   imagefilename[MAX_PATH] = "";
-    LPCTSTR cmdlinenameIn = GetCommandLine();
-    LPTSTR  cmdlinename = strdup(cmdlinenameIn);
+    LPCTSTR cmdlinenameIn   = GetCommandLine();
+    int     cmdlinenameLen  = StrLen(cmdlinenameIn);
+    char *  cmdlinenameCopy = new char[cmdlinenameLen + 1];
+    char *  cmdlinename     = cmdlinenameCopy;
+    StrCopy(cmdlinenameCopy, cmdlinenameIn, cmdlinenameLen + 1);
     BOOL    inquotes = 0;
     while (cmdlinename && ((*cmdlinename != ' ') || inquotes)) {
         if (*cmdlinename == '\"')
@@ -279,28 +281,30 @@ BOOL DiskInitialize() {
     while (cmdlinename && ((*cmdlinename == ' ') || (*cmdlinename == '\"')))
         ++cmdlinename;
     if (cmdlinename && *cmdlinename) {
-        _tcscpy(imagefilename, cmdlinename);
-        if (_tcschr(cmdlinename, '\"'))
-            * _tcschr(cmdlinename, '\"') = 0;
+        StrCopy(imagefilename, cmdlinename, ARRSIZE(imagefilename));
+        char * ptr = StrChr(cmdlinename, '"');
+        if (ptr != NULL)
+            *ptr = '\0';
     }
 
     // IF WE DIDN'T FIND AN IMAGE FILE NAME, USE MASTER.DSK
     else {
-        _tcscpy(imagefilename, progdir);
-        _tcscat(imagefilename, "Master.dsk");
+        StrCopy(imagefilename, progdir, ARRSIZE(imagefilename));
+        StrCat(imagefilename, "master.dsk", ARRSIZE(imagefilename));
     }
 
     // OPEN THE IMAGE FILE
     if (InsertDisk(0, imagefilename, 0)) {
         if (cmdlinename && *cmdlinename)
             autoboot = 1;
+        delete[] cmdlinenameCopy;
         return 1;
     }
     else {
         NotifyInvalidImage(imagefilename);
+        delete[] cmdlinenameCopy;
         return 0;
     }
-
 }
 
 //===========================================================================
@@ -366,10 +370,10 @@ void DiskSelect(int drive) {
     ofn.lpTemplateName = "INSERT_DIALOG";
     if (GetOpenFileName(&ofn)) {
         if ((!ofn.nFileExtension) || !filename[ofn.nFileExtension])
-            _tcscat(filename, ".dsk");
+            StrCat(filename, ".dsk", ARRSIZE(filename));
         if (InsertDisk(drive, filename, 1)) {
             filename[ofn.nFileOffset] = 0;
-            if (_tcsicmp(directory, filename))
+            if (StrCmpI(directory, filename) != 0)
                 RegSaveString("Preferences", "Starting Directory", 1, filename);
         }
         else

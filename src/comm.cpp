@@ -29,9 +29,7 @@ static BOOL CheckComm() {
     comminactivity = 0;
     if ((commhandle == INVALID_HANDLE_VALUE) && serialport) {
         TCHAR portname[8];
-        wsprintf(portname,
-            "COM%u",
-            serialport);
+        StrPrintf(portname, ARRSIZE(portname), "COM%u", serialport);
         commhandle = CreateFile(portname,
             GENERIC_READ | GENERIC_WRITE,
             0,

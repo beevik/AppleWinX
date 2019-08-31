@@ -351,7 +351,7 @@ static void DrawButton(HDC passdc, int number) {
         SetBkMode(dc, TRANSPARENT);
         ExtTextOut(dc, x + offset + 22, rect.top, ETO_CLIPPED, &rect,
             DiskGetName(number - BTN_DRIVE1),
-            MIN(8, _tcslen(DiskGetName(number - BTN_DRIVE1))),
+            MIN(8, StrLen(DiskGetName(number - BTN_DRIVE1))),
             NULL);
     }
     if (!passdc)
@@ -508,7 +508,7 @@ static void FillComboBox(HWND window, int controlid, LPCTSTR choices, int curren
     SendMessage(combowindow, CB_RESETCONTENT, 0, 0);
     while (*choices) {
         SendMessage(combowindow, CB_ADDSTRING, 0, (LPARAM)(LPCTSTR)choices);
-        choices += _tcslen(choices) + 1;
+        choices += StrLen(choices) + 1;
     }
     SendMessage(combowindow, CB_SETCURSEL, currentchoice, 0);
 }
@@ -534,8 +534,8 @@ static LRESULT CALLBACK FrameWndProc(
             if (helpquit) {
                 helpquit = 0;
                 TCHAR filename[MAX_PATH];
-                _tcscpy(filename, progdir);
-                _tcscat(filename, "AppleWin.hlp");
+                StrCopy(filename, progdir, ARRSIZE(filename));
+                StrCat(filename, "applewin.hlp", ARRSIZE(filename));
                 WinHelp(window, filename, HELP_QUIT, 0);
             }
             break;
@@ -828,8 +828,8 @@ static void ProcessButtonClick(int button) {
         case BTN_HELP:
         {
             TCHAR filename[MAX_PATH];
-            _tcscpy(filename, progdir);
-            _tcscat(filename, "AppleWin.hlp");
+            StrCopy(filename, progdir, ARRSIZE(filename));
+            StrCat(filename, "applewin.hlp", ARRSIZE(filename));
             WinHelp(framewindow, filename, HELP_CONTENTS, 0);
             helpquit = 1;
         }
