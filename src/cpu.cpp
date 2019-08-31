@@ -1,14 +1,13 @@
 /****************************************************************************
 *
-*  APPLE //E EMULATOR FOR WINDOWS                    
+*  APPLE //E EMULATOR FOR WINDOWS
 *
 *  Copyright (C) 1994-96, Michael O'Brien.  All rights reserved.
 *
 ***/
 
-#include "stdhdr.h"
+#include "pch.h"
 #pragma  hdrstop
-#include "applewin.h"
 
 #define  AF_SIGN       0x80
 #define  AF_OVERFLOW   0x40
@@ -93,7 +92,7 @@ HINSTANCE      cpulibrary[3]     = {(HINSTANCE)0,(HINSTANCE)0,(HINSTANCE)0};
 #define ABSIINDX addr = *(LPWORD)((*(LPWORD)(mem+regs.pc))+(WORD)regs.x);  regs.pc += 2;
 #define ABSX     addr = (*(LPWORD)(mem+regs.pc))+(WORD)regs.x;  regs.pc += 2;
 #define ABSY     addr = (*(LPWORD)(mem+regs.pc))+(WORD)regs.y;  regs.pc += 2;
-#define IABS     addr = *(LPWORD)(mem+*(LPWORD)(mem+regs.pc));  regs.pc += 2;  
+#define IABS     addr = *(LPWORD)(mem+*(LPWORD)(mem+regs.pc));  regs.pc += 2;
 #define IMM      addr = regs.pc++;
 #define INDX     addr = *(LPWORD)(mem+(((*(mem+regs.pc++))+regs.x) & 0xFF));
 #define INDY     addr = (*(LPWORD)(mem+*(mem+regs.pc++)))+(WORD)regs.y;
@@ -269,7 +268,7 @@ HINSTANCE      cpulibrary[3]     = {(HINSTANCE)0,(HINSTANCE)0,(HINSTANCE)0};
                              ((regs.a & 0x80) != (val & 0x80)));            \
                    regs.a = val & 0xFF;                                     \
                    SETNZ(regs.a);                                           \
-                 }                 
+                 }
 #define SEC      flagc = 1;
 #define SED      regs.ps |= AF_DECIMAL;
 #define SEI      regs.ps |= AF_INTERRUPT;

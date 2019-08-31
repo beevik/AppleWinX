@@ -1,14 +1,13 @@
 /****************************************************************************
 *
-*  APPLE //E EMULATOR FOR WINDOWS                    
+*  APPLE //E EMULATOR FOR WINDOWS
 *
 *  Copyright (C) 1994-96, Michael O'Brien.  All rights reserved.
 *
 ***/
 
-#include "stdhdr.h"
+#include "pch.h"
 #pragma  hdrstop
-#include "applewin.h"
 
 #define  SRCOFFS_40COL    0
 #define  SRCOFFS_80COL    256
@@ -1053,7 +1052,7 @@ void VideoBenchmark () {
   }
 
 }
-            
+
 //===========================================================================
 BYTE __stdcall VideoCheckMode (WORD, BYTE address, BYTE, BYTE) {
   if (address == 0x7F)

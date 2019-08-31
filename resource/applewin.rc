@@ -21,12 +21,12 @@
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE DISCARDABLE 
+1 TEXTINCLUDE DISCARDABLE
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE DISCARDABLE 
+2 TEXTINCLUDE DISCARDABLE
 BEGIN
     "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
     "#include ""windows.h""\r\n"
@@ -34,7 +34,7 @@ BEGIN
     "\0"
 END
 
-3 TEXTINCLUDE DISCARDABLE 
+3 TEXTINCLUDE DISCARDABLE
 BEGIN
     "\r\n"
     "\0"
@@ -49,22 +49,22 @@ END
 // Bitmap
 //
 
-26567                   BITMAP  DISCARDABLE     "3DCHECK.BMP"
-TOFILE_BUTTON           BITMAP  DISCARDABLE     "TOFILE.BMP"
-TODISK_BUTTON           BITMAP  DISCARDABLE     "TODISK.BMP"
-RUN_BUTTON              BITMAP  DISCARDABLE     "RUN.BMP"
-DEBUG_BUTTON            BITMAP  DISCARDABLE     "DEBUG.BMP"
-DRIVE1_BUTTON           BITMAP  DISCARDABLE     "DRIVE1.BMP"
-DRIVE2_BUTTON           BITMAP  DISCARDABLE     "DRIVE2.BMP"
-SETUP_BUTTON            BITMAP  DISCARDABLE     "SETUP.BMP"
-CHARSET40               BITMAP  DISCARDABLE     "CHARSET4.BMP"
-DISKOFF_BITMAP          BITMAP  DISCARDABLE     "DISKOFF.BMP"
-DISKREAD_BITMAP         BITMAP  DISCARDABLE     "DISKREAD.BMP"
-DISKWRITE_BITMAP        BITMAP  DISCARDABLE     "DISKWRIT.BMP"
-CAPSOFF_BITMAP          BITMAP  DISCARDABLE     "CAPSOFF.BMP"
-CAPSON_BITMAP           BITMAP  DISCARDABLE     "CAPSON.BMP"
-HELP_BUTTON             BITMAP  DISCARDABLE     "HELP.BMP"
-LOCK_BITMAP             BITMAP  DISCARDABLE     "LOCK.BMP"
+26567                   BITMAP  DISCARDABLE     "3dcheck.bmp"
+TOFILE_BUTTON           BITMAP  DISCARDABLE     "tofile.bmp"
+TODISK_BUTTON           BITMAP  DISCARDABLE     "todisk.bmp"
+RUN_BUTTON              BITMAP  DISCARDABLE     "run.bmp"
+DEBUG_BUTTON            BITMAP  DISCARDABLE     "debug.bmp"
+DRIVE1_BUTTON           BITMAP  DISCARDABLE     "drive1.bmp"
+DRIVE2_BUTTON           BITMAP  DISCARDABLE     "drive2.bmp"
+SETUP_BUTTON            BITMAP  DISCARDABLE     "setup.bmp"
+CHARSET40               BITMAP  DISCARDABLE     "charset4.bmp"
+DISKOFF_BITMAP          BITMAP  DISCARDABLE     "diskoff.bmp"
+DISKREAD_BITMAP         BITMAP  DISCARDABLE     "diskread.bmp"
+DISKWRITE_BITMAP        BITMAP  DISCARDABLE     "diskwrit.bmp"
+CAPSOFF_BITMAP          BITMAP  DISCARDABLE     "capsoff.bmp"
+CAPSON_BITMAP           BITMAP  DISCARDABLE     "capson.bmp"
+HELP_BUTTON             BITMAP  DISCARDABLE     "help.bmp"
+LOCK_BITMAP             BITMAP  DISCARDABLE     "lock.bmp"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -102,19 +102,19 @@ BEGIN
     DEFPUSHBUTTON   "OK",1,155,6,50,15
     PUSHBUTTON      "Cancel",2,155,24,50,15
     LTEXT           "&Computer:",-1,5,8,40,8
-    COMBOBOX        101,45,6,100,32,CBS_DROPDOWNLIST | WS_VSCROLL | 
+    COMBOBOX        101,45,6,100,32,CBS_DROPDOWNLIST | WS_VSCROLL |
                     WS_TABSTOP
     LTEXT           "&Video:",-1,5,23,40,8
-    COMBOBOX        105,45,21,100,56,CBS_DROPDOWNLIST | WS_VSCROLL | 
+    COMBOBOX        105,45,21,100,56,CBS_DROPDOWNLIST | WS_VSCROLL |
                     WS_TABSTOP
     LTEXT           "&Joystick:",-1,5,38,40,8
-    COMBOBOX        102,45,36,100,56,CBS_DROPDOWNLIST | WS_VSCROLL | 
+    COMBOBOX        102,45,36,100,56,CBS_DROPDOWNLIST | WS_VSCROLL |
                     WS_TABSTOP
     LTEXT           "&Sound:",-1,5,53,40,8
-    COMBOBOX        103,45,51,100,48,CBS_DROPDOWNLIST | WS_VSCROLL | 
+    COMBOBOX        103,45,51,100,48,CBS_DROPDOWNLIST | WS_VSCROLL |
                     WS_TABSTOP
     LTEXT           "S&erial Port:",-1,5,68,40,8
-    COMBOBOX        104,45,66,100,56,CBS_DROPDOWNLIST | WS_VSCROLL | 
+    COMBOBOX        104,45,66,100,56,CBS_DROPDOWNLIST | WS_VSCROLL |
                     WS_TABSTOP
 END
 
@@ -124,8 +124,8 @@ END
 // Icon
 //
 
-APPLEWIN_ICON           ICON    DISCARDABLE     "APPLEWIN.ICO"
-DISK_ICON               ICON    DISCARDABLE     "DISK.ICO"
+APPLEWIN_ICON           ICON    DISCARDABLE     "applewin.ico"
+DISK_ICON               ICON    DISCARDABLE     "disk.ico"
 
 #ifndef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////

@@ -1,14 +1,13 @@
 /****************************************************************************
 *
-*  APPLE //E EMULATOR FOR WINDOWS                    
+*  APPLE //E EMULATOR FOR WINDOWS
 *
 *  Copyright (C) 1994-96, Michael O'Brien.  All rights reserved.
 *
 ***/
 
-#include "stdhdr.h"
+#include "pch.h"
 #pragma  hdrstop
-#include "applewin.h"
 
 BOOL      apple2e           = 1;
 BOOL      autoboot          = 0;
@@ -208,7 +207,7 @@ void ContinueExecution () {
   finegrainlast   = finegraintiming;
   finegraintiming = (calibrating > 0) ||
                     ((!systemidle) && (!diskspinning) && (!fullspeed) &&
-                     (!pageflipping) && (!screenupdated) && 
+                     (!pageflipping) && (!screenupdated) &&
                      SpkrNeedsFineGrainTiming() && !VideoApparentlyDirty());
 
   // COMPARE THE EMULATOR'S CLOCK TO THE REAL TIME CLOCK
@@ -314,7 +313,6 @@ LRESULT CALLBACK DlgProc (HWND   window,
 	       rect.right-rect.left,
 	       rect.bottom-rect.top,
 	       0);
-    //Ctl3dSubclassDlgEx(window,0xFFFF);
     ShowWindow(window,SW_SHOW);
   }
   if (win31 && (message == WM_CTLCOLORSTATIC)) {
@@ -484,7 +482,6 @@ int APIENTRY WinMain (HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
   GdiSetBatchLimit(512);
   GetProgramDirectory();
   RegisterExtensions();
-  //Ctl3dRegister(instance);
   FrameRegisterClass();
   ImageInitialize();
   if (!DiskInitialize())

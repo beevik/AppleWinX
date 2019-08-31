@@ -1,2 +1,0 @@
-#include "base.cs2"
-set mlopt=%mlopt% -DCPU6502 -DMEM64K

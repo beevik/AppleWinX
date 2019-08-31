@@ -3,3 +3,4 @@ build/
 *.APS
 *.sln
 *.vcxproj*
+*.res

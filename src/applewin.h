@@ -1,3 +1,5 @@
+#pragma once
+
 #define  BUILDNUMBER       4
 #define  VERSIONSTRING     TEXT("1.10")
 

@@ -1,14 +1,13 @@
 /****************************************************************************
 *
-*  APPLE //E EMULATOR FOR WINDOWS                    
+*  APPLE //E EMULATOR FOR WINDOWS
 *
 *  Copyright (C) 1994-96, Michael O'Brien.  All rights reserved.
 *
 ***/
 
-#include "stdhdr.h"
+#include "pch.h"
 #pragma  hdrstop
-#include "applewin.h"
 
 typedef LONG (APIENTRY *regclosetype )(HKEY);
 typedef LONG (APIENTRY *regcreatetype)(HKEY,LPCTSTR,DWORD,LPTSTR,DWORD,REGSAM,

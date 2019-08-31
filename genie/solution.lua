@@ -39,8 +39,8 @@ solutionDir = path.getabsolute(".")
 rootDir     = path.getabsolute("..")
 targetDir   = path.join(rootDir, "build")
 objDir      = path.join(rootDir, "build/obj")
-srcDir      = path.join(rootDir, "APPLEWIN")
-rsrcDir     = path.join(rootDir, "APPLEWIN/RESOURCE")
+srcDir      = path.join(rootDir, "src")
+rsrcDir     = path.join(rootDir, "resource")
 
 if _ACTION == "clean" then
     os.rmdir(targetDir)
@@ -155,10 +155,10 @@ project("AppleWinX")
 
     -- List all files that should appear in the project
     files {
-        path.join(srcDir, "*.H"),
-        path.join(srcDir, "*.CPP"),
-        path.join(rsrcDir, "*.RC"),
-        path.join(rsrcDir, "*.H"),
+        path.join(srcDir, "*.h"),
+        path.join(srcDir, "*.cpp"),
+        path.join(rsrcDir, "*.rc"),
+        path.join(rsrcDir, "*.h"),
     }
 
     -- Libraries that must be linked to build the executable
@@ -182,6 +182,6 @@ project("AppleWinX")
 
     -- Set up precompiled headers
     configuration { "vs*" }
-        pchheader("STDHDR.H")
-        pchsource(path.join(srcDir, "APPLEWIN.CPP"))
+        pchheader("pch.h")
+        pchsource(path.join(srcDir, "applewin.cpp"))
     configuration {} -- reset

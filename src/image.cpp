@@ -1,14 +1,13 @@
 /****************************************************************************
 *
-*  APPLE //E EMULATOR FOR WINDOWS                    
+*  APPLE //E EMULATOR FOR WINDOWS
 *
 *  Copyright (C) 1994-96, Michael O'Brien.  All rights reserved.
 *
 ***/
 
-#include "stdhdr.h"
+#include "pch.h"
 #pragma  hdrstop
-#include "applewin.h"
 
 /* DO logical order  0 1 2 3 4 5 6 7 8 9 A B C D E F */
 /*    physical order 0 D B 9 7 5 3 1 E C A 8 6 4 2 F */
@@ -860,4 +859,3 @@ void ImageWriteTrack (HIMAGE imagehandle,
   if (imagetype[ptr->format].write && !ptr->writeprotected)
     imagetype[ptr->format].write(ptr,track,quartertrack,trackimage,nibbles);
 }
- 

@@ -1,14 +1,13 @@
 /****************************************************************************
 *
-*  APPLE //E EMULATOR FOR WINDOWS                    
+*  APPLE //E EMULATOR FOR WINDOWS
 *
 *  Copyright (C) 1994-96, Michael O'Brien.  All rights reserved.
 *
 ***/
 
-#include "stdhdr.h"
+#include "pch.h"
 #pragma  hdrstop
-#include "applewin.h"
 
 #define  VIEWPORTCX  560
 #define  VIEWPORTCY  384
@@ -311,7 +310,7 @@ void Draw3dRect (HDC dc, int x1, int y1, int x2, int y2, BOOL out) {
   POINT pt[3];
   pt[0].x = x1;    pt[0].y = y2-1;
   pt[1].x = x2-1;  pt[1].y = y2-1;
-  pt[2].x = x2-1;  pt[2].y = y1; 
+  pt[2].x = x2-1;  pt[2].y = y1;
   Polyline(dc,(LPPOINT)&pt,3);
   SelectObject(dc,(out == 1) ? btnhighlightpen : btnshadowpen);
   pt[1].x = x1;    pt[1].y = y1;
@@ -999,7 +998,6 @@ void FrameCreateWindow () {
                              (HMENU)0,
                              instance,
                              NULL);
-  //Ctl3dAutoSubclass((HANDLE)framewindow);
 }
 
 //===========================================================================

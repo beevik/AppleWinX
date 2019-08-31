@@ -1,14 +1,13 @@
 /****************************************************************************
 *
-*  APPLE //E EMULATOR FOR WINDOWS                    
+*  APPLE //E EMULATOR FOR WINDOWS
 *
 *  Copyright (C) 1994-96, Michael O'Brien.  All rights reserved.
 *
 ***/
 
-#include "stdhdr.h"
+#include "pch.h"
 #pragma  hdrstop
-#include "applewin.h"
 
 #define  BUTTONTIME       5000
 
@@ -275,7 +274,7 @@ void JoySetPosition (int xvalue, int xrange, int yvalue, int yrange) {
   xpos = (xvalue*255)/xrange;
   ypos = (yvalue*255)/yrange;
 }
- 
+
 //===========================================================================
 void JoyUpdatePosition (DWORD cycles) {
   if (firstdelay)
