@@ -16,7 +16,7 @@
 #define  NIBBLES  6384
 #define  TRACKS   35
 
-typedef struct _floppyrec {
+struct floppyrec {
     TCHAR  imagename[16];
     HIMAGE imagehandle;
     int    track;
@@ -29,14 +29,14 @@ typedef struct _floppyrec {
     DWORD  spinning;
     DWORD  writelight;
     int    nibbles;
-} floppyrec, * floppyptr;
+};
 
-static int       currdrive = 0;
-static BOOL      diskaccessed = 0;
+static int       currdrive       = 0;
+static BOOL      diskaccessed    = FALSE;
 static floppyrec floppy[DRIVES];
-static BYTE      floppylatch = 0;
-static BOOL      floppymotoron = 0;
-static BOOL      floppywritemode = 0;
+static BYTE      floppylatch     = 0;
+static BOOL      floppymotoron   = FALSE;
+static BOOL      floppywritemode = FALSE;
 
 static void ReadTrack(int drive);
 static void RemoveDisk(int drive);
@@ -81,7 +81,7 @@ static void GetImageTitle(LPCTSTR imagefilename, LPTSTR imagename) {
 
 //===========================================================================
 static BOOL InsertDisk(int drive, LPCTSTR imagefilename, BOOL createifnecessary) {
-    floppyptr fptr = &floppy[drive];
+    floppyrec * fptr = &floppy[drive];
     if (fptr->imagehandle)
         RemoveDisk(drive);
     ZeroMemory(fptr, sizeof(floppyrec));
@@ -96,7 +96,7 @@ static BOOL InsertDisk(int drive, LPCTSTR imagefilename, BOOL createifnecessary)
 
 //===========================================================================
 static void ReadTrack(int drive) {
-    floppyptr fptr = &floppy[drive];
+    floppyrec * fptr = &floppy[drive];
     if (fptr->track >= TRACKS) {
         fptr->trackimagedata = 0;
         return;
@@ -142,7 +142,7 @@ static void NotifyInvalidImage(LPCTSTR imagefilename) {
 
 //===========================================================================
 static void RemoveDisk(int drive) {
-    floppyptr fptr = &floppy[drive];
+    floppyrec * fptr = &floppy[drive];
     if (fptr->imagehandle) {
         if (fptr->trackimage && fptr->trackimagedirty)
             WriteTrack(drive);
@@ -171,7 +171,7 @@ static void RemoveStepperDelay() {
 
 //===========================================================================
 static void WriteTrack(int drive) {
-    floppyptr fptr = &floppy[drive];
+    floppyrec *fptr = &floppy[drive];
     if (fptr->track >= TRACKS)
         return;
     if (fptr->trackimage && fptr->imagehandle)
@@ -208,7 +208,7 @@ BYTE __stdcall DiskControlStepper(WORD, BYTE address, BYTE, BYTE) {
     CheckSpinning();
     if (optenhancedisk)
         RemoveStepperDelay();
-    floppyptr fptr = &floppy[currdrive];
+    floppyrec * fptr = &floppy[currdrive];
     if (address & 1) {
         int phase = (address >> 1) & 3;
         int direction = 0;
@@ -312,7 +312,7 @@ BOOL DiskIsSpinning() {
 
 //===========================================================================
 BYTE __stdcall DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
-    floppyptr fptr = &floppy[currdrive];
+    floppyrec * fptr = &floppy[currdrive];
     diskaccessed = 1;
     if ((!fptr->trackimagedata) && fptr->imagehandle)
         ReadTrack(currdrive);
@@ -406,7 +406,7 @@ BYTE __stdcall DiskSetWriteMode(WORD, BYTE, BYTE, BYTE) {
 void DiskUpdatePosition(DWORD cycles) {
     int loop = 2;
     while (loop--) {
-        floppyptr fptr = &floppy[loop];
+        floppyrec * fptr = &floppy[loop];
         if (fptr->spinning && !floppymotoron) {
             if (!(fptr->spinning -= MIN(fptr->spinning, (cycles >> 6))))
                 FrameRefreshStatus();

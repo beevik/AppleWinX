@@ -17,48 +17,48 @@
 
 #define  IMAGETYPES  7
 
-typedef struct _imageinforec {
+struct imageinforec {
     DWORD      format;
     HANDLE     file;
     DWORD      offset;
     BOOL       writeprotected;
     DWORD      headersize;
     LPBYTE     header;
-} imageinforec, * imageinfoptr;
+};
 
-typedef BOOL(*boottype)(imageinfoptr);
+typedef BOOL(*boottype)(imageinforec *);
 typedef DWORD(*detecttype)(LPBYTE, DWORD);
-typedef void  (*readtype)(imageinfoptr, int, int, LPBYTE, int *);
-typedef void  (*writetype)(imageinfoptr, int, int, LPBYTE, int);
+typedef void  (*readtype)(imageinforec *, int, int, LPBYTE, int *);
+typedef void  (*writetype)(imageinforec *, int, int, LPBYTE, int);
 
-static BOOL  AplBoot(imageinfoptr ptr);
+static BOOL  AplBoot(imageinforec * ptr);
 static DWORD AplDetect(LPBYTE imageptr, DWORD imagesize);
 static DWORD DoDetect(LPBYTE imageptr, DWORD imagesize);
-static void  DoRead(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  DoWrite(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static void  DoRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
+static void  DoWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
 static DWORD IieDetect(LPBYTE imageptr, DWORD imagesize);
-static void  IieRead(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  IieWrite(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static void  IieRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
+static void  IieWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
 static DWORD Nib1Detect(LPBYTE imageptr, DWORD imagesize);
-static void  Nib1Read(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  Nib1Write(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static void  Nib1Read(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
+static void  Nib1Write(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
 static DWORD Nib2Detect(LPBYTE imageptr, DWORD imagesize);
-static void  Nib2Read(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  Nib2Write(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static void  Nib2Read(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
+static void  Nib2Write(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
 static DWORD PoDetect(LPBYTE imageptr, DWORD imagesize);
-static void  PoRead(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  PoWrite(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
-static BOOL  PrgBoot(imageinfoptr ptr);
+static void  PoRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
+static void  PoWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static BOOL  PrgBoot(imageinforec * ptr);
 static DWORD PrgDetect(LPBYTE imageptr, DWORD imagesize);
 
-typedef struct _imagetyperec {
+struct imagetyperec {
     LPCTSTR    createexts;
     LPCTSTR    rejectexts;
     detecttype detect;
     boottype   boot;
     readtype   read;
     writetype  write;
-} imagetyperec, * imagetypeptr;
+};
 
 static const imagetyperec imagetype[IMAGETYPES] = {
     {
@@ -394,7 +394,7 @@ static void SkewTrack(int track, int nibbles, LPBYTE trackimagebuffer) {
 ***/
 
 //===========================================================================
-static BOOL AplBoot(imageinfoptr ptr) {
+static BOOL AplBoot(imageinforec * ptr) {
     SetFilePointer(ptr->file, 0, NULL, FILE_BEGIN);
     WORD address = 0;
     WORD length = 0;
@@ -459,7 +459,7 @@ static DWORD DoDetect(LPBYTE imageptr, DWORD imagesize) {
 }
 
 //===========================================================================
-static void DoRead(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
+static void DoRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
     SetFilePointer(ptr->file, ptr->offset + (track << 12), NULL, FILE_BEGIN);
     ZeroMemory(workbuffer, 4096);
     DWORD bytesread;
@@ -470,7 +470,7 @@ static void DoRead(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackim
 }
 
 //===========================================================================
-static void DoWrite(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
+static void DoWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
     ZeroMemory(workbuffer, 4096);
     DenibblizeTrack(trackimage, 1, nibbles);
     SetFilePointer(ptr->file, ptr->offset + (track << 12), NULL, FILE_BEGIN);
@@ -509,7 +509,7 @@ static DWORD IieDetect(LPBYTE imageptr, DWORD imagesize) {
 }
 
 //===========================================================================
-static void IieRead(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
+static void IieRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
 
     // IF WE HAVEN'T ALREADY DONE SO, READ THE IMAGE FILE HEADER
     if (!ptr->header) {
@@ -548,7 +548,7 @@ static void IieRead(imageinfoptr ptr, int track, int quartertrack, LPBYTE tracki
 }
 
 //===========================================================================
-static void IieWrite(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
+static void IieWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
   // note: unimplemented
 }
 
@@ -565,13 +565,13 @@ static DWORD Nib1Detect(LPBYTE imageptr, DWORD imagesize) {
 }
 
 //===========================================================================
-static void Nib1Read(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
+static void Nib1Read(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
     SetFilePointer(ptr->file, ptr->offset + track * 6656, NULL, FILE_BEGIN);
     ReadFile(ptr->file, trackimagebuffer, 6656, (DWORD *)nibbles, NULL);
 }
 
 //===========================================================================
-static void Nib1Write(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
+static void Nib1Write(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
     SetFilePointer(ptr->file, ptr->offset + track * 6656, NULL, FILE_BEGIN);
     DWORD byteswritten;
     WriteFile(ptr->file, trackimage, nibbles, &byteswritten, NULL);
@@ -590,13 +590,13 @@ static DWORD Nib2Detect(LPBYTE imageptr, DWORD imagesize) {
 }
 
 //===========================================================================
-static void Nib2Read(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
+static void Nib2Read(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
     SetFilePointer(ptr->file, ptr->offset + track * 6384, NULL, FILE_BEGIN);
     ReadFile(ptr->file, trackimagebuffer, 6384, (DWORD *)nibbles, NULL);
 }
 
 //===========================================================================
-static void Nib2Write(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
+static void Nib2Write(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
     SetFilePointer(ptr->file, ptr->offset + track * 6384, NULL, FILE_BEGIN);
     DWORD byteswritten;
     WriteFile(ptr->file, trackimage, nibbles, &byteswritten, NULL);
@@ -642,7 +642,7 @@ static DWORD PoDetect(LPBYTE imageptr, DWORD imagesize) {
 }
 
 //===========================================================================
-static void PoRead(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
+static void PoRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
     SetFilePointer(ptr->file, ptr->offset + (track << 12), NULL, FILE_BEGIN);
     ZeroMemory(workbuffer, 4096);
     DWORD bytesread;
@@ -653,7 +653,7 @@ static void PoRead(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackim
 }
 
 //===========================================================================
-static void PoWrite(imageinfoptr ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
+static void PoWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
     ZeroMemory(workbuffer, 4096);
     DenibblizeTrack(trackimage, 0, nibbles);
     SetFilePointer(ptr->file, ptr->offset + (track << 12), NULL, FILE_BEGIN);
@@ -669,7 +669,7 @@ static void PoWrite(imageinfoptr ptr, int track, int quartertrack, LPBYTE tracki
 ***/
 
 //===========================================================================
-static BOOL PrgBoot(imageinfoptr ptr) {
+static BOOL PrgBoot(imageinforec * ptr) {
     SetFilePointer(ptr->file, 5, NULL, FILE_BEGIN);
     WORD address = 0;
     WORD length = 0;
@@ -702,7 +702,7 @@ static DWORD PrgDetect(LPBYTE imageptr, DWORD imagesize) {
 
 //===========================================================================
 BOOL ImageBoot(HIMAGE imagehandle) {
-    imageinfoptr ptr = (imageinfoptr)imagehandle;
+    imageinforec * ptr = (imageinforec *)imagehandle;
     BOOL result = 0;
     if (imagetype[ptr->format].boot)
         result = imagetype[ptr->format].boot(ptr);
@@ -713,7 +713,7 @@ BOOL ImageBoot(HIMAGE imagehandle) {
 
 //===========================================================================
 void ImageClose(HIMAGE imagehandle) {
-    imageinfoptr ptr = (imageinfoptr)imagehandle;
+    imageinforec * ptr = (imageinforec *)imagehandle;
     if (ptr->file != INVALID_HANDLE_VALUE)
         CloseHandle(ptr->file);
     if (ptr->header)
@@ -838,7 +838,7 @@ BOOL ImageOpen(LPCTSTR  imagefilename,
 
         // OTHERWISE, CREATE A RECORD FOR THE FILE, AND RETURN AN IMAGE HANDLE
         else {
-            imageinfoptr ptr = (imageinfoptr)VirtualAlloc(NULL, sizeof(imageinforec),
+            imageinforec * ptr = (imageinforec *)VirtualAlloc(NULL, sizeof(imageinforec),
                 MEM_COMMIT, PAGE_READWRITE);
             if (ptr) {
                 ZeroMemory(ptr, sizeof(imageinforec));
@@ -869,7 +869,7 @@ void ImageReadTrack(HIMAGE  imagehandle,
     LPBYTE  trackimagebuffer,
     int * nibbles) {
     *nibbles = 0;
-    imageinfoptr ptr = (imageinfoptr)imagehandle;
+    imageinforec * ptr = (imageinforec *)imagehandle;
     if (imagetype[ptr->format].read)
         imagetype[ptr->format].read(ptr, track, quartertrack, trackimagebuffer, nibbles);
 }
@@ -880,7 +880,7 @@ void ImageWriteTrack(HIMAGE imagehandle,
     int    quartertrack,
     LPBYTE trackimage,
     int    nibbles) {
-    imageinfoptr ptr = (imageinfoptr)imagehandle;
+    imageinforec * ptr = (imageinforec *)imagehandle;
     if (imagetype[ptr->format].write && !ptr->writeprotected)
         imagetype[ptr->format].write(ptr, track, quartertrack, trackimage, nibbles);
 }

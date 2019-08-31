@@ -9,12 +9,12 @@
 #include "pch.h"
 #pragma  hdrstop
 
-#define  SOUND_NONE    0
-#define  SOUND_DIRECT  1
-#define  SOUND_SMART   2
-#define  SOUND_WAVE    3
+constexpr DWORD SOUND_NONE    = 0;
+constexpr DWORD SOUND_DIRECT  = 1;
+constexpr DWORD SOUND_SMART   = 2;
+constexpr DWORD SOUND_WAVE    = 3;
 
-#define  WAVEBUFFERS   8
+constexpr int   WAVEBUFFERS   = 8;
 
 DWORD soundtype = SOUND_WAVE;
 
@@ -25,7 +25,7 @@ static DWORD    bufferrate   = 0;
 static DWORD    buffersize   = 0;
 static DWORD    bufferuse    = 0;
 static DWORD    cycleshift   = 0;
-static BOOL     directio     = 0;
+static BOOL     directio     = FALSE;
 static DWORD    lastcyclenum = 0;
 static DWORD    lastdelta[2] = {0,0};
 static DWORD    soundeffect  = 0;

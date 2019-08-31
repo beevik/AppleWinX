@@ -9,41 +9,40 @@
 #include "pch.h"
 #pragma  hdrstop
 
-#define  SRCOFFS_40COL    0
-#define  SRCOFFS_80COL    256
-#define  SRCOFFS_LORES    384
-#define  SRCOFFS_HIRES    400
-#define  SRCOFFS_DHIRES   528
-#define  SRCOFFS_UNUSED   536
-#define  SRCOFFS_TOTAL    544
+constexpr int SRCOFFS_40COL    = 0;
+constexpr int SRCOFFS_80COL    = 256;
+constexpr int SRCOFFS_LORES    = 384;
+constexpr int SRCOFFS_HIRES    = 400;
+constexpr int SRCOFFS_DHIRES   = 528;
+constexpr int SRCOFFS_UNUSED   = 536;
+constexpr int SRCOFFS_TOTAL    = 544;
 
-#define  VF_80COL         0x00000001
-#define  VF_DHIRES        0x00000002
-#define  VF_HIRES         0x00000004
-#define  VF_MASK2         0x00000008
-#define  VF_MIXED         0x00000010
-#define  VF_PAGE2         0x00000020
-#define  VF_TEXT          0x00000040
+constexpr DWORD VF_80COL       = 0x00000001;
+constexpr DWORD VF_DHIRES      = 0x00000002;
+constexpr DWORD VF_HIRES       = 0x00000004;
+constexpr DWORD VF_MASK2       = 0x00000008;
+constexpr DWORD VF_MIXED       = 0x00000010;
+constexpr DWORD VF_PAGE2       = 0x00000020;
+constexpr DWORD VF_TEXT        = 0x00000040;
 
-#define  SW_80COL         (vidmode & VF_80COL)
-#define  SW_DHIRES        (vidmode & VF_DHIRES)
-#define  SW_HIRES         (vidmode & VF_HIRES)
-#define  SW_MASK2         (vidmode & VF_MASK2)
-#define  SW_MIXED         (vidmode & VF_MIXED)
-#define  SW_PAGE2         (vidmode & VF_PAGE2)
-#define  SW_TEXT          (vidmode & VF_TEXT)
+#define  SW_80COL()     (vidmode & VF_80COL)
+#define  SW_DHIRES()    (vidmode & VF_DHIRES)
+#define  SW_HIRES()     (vidmode & VF_HIRES)
+#define  SW_MASK2()     (vidmode & VF_MASK2)
+#define  SW_MIXED()     (vidmode & VF_MIXED)
+#define  SW_PAGE2()     (vidmode & VF_PAGE2)
+#define  SW_TEXT()      (vidmode & VF_TEXT)
 
 #ifndef  DIB_PAL_INDICES
 #define  DIB_PAL_INDICES  2
 #endif
 
 typedef void(__stdcall * bitblttype)(int, int, int, int, int, int);
-typedef HBITMAP(WINAPI * createdibtype)(HDC, CONST BITMAPINFO *, UINT,
-    VOID **, HANDLE, WORD);
+typedef HBITMAP(WINAPI * createdibtype)(HDC, CONST BITMAPINFO *, UINT, VOID **, HANDLE, WORD);
 typedef void(__stdcall * fastbltinittype)(LPBYTE, LPBYTE, LPVOID, LPVOID);
 typedef BOOL(*updatetype)(int, int, int, int, int);
 
-BOOL graphicsmode = 0;
+BOOL graphicsmode = FALSE;
 
 static bitblttype    bitbltfunc;
 static BYTE          celldirty[40][32];
@@ -68,19 +67,19 @@ static LPBYTE        textmainptr;
 
 static int       bitsperpixel    = 0;
 static int       charoffs        = 0;
-static BOOL      displaypage2    = 0;
+static BOOL      displaypage2    = FALSE;
 static HINSTANCE fastinst        = (HINSTANCE)0;
 static HDC       framedc         = (HDC)0;
-static BOOL      hasrefreshed    = 0;
+static BOOL      hasrefreshed    = FALSE;
 static DWORD     lastpageflip    = 0;
 static DWORD     modeswitches    = 0;
 static int       pixelbits       = 0;
 static int       pixelformat     = 0;
-static BOOL      rebuiltsource   = 0;
-static BOOL      redrawfull      = 1;
+static BOOL      rebuiltsource   = FALSE;
+static BOOL      redrawfull      = TRUE;
 static int       srcpixelbits    = 0;
 static int       srcpixelformat  = 0;
-static BOOL      usingdib        = 0;
+static BOOL      usingdib        = FALSE;
 static DWORD     vblcounter      = 0;
 static DWORD     videocompatible = 1;
 static HFONT     videofont       = (HFONT)0;
@@ -782,11 +781,11 @@ static void SaveSourceImages() {
 //===========================================================================
 static void SetLastDrawnImage() {
     memcpy(vidlastmem + 0x400, textmainptr, 0x400);
-    if (SW_HIRES)
+    if (SW_HIRES())
         memcpy(vidlastmem + 0x2000, hiresmainptr, 0x2000);
-    if (SW_DHIRES)
+    if (SW_DHIRES())
         memcpy(vidlastmem, hiresauxptr, 0x2000);
-    else if (SW_80COL)
+    else if (SW_80COL())
         memcpy(vidlastmem, textauxptr, 0x400);
     int loop;
     for (loop = 0; loop < 256; loop++)
@@ -921,11 +920,11 @@ static BOOL UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
 
 //===========================================================================
 BOOL VideoApparentlyDirty() {
-    if (SW_MIXED || redrawfull)
+    if (SW_MIXED() || redrawfull)
         return 1;
-    DWORD address = (SW_HIRES && !SW_TEXT) ? (0x20 << displaypage2)
+    DWORD address = (SW_HIRES() && !SW_TEXT()) ? (0x20 << displaypage2)
         : (0x4 << displaypage2);
-    DWORD length = (SW_HIRES && !SW_TEXT) ? 0x20 : 0x4;
+    DWORD length = (SW_HIRES() && !SW_TEXT()) ? 0x20 : 0x4;
     while (length--)
         if (*(memdirty + (address++)) & 2)
             return 1;
@@ -1125,16 +1124,16 @@ void VideoBenchmark() {
 //===========================================================================
 BYTE __stdcall VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
     if (address == 0x7F)
-        return MemReturnRandomData(SW_DHIRES != 0);
+        return MemReturnRandomData(SW_DHIRES() != 0);
     else {
         BOOL result = 0;
         switch (address) {
-            case 0x1A: result = SW_TEXT;    break;
-            case 0x1B: result = SW_MIXED;   break;
-            case 0x1D: result = SW_HIRES;   break;
-            case 0x1E: result = charoffs;   break;
-            case 0x1F: result = SW_80COL;   break;
-            case 0x7F: result = SW_DHIRES;  break;
+            case 0x1A: result = SW_TEXT();    break;
+            case 0x1B: result = SW_MIXED();   break;
+            case 0x1D: result = SW_HIRES();   break;
+            case 0x1E: result = charoffs;     break;
+            case 0x1F: result = SW_80COL();   break;
+            case 0x7F: result = SW_DHIRES();  break;
         }
         return KeybGetKeycode() | (result ? 0x80 : 0);
     }
@@ -1142,9 +1141,9 @@ BYTE __stdcall VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
 
 //===========================================================================
 void VideoCheckPage(BOOL force) {
-    if ((displaypage2 != (SW_PAGE2 != 0)) &&
+    if ((displaypage2 != (SW_PAGE2() != 0)) &&
         (force || (emulmsec - lastpageflip > 500))) {
-        displaypage2 = (SW_PAGE2 != 0);
+        displaypage2 = (SW_PAGE2() != 0);
         VideoRefreshScreen();
         hasrefreshed = 1;
         lastpageflip = emulmsec;
@@ -1212,7 +1211,7 @@ void VideoDisplayLogo() {
     // DRAW THE LOGO, USING SETDIBITSTODEVICE() IF IT IS AVAILABLE OR
     // BITBLT() IF IT IS NOT
     if (logoptr) {
-        if (!SetDIBitsToDevice(framedc,
+        int result = SetDIBitsToDevice(framedc,
             0,
             0,
             logoptr->bmiHeader.biWidth,
@@ -1225,7 +1224,9 @@ void VideoDisplayLogo() {
                 + sizeof(BITMAPINFOHEADER)
                 + ((bitsperpixel <= 4) ? 16 : 256) * sizeof(RGBQUAD)),
             logoptr,
-            (pixelformat == 108) ? DIB_PAL_INDICES : DIB_RGB_COLORS)) {
+            (pixelformat == 108) ? DIB_PAL_INDICES : DIB_RGB_COLORS
+        );
+        if (result == 0) {
             LPBITMAPINFO info = (LPBITMAPINFO)VirtualAlloc(NULL,
                 sizeof(BITMAPINFOHEADER)
                 + 256 * sizeof(RGBQUAD),
@@ -1491,7 +1492,7 @@ void VideoLoadLogo() {
         return;
     TCHAR filename[MAX_PATH];
     _tcscpy(filename, progdir);
-    _tcscat(filename, TEXT("AppleWin.lgo"));
+    _tcscat(filename, TEXT("applewin.lgo"));
     logofile = CreateFile(filename,
         GENERIC_READ,
         FILE_SHARE_READ,
@@ -1558,12 +1559,12 @@ void VideoRefreshScreen() {
     {
         updatetype update1 = NULL;
         updatetype update2 = NULL;
-        update1 = SW_TEXT ? SW_80COL ? Update80ColCell
+        update1 = SW_TEXT() ? SW_80COL() ? Update80ColCell
             : Update40ColCell
-            : SW_HIRES ? (SW_DHIRES && SW_80COL) ? UpdateDHiResCell
+            : SW_HIRES() ? (SW_DHIRES() && SW_80COL()) ? UpdateDHiResCell
             : UpdateHiResCell
             : UpdateLoResCell;
-        update2 = SW_MIXED ? SW_80COL ? Update80ColCell
+        update2 = SW_MIXED() ? SW_80COL() ? Update80ColCell
             : Update40ColCell
             : update1;
         BOOL anydirty = 0;
@@ -1747,7 +1748,7 @@ void VideoResetState() {
 
 //===========================================================================
 BYTE __stdcall VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
-    DWORD oldpage2 = SW_PAGE2;
+    DWORD oldpage2 = SW_PAGE2();
     int   oldvalue = charoffs + (int)(vidmode & ~(VF_MASK2 | VF_PAGE2));
     switch (address) {
         case 0x00: vidmode &= ~VF_MASK2;   break;
@@ -1767,36 +1768,34 @@ BYTE __stdcall VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
         case 0x5E: vidmode |= VF_DHIRES;  break;
         case 0x5F: vidmode &= ~VF_DHIRES;  break;
     }
-    if (SW_MASK2)
+    if (SW_MASK2())
         vidmode &= ~VF_PAGE2;
     if (oldvalue != charoffs + (int)(vidmode & ~(VF_MASK2 | VF_PAGE2))) {
-        if ((SW_80COL != 0) == (SW_DHIRES != 0))
+        if ((SW_80COL() != 0) == (SW_DHIRES() != 0))
             modeswitches++;
-        graphicsmode = !SW_TEXT;
+        graphicsmode = !SW_TEXT();
         redrawfull = 1;
     }
-    if (fullspeed && oldpage2 && !SW_PAGE2) {
+    if (fullspeed && oldpage2 && !SW_PAGE2()) {
         static DWORD lasttime = 0;
         DWORD currtime = GetTickCount();
         if (currtime - lasttime >= 20)
             lasttime = currtime;
         else
-            oldpage2 = SW_PAGE2;
+            oldpage2 = SW_PAGE2();
     }
-    if (oldpage2 != SW_PAGE2) {
+    if (oldpage2 != SW_PAGE2()) {
         static DWORD lastrefresh = 0;
         BOOL fastvideoslowcpu = 0;
-        if ((cpuemtype == CPU_FASTPAGING) && (emulmsec - lastrefresh >= 20))
-            fastvideoslowcpu = 1;
-        if ((displaypage2 && !SW_PAGE2) || (!behind) || fastvideoslowcpu) {
-            displaypage2 = (SW_PAGE2 != 0);
+        if ((displaypage2 && !SW_PAGE2()) || (!behind) || fastvideoslowcpu) {
+            displaypage2 = (SW_PAGE2() != 0);
             if (!redrawfull) {
                 VideoRefreshScreen();
                 hasrefreshed = 1;
                 lastrefresh = emulmsec;
             }
         }
-        else if ((!SW_PAGE2) && (!redrawfull) && (emulmsec - lastrefresh >= 20)) {
+        else if ((!SW_PAGE2()) && (!redrawfull) && (emulmsec - lastrefresh >= 20)) {
             displaypage2 = 0;
             VideoRefreshScreen();
             hasrefreshed = 1;

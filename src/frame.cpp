@@ -9,39 +9,22 @@
 #include "pch.h"
 #pragma  hdrstop
 
-#define  VIEWPORTCX  560
-#define  VIEWPORTCY  384
-#define  BUTTONCX    45
-#define  BUTTONCY    45
-#define  BUTTONS     8
+constexpr int VIEWPORTCX  = 560;
+constexpr int VIEWPORTCY  = 384;
+constexpr int BUTTONCX    = 45;
+constexpr int BUTTONCY    = 45;
+constexpr int BUTTONS     = 8;
 
-#define  BTN_HELP    0
-#define  BTN_RUN     1
-#define  BTN_DRIVE1  2
-#define  BTN_DRIVE2  3
-#define  BTN_TOFILE  4
-#define  BTN_TODISK  5
-#define  BTN_DEBUG   6
-#define  BTN_SETUP   7
+constexpr int BTN_HELP    = 0;
+constexpr int BTN_RUN     = 1;
+constexpr int BTN_DRIVE1  = 2;
+constexpr int BTN_DRIVE2  = 3;
+constexpr int BTN_TOFILE  = 4;
+constexpr int BTN_TODISK  = 5;
+constexpr int BTN_DEBUG   = 6;
+constexpr int BTN_SETUP   = 7;
 
-#if (WINVER < 0x0400)
-typedef struct tagWNDCLASSEX {
-    UINT      cbSize;
-    UINT      style;
-    WNDPROC   lpfnWndProc;
-    int       cbClsExtra;
-    int       cbWndExtra;
-    HINSTANCE hInstance;
-    HICON     hIcon;
-    HCURSOR   hCursor;
-    HBRUSH    hbrBackground;
-    LPCTSTR   lpszMenuName;
-    LPCTSTR   lpszClassName;
-    HICON     hIconSm;
-} WNDCLASSEX;
-#endif
-
-typedef struct _devmode40 {
+struct DEVMODE40 {
     TCHAR dmDeviceName[32];
     WORD  dmVersions[2];
     WORD  dmSize;
@@ -56,36 +39,37 @@ typedef struct _devmode40 {
     DWORD dmDisplayFlags;
     DWORD dmDisplayFrequency;
     DWORD dmMediaInformation[6];
-} DEVMODE40, * LPDEVMODE40;
+};
+typedef DEVMODE40 * LPDEVMODE40;
 
 typedef BOOL(WINAPI * changedisptype)(LPDEVMODE40, DWORD);
 typedef BOOL(WINAPI * enumdisptype)(LPCTSTR, DWORD, LPDEVMODE40);
-typedef void   (WINAPI * initcomctltype)();
+typedef void(WINAPI * initcomctltype)();
 typedef HANDLE(WINAPI * loadimagetype)(HINSTANCE, LPCTSTR, UINT, int, int, UINT);
 typedef ATOM(WINAPI * regextype)(CONST WNDCLASSEX *);
 
-TCHAR   computerchoices[] = TEXT("Apple ][+\0")
-                            TEXT("Apple //e\0");
-TCHAR   joystickchoices[] = TEXT("Disabled\0")
-                            TEXT("PC Joystick\0")
-                            TEXT("Keyboard (standard)\0")
-                            TEXT("Keyboard (centering)\0")
-                            TEXT("Mouse\0");
-TCHAR   serialchoices[] =   TEXT("None\0")
-                            TEXT("COM1\0")
-                            TEXT("COM2\0")
-                            TEXT("COM3\0")
-                            TEXT("COM4\0");
-TCHAR   soundchoices[] =    TEXT("Disabled\0")
-                            TEXT("PC Speaker (direct)\0")
-                            TEXT("PC Speaker (translated)\0")
-                            TEXT("Sound Card\0");
-TCHAR   videochoices[] =    TEXT("Color\0")
-                            TEXT("Monochrome\0");
+static const TCHAR computerchoices[] = TEXT("Apple ][+\0")
+                                       TEXT("Apple //e\0");
+static const TCHAR joystickchoices[] = TEXT("Disabled\0")
+                                       TEXT("PC Joystick\0")
+                                       TEXT("Keyboard (standard)\0")
+                                       TEXT("Keyboard (centering)\0")
+                                       TEXT("Mouse\0");
+static const TCHAR serialchoices[] =   TEXT("None\0")
+                                       TEXT("COM1\0")
+                                       TEXT("COM2\0")
+                                       TEXT("COM3\0")
+                                       TEXT("COM4\0");
+static const TCHAR soundchoices[] =    TEXT("Disabled\0")
+                                       TEXT("PC Speaker (direct)\0")
+                                       TEXT("PC Speaker (translated)\0")
+                                       TEXT("Sound Card\0");
+static const TCHAR videochoices[] =    TEXT("Color\0")
+                                       TEXT("Monochrome\0");
 
-HBITMAP capsbitmap[2];
-HBITMAP diskbitmap[3];
-HBITMAP buttonbitmap[BUTTONS];
+static HBITMAP capsbitmap[2];
+static HBITMAP diskbitmap[3];
+static HBITMAP buttonbitmap[BUTTONS];
 
 HWND framewindow = (HWND)0;
 
@@ -117,7 +101,6 @@ static BOOL CALLBACK ConfigDlgProc(
 ) {
     static BOOL afterclose = 0;
     switch (message) {
-
         case WM_COMMAND:
             switch (LOWORD(wparam)) {
 
@@ -258,7 +241,6 @@ static BOOL CALLBACK ConfigDlgProc(
             }
         }
         break;
-
     }
     return 0;
 }

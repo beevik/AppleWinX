@@ -9,22 +9,23 @@
 #include "pch.h"
 #pragma  hdrstop
 
-DWORD  baudrate         = CBR_19200;
-BYTE   bytesize         = 8;
-BYTE   commandbyte      = 0x00;
-HANDLE commhandle       = INVALID_HANDLE_VALUE;
-DWORD  comminactivity   = 0;
-BYTE   controlbyte      = 0x1F;
-BYTE   parity           = NOPARITY;
-BYTE   recvbuffer[9];
-DWORD  recvbytes        = 0;
-DWORD  serialport       = 0;
-BYTE   stopbits         = ONESTOPBIT;
+DWORD serialport = 0;
 
-void UpdateCommState();
+static DWORD  baudrate         = CBR_19200;
+static BYTE   bytesize         = 8;
+static BYTE   commandbyte      = 0x00;
+static HANDLE commhandle       = INVALID_HANDLE_VALUE;
+static DWORD  comminactivity   = 0;
+static BYTE   controlbyte      = 0x1F;
+static BYTE   parity           = NOPARITY;
+static BYTE   recvbuffer[9];
+static DWORD  recvbytes        = 0;
+static BYTE   stopbits         = ONESTOPBIT;
+
+static void UpdateCommState();
 
 //===========================================================================
-BOOL CheckComm() {
+static BOOL CheckComm() {
     comminactivity = 0;
     if ((commhandle == INVALID_HANDLE_VALUE) && serialport) {
         TCHAR portname[8];
@@ -50,14 +51,14 @@ BOOL CheckComm() {
 }
 
 //===========================================================================
-void CheckReceive() {
+static void CheckReceive() {
     if (recvbytes || (commhandle == INVALID_HANDLE_VALUE))
         return;
     ReadFile(commhandle, recvbuffer, 8, &recvbytes, NULL);
 }
 
 //===========================================================================
-void CloseComm() {
+static void CloseComm() {
     if (commhandle != INVALID_HANDLE_VALUE)
         CloseHandle(commhandle);
     commhandle = INVALID_HANDLE_VALUE;
@@ -65,7 +66,7 @@ void CloseComm() {
 }
 
 //===========================================================================
-void UpdateCommState() {
+static void UpdateCommState() {
     if (commhandle == INVALID_HANDLE_VALUE)
         return;
     DCB dcb;

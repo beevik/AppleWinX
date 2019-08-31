@@ -9,56 +9,56 @@
 #include "pch.h"
 #pragma  hdrstop
 
-#define  BUTTONTIME       5000
+constexpr DWORD BUTTONTIME     = 5000;
 
-#define  DEVICE_NONE      0
-#define  DEVICE_JOYSTICK  1
-#define  DEVICE_KEYBOARD  2
-#define  DEVICE_MOUSE     3
+constexpr int DEVICE_NONE      = 0;
+constexpr int DEVICE_JOYSTICK  = 1;
+constexpr int DEVICE_KEYBOARD  = 2;
+constexpr int DEVICE_MOUSE     = 3;
 
-#define  MODE_NONE        0
-#define  MODE_STANDARD    1
-#define  MODE_CENTERING   2
-#define  MODE_SMOOTH      3
+constexpr int MODE_NONE        = 0;
+constexpr int MODE_STANDARD    = 1;
+constexpr int MODE_CENTERING   = 2;
+constexpr int MODE_SMOOTH      = 3;
 
-typedef struct _joyinforec {
+struct joyinforec {
     int device;
     int mode;
-} joyinforec, * joyinfoptr;
-
-static joyinforec joyinfo[5] = {
-    {DEVICE_NONE,MODE_NONE},
-    {DEVICE_JOYSTICK,MODE_STANDARD},
-    {DEVICE_KEYBOARD,MODE_STANDARD},
-    {DEVICE_KEYBOARD,MODE_CENTERING},
-    {DEVICE_MOUSE,MODE_STANDARD},
 };
 
-static BOOL keydown[11] = {0};
+static const joyinforec joyinfo[5] = {
+    { DEVICE_NONE,      MODE_NONE       },
+    { DEVICE_JOYSTICK,  MODE_STANDARD   },
+    { DEVICE_KEYBOARD,  MODE_STANDARD   },
+    { DEVICE_KEYBOARD,  MODE_CENTERING  },
+    { DEVICE_MOUSE,     MODE_STANDARD   },
+};
 
-static POINT keyvalue[9] = {
-    {0,255},
-    {127,255},
-    {255,255},
-    {0,127},
-    {127,127},
-    {255,127},
-    {0,0},
-    {127,0},
-    {255,0}
+static BOOL keydown[11] = {};
+
+static const POINT keyvalue[9] = {
+    {   0, 255 },
+    { 127, 255 },
+    { 255, 255 },
+    {   0, 127 },
+    { 127, 127 },
+    { 255, 127 },
+    {   0, 0   },
+    { 127, 0   },
+    { 255, 0   },
 };
 
 DWORD joytype = 1;
 
-static DWORD buttonlatch[3] = {0,0,0};
+static DWORD buttonlatch[3] = { 0, 0, 0 };
 static int   delayleft      = 0;
-static BOOL  firstdelay     = 0;
-static BOOL  joybutton[3]   = {0,0,0};
+static BOOL  firstdelay     = FALSE;
+static BOOL  joybutton[3]   = { FALSE, FALSE, FALSE };
 static int   joyshrx        = 8;
 static int   joyshry        = 8;
 static int   joysubx        = 0;
 static int   joysuby        = 0;
-static BOOL  setbutton[2]   = {0,0};
+static BOOL  setbutton[2]   = { FALSE, FALSE };
 static int   xdelay         = 0;
 static int   xpos           = 127;
 static int   ydelay         = 0;

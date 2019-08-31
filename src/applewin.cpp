@@ -22,7 +22,6 @@ DWORD     finegraindelay    = 1;
 BOOL      fullspeed         = 0;
 BOOL      i386              = 0;
 HINSTANCE instance          = (HINSTANCE)0;
-DWORD     lastfastpaging    = 0;
 DWORD     lasttrimimages    = 0;
 int       mode              = MODE_LOGO;
 DWORD     needsprecision    = 0;
@@ -33,17 +32,6 @@ TCHAR     progdir[MAX_PATH] = TEXT("");
 BOOL      resettiming       = 0;
 BOOL      restart           = 0;
 DWORD     speed             = 10;
-
-//===========================================================================
-void CheckFastPaging() {
-    if ((pages >= 10) && CpuSupportsFastPaging()) {
-        lastfastpaging = cumulativecycles;
-        if (cpuemtype == CPU_COMPILING) {
-            lasttrimimages = cumulativecycles;
-            MemSetFastPaging(1);
-        }
-    }
-}
 
 //===========================================================================
 void CheckCpuType() {
@@ -72,7 +60,6 @@ void ContinueExecution() {
                 do {
                     DWORD executedcycles = CpuExecute(2000);
                     cyclenum += executedcycles;
-                    CheckFastPaging();
                     DiskUpdatePosition(executedcycles);
                     JoyUpdatePosition(executedcycles);
                     VideoUpdateVbl(executedcycles,
@@ -95,7 +82,6 @@ void ContinueExecution() {
                         if (cyclenum < cyclesneeded)
                             cyclenum += CpuExecute(cyclesneeded - cyclenum);
                     }
-                    CheckFastPaging();
                     DiskUpdatePosition(cyclenum - startcycles);
                     JoyUpdatePosition(cyclenum - startcycles);
                     VideoUpdateVbl(cyclenum - startcycles,
@@ -116,13 +102,6 @@ void ContinueExecution() {
         }
     }
     emulmsec += clockgran;
-    if (cpuemtype == CPU_FASTPAGING)
-        if ((!pages) && (cumulativecycles - lastfastpaging > 500000))
-            MemSetFastPaging(0);
-        else if (cumulativecycles - lasttrimimages > 500000) {
-            MemTrimImages();
-            lasttrimimages = cumulativecycles;
-        }
     pages = 0;
 
     // DETERMINE WHETHER THE SCREEN WAS UPDATED, THE DISK WAS SPINNING,
@@ -352,11 +331,7 @@ void GetProgramDirectory() {
 BOOL LoadCalibrationData() {
 #define LOAD(a,b,c) if (!RegLoadValue(a,b,1,c)) return 0;
     DWORD buildnumber = 0;
-    DWORD runningonos = 0;
     LOAD(TEXT(""), TEXT("CurrentBuildNumber"), &buildnumber);
-    LOAD(TEXT(""), TEXT("RunningOnOS"), &runningonos);
-    if (buildnumber != BUILDNUMBER)
-        return 0;
     LOAD(TEXT("Calibration"), TEXT("Clock Granularity"), &clockgran);
     LOAD(TEXT("Calibration"), TEXT("Cycle Granularity"), &cyclegran);
     LOAD(TEXT("Calibration"), TEXT("Precision Timing"), &finegraindelay);

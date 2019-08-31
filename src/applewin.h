@@ -3,10 +3,6 @@
 #define  BUILDNUMBER       4
 #define  VERSIONSTRING     TEXT("1.10")
 
-#define  CPU_COMPILING     0
-#define  CPU_INTERPRETIVE  1
-#define  CPU_FASTPAGING    2
-
 #define  MODE_LOGO         0
 #define  MODE_PAUSED       1
 #define  MODE_RUNNING      2
@@ -33,23 +29,22 @@
 
 typedef BYTE(__stdcall * iofunction)(WORD, BYTE, BYTE, BYTE);
 
-typedef struct _IMAGE__ {
+typedef struct {
     int unused;
 } *HIMAGE;
 
-typedef struct _regsrec {
+struct regsrec {
     BYTE a;   // accumulator
     BYTE x;   // index X
     BYTE y;   // index Y
     BYTE ps;  // processor status
     WORD pc;  // program counter
     WORD sp;  // stack pointer
-} regsrec, * regsptr;
+};
 
 extern BOOL       apple2e;
 extern BOOL       autoboot;
 extern BOOL       behind;
-extern DWORD      cpuemtype;
 extern DWORD      cumulativecycles;
 extern DWORD      cyclenum;
 extern DWORD      emulmsec;
@@ -89,12 +84,8 @@ void    CommSetSerialPort(HWND, DWORD);
 void    CommUpdate(DWORD);
 void    CpuDestroy();
 DWORD   CpuExecute(DWORD);
-void    CpuGetCode(WORD, LPBYTE *, DWORD *);
 void    CpuInitialize();
-void    CpuReinitialize();
-void    CpuResetCompilerData();
 void    CpuSetupBenchmark();
-BOOL    CpuSupportsFastPaging();
 void    DebugBegin();
 void    DebugContinueStepping();
 void    DebugDestroy();
@@ -142,8 +133,6 @@ void    MemInitialize();
 void    MemReset();
 void    MemResetPaging();
 BYTE    MemReturnRandomData(BYTE highbit);
-void    MemSetFastPaging(BOOL);
-void    MemTrimImages();
 BOOL    RegLoadString(LPCTSTR, LPCTSTR, BOOL, LPTSTR, DWORD);
 BOOL    RegLoadValue(LPCTSTR, LPCTSTR, BOOL, DWORD *);
 void    RegSaveString(LPCTSTR, LPCTSTR, BOOL, LPCTSTR);

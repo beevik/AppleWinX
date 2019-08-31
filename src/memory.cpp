@@ -9,30 +9,30 @@
 #include "pch.h"
 #pragma  hdrstop
 
-#define  MF_80STORE    0x00000001
-#define  MF_ALTZP      0x00000002
-#define  MF_AUXREAD    0x00000004
-#define  MF_AUXWRITE   0x00000008
-#define  MF_BANK2      0x00000010
-#define  MF_HIGHRAM    0x00000020
-#define  MF_HIRES      0x00000040
-#define  MF_PAGE2      0x00000080
-#define  MF_SLOTC3ROM  0x00000100
-#define  MF_SLOTCXROM  0x00000200
-#define  MF_WRITERAM   0x00000400
-#define  MF_IMAGEMASK  0x000003F7
+constexpr DWORD MF_80STORE    = 0x00000001;
+constexpr DWORD MF_ALTZP      = 0x00000002;
+constexpr DWORD MF_AUXREAD    = 0x00000004;
+constexpr DWORD MF_AUXWRITE   = 0x00000008;
+constexpr DWORD MF_BANK2      = 0x00000010;
+constexpr DWORD MF_HIGHRAM    = 0x00000020;
+constexpr DWORD MF_HIRES      = 0x00000040;
+constexpr DWORD MF_PAGE2      = 0x00000080;
+constexpr DWORD MF_SLOTC3ROM  = 0x00000100;
+constexpr DWORD MF_SLOTCXROM  = 0x00000200;
+constexpr DWORD MF_WRITERAM   = 0x00000400;
+constexpr DWORD MF_IMAGEMASK  = 0x000003F7;
 
-#define  SW_80STORE    (memmode & MF_80STORE)
-#define  SW_ALTZP      (memmode & MF_ALTZP)
-#define  SW_AUXREAD    (memmode & MF_AUXREAD)
-#define  SW_AUXWRITE   (memmode & MF_AUXWRITE)
-#define  SW_BANK2      (memmode & MF_BANK2)
-#define  SW_HIGHRAM    (memmode & MF_HIGHRAM)
-#define  SW_HIRES      (memmode & MF_HIRES)
-#define  SW_PAGE2      (memmode & MF_PAGE2)
-#define  SW_SLOTC3ROM  (memmode & MF_SLOTC3ROM)
-#define  SW_SLOTCXROM  (memmode & MF_SLOTCXROM)
-#define  SW_WRITERAM   (memmode & MF_WRITERAM)
+#define  SW_80STORE()   (memmode & MF_80STORE)
+#define  SW_ALTZP()     (memmode & MF_ALTZP)
+#define  SW_AUXREAD()   (memmode & MF_AUXREAD)
+#define  SW_AUXWRITE()  (memmode & MF_AUXWRITE)
+#define  SW_BANK2()     (memmode & MF_BANK2)
+#define  SW_HIGHRAM()   (memmode & MF_HIGHRAM)
+#define  SW_HIRES()     (memmode & MF_HIRES)
+#define  SW_PAGE2()     (memmode & MF_PAGE2)
+#define  SW_SLOTC3ROM() (memmode & MF_SLOTC3ROM)
+#define  SW_SLOTCXROM() (memmode & MF_SLOTCXROM)
+#define  SW_WRITERAM()  (memmode & MF_WRITERAM)
 
 BYTE __stdcall NullIo(WORD programcounter, BYTE address, BYTE write, BYTE value);
 
@@ -557,12 +557,10 @@ iofunction iowrite[0x100] = {
 DWORD   imagemode[MAXIMAGES];
 LPBYTE  memshadow[MAXIMAGES][0x100];
 LPBYTE  memwrite[MAXIMAGES][0x100];
-regsrec regs;
 
-BOOL    fastpaging   = 0;
 DWORD   image        = 0;
 DWORD   lastimage    = 0;
-BOOL    lastwriteram = 0;
+BOOL    lastwriteram = FALSE;
 LPBYTE  mem          = NULL;
 LPBYTE  memaux       = NULL;
 LPBYTE  memdirty     = NULL;
@@ -570,7 +568,6 @@ LPBYTE  memimage     = NULL;
 LPBYTE  memmain      = NULL;
 DWORD   memmode      = MF_BANK2 | MF_SLOTCXROM | MF_WRITERAM;
 LPBYTE  memrom       = NULL;
-BOOL    modechanging = 0;
 DWORD   pages        = 0;
 
 static void UpdatePaging(BOOL initialize, BOOL updatewriteonly);
@@ -631,6 +628,18 @@ static void BackMainImage() {
 }
 
 //===========================================================================
+static void InitializePaging() {
+    BackMainImage();
+    if (lastimage >= 3)
+        VirtualFree(memimage + 0x30000, (lastimage - 2) << 16, MEM_DECOMMIT);
+    image = 0;
+    mem = memimage;
+    lastimage = 0;
+    imagemode[0] = memmode;
+    UpdatePaging(1, 0);
+}
+
+//===========================================================================
 static BYTE __stdcall NullIo(WORD programcounter, BYTE address, BYTE write, BYTE value) {
     if ((address & 0xF0) == 0xA0) {
         static const BYTE retval[16] = { 0x58,0xFC,0x5B,0xFF,0x58,0xFC,0x5B,0xFF,
@@ -668,49 +677,10 @@ static BYTE __stdcall NullIo(WORD programcounter, BYTE address, BYTE write, BYTE
 //===========================================================================
 static void ResetPaging(BOOL initialize) {
     if (!initialize)
-        MemSetFastPaging(0);
+        InitializePaging();
     lastwriteram = 0;
     memmode = MF_BANK2 | MF_SLOTCXROM | MF_WRITERAM;
     UpdatePaging(initialize, 0);
-}
-
-//===========================================================================
-void UpdateFastPaging() {
-    BOOL  found = 0;
-    DWORD imagenum = 0;
-    do {
-        if ((imagemode[imagenum] == memmode) ||
-            ((lastimage >= 3) &&
-            ((imagemode[imagenum] & MF_IMAGEMASK) == (memmode & MF_IMAGEMASK))))
-            found = 1;
-        else
-            ++imagenum;
-    } while ((imagenum <= lastimage) && !found);
-    if (found) {
-        image = imagenum;
-        mem = memimage + (image << 16);
-        if (imagemode[image] != memmode) {
-            imagemode[image] = memmode;
-            UpdatePaging(0, 1);
-        }
-    }
-    else {
-        if (lastimage < MAXIMAGES - 1) {
-            imagenum = ++lastimage;
-            if (lastimage >= 3)
-                VirtualAlloc(memimage + lastimage * 0x10000, 0x10000, MEM_COMMIT, PAGE_READWRITE);
-        }
-        else {
-            static DWORD nextimage = 0;
-            if (nextimage > lastimage)
-                nextimage = 0;
-            imagenum = nextimage++;
-        }
-        imagemode[image = imagenum] = memmode;
-        mem = memimage + (image << 16);
-        UpdatePaging(1, 0);
-    }
-    CpuReinitialize();
 }
 
 //===========================================================================
@@ -718,7 +688,7 @@ static void UpdatePaging(BOOL initialize, BOOL updatewriteonly) {
 
     // SAVE THE CURRENT PAGING SHADOW TABLE
     LPBYTE oldshadow[256];
-    if (!(initialize || fastpaging || updatewriteonly))
+    if (!(initialize || updatewriteonly))
         CopyMemory(oldshadow, memshadow[image], 256 * sizeof(LPBYTE));
 
     // UPDATE THE PAGING TABLES BASED ON THE NEW PAGING SWITCH VALUES
@@ -731,56 +701,56 @@ static void UpdatePaging(BOOL initialize, BOOL updatewriteonly) {
     }
     if (!updatewriteonly) {
         for (loop = 0; loop < 2; loop++)
-            memshadow[image][loop] = SW_ALTZP ? memaux + (loop << 8) : memmain + (loop << 8);
+            memshadow[image][loop] = SW_ALTZP() ? memaux + (loop << 8) : memmain + (loop << 8);
     }
     for (loop = 2; loop < 0xC0; loop++) {
-        memshadow[image][loop] = SW_AUXREAD ? memaux + (loop << 8)
+        memshadow[image][loop] = SW_AUXREAD() ? memaux + (loop << 8)
             : memmain + (loop << 8);
-        memwrite[image][loop] = ((SW_AUXREAD != 0) == (SW_AUXWRITE != 0))
+        memwrite[image][loop] = ((SW_AUXREAD() != 0) == (SW_AUXWRITE() != 0))
             ? mem + (loop << 8)
-            : SW_AUXWRITE ? memaux + (loop << 8)
+            : SW_AUXWRITE() ? memaux + (loop << 8)
             : memmain + (loop << 8);
     }
     if (!updatewriteonly) {
         for (loop = 0xC0; loop < 0xC8; loop++) {
             if (loop == 0xC3)
-                memshadow[image][loop] = (SW_SLOTC3ROM && SW_SLOTCXROM) ? memrom + 0x0300
+                memshadow[image][loop] = (SW_SLOTC3ROM() && SW_SLOTCXROM()) ? memrom + 0x0300
                 : memrom + 0x1300;
             else
-                memshadow[image][loop] = SW_SLOTCXROM ? memrom + (loop << 8) - 0xC000
+                memshadow[image][loop] = SW_SLOTCXROM() ? memrom + (loop << 8) - 0xC000
                 : memrom + (loop << 8) - 0xB000;
         }
         for (loop = 0xC8; loop < 0xD0; loop++)
             memshadow[image][loop] = memrom + (loop << 8) - 0xB000;
     }
     for (loop = 0xD0; loop < 0xE0; loop++) {
-        int bankoffset = (SW_BANK2 ? 0 : 0x1000);
-        memshadow[image][loop] = SW_HIGHRAM ? SW_ALTZP ? memaux + (loop << 8) - bankoffset
+        int bankoffset = (SW_BANK2() ? 0 : 0x1000);
+        memshadow[image][loop] = SW_HIGHRAM() ? SW_ALTZP() ? memaux + (loop << 8) - bankoffset
             : memmain + (loop << 8) - bankoffset
             : memrom + (loop << 8) - 0xB000;
-        memwrite[image][loop] = SW_WRITERAM ? SW_HIGHRAM ? mem + (loop << 8)
-            : SW_ALTZP ? memaux + (loop << 8) - bankoffset
+        memwrite[image][loop] = SW_WRITERAM() ? SW_HIGHRAM() ? mem + (loop << 8)
+            : SW_ALTZP() ? memaux + (loop << 8) - bankoffset
             : memmain + (loop << 8) - bankoffset
             : NULL;
     }
     for (loop = 0xE0; loop < 0x100; loop++) {
-        memshadow[image][loop] = SW_HIGHRAM ? SW_ALTZP ? memaux + (loop << 8)
+        memshadow[image][loop] = SW_HIGHRAM() ? SW_ALTZP() ? memaux + (loop << 8)
             : memmain + (loop << 8)
             : memrom + (loop << 8) - 0xB000;
-        memwrite[image][loop] = SW_WRITERAM ? SW_HIGHRAM ? mem + (loop << 8)
-            : SW_ALTZP ? memaux + (loop << 8)
+        memwrite[image][loop] = SW_WRITERAM() ? SW_HIGHRAM() ? mem + (loop << 8)
+            : SW_ALTZP() ? memaux + (loop << 8)
             : memmain + (loop << 8)
             : NULL;
     }
-    if (SW_80STORE) {
+    if (SW_80STORE()) {
         for (loop = 4; loop < 8; loop++) {
-            memshadow[image][loop] = SW_PAGE2 ? memaux + (loop << 8)
+            memshadow[image][loop] = SW_PAGE2() ? memaux + (loop << 8)
                 : memmain + (loop << 8);
             memwrite[image][loop] = mem + (loop << 8);
         }
-        if (SW_HIRES)
+        if (SW_HIRES())
             for (loop = 0x20; loop < 0x40; loop++) {
-                memshadow[image][loop] = SW_PAGE2 ? memaux + (loop << 8)
+                memshadow[image][loop] = SW_PAGE2() ? memaux + (loop << 8)
                     : memmain + (loop << 8);
                 memwrite[image][loop] = mem + (loop << 8);
             }
@@ -792,7 +762,7 @@ static void UpdatePaging(BOOL initialize, BOOL updatewriteonly) {
     if (!updatewriteonly) {
         for (loop = 0; loop < 0x100; loop++) {
             if (initialize || (oldshadow[loop] != memshadow[image][loop])) {
-                if (!initialize && !fastpaging && ((memdirty[loop] & 1) || (loop <= 1))) {
+                if (!initialize && ((memdirty[loop] & 1) || (loop <= 1))) {
                     memdirty[loop] &= ~1;
                     CopyMemory(oldshadow[loop], mem + (loop << 8), 256);
                 }
@@ -812,24 +782,22 @@ static void UpdatePaging(BOOL initialize, BOOL updatewriteonly) {
 BYTE __stdcall MemCheckPaging(WORD, BYTE address, BYTE, BYTE) {
     BOOL result = 0;
     switch (address) {
-        case 0x11: result = SW_BANK2;       break;
-        case 0x12: result = SW_HIGHRAM;     break;
-        case 0x13: result = SW_AUXREAD;     break;
-        case 0x14: result = SW_AUXWRITE;    break;
-        case 0x15: result = !SW_SLOTCXROM;  break;
-        case 0x16: result = SW_ALTZP;       break;
-        case 0x17: result = SW_SLOTC3ROM;   break;
-        case 0x18: result = SW_80STORE;     break;
-        case 0x1C: result = SW_PAGE2;       break;
-        case 0x1D: result = SW_HIRES;       break;
+        case 0x11: result = SW_BANK2();      break;
+        case 0x12: result = SW_HIGHRAM();    break;
+        case 0x13: result = SW_AUXREAD();    break;
+        case 0x14: result = SW_AUXWRITE();   break;
+        case 0x15: result = !SW_SLOTCXROM(); break;
+        case 0x16: result = SW_ALTZP();      break;
+        case 0x17: result = SW_SLOTC3ROM();  break;
+        case 0x18: result = SW_80STORE();    break;
+        case 0x1C: result = SW_PAGE2();      break;
+        case 0x1D: result = SW_HIRES();      break;
     }
     return KeybGetKeycode() | (result ? 0x80 : 0);
 }
 
 //===========================================================================
 void MemDestroy() {
-    if (fastpaging)
-        MemSetFastPaging(0);
     VirtualFree(memimage, MAX(0x30000, 0x10000 * (lastimage + 1)), MEM_DECOMMIT);
     VirtualFree(memaux, 0, MEM_RELEASE);
     VirtualFree(memdirty, 0, MEM_RELEASE);
@@ -928,8 +896,7 @@ void MemInitialize() {
 //===========================================================================
 void MemReset() {
 
-    // TURN OFF FAST PAGING IF IT IS CURRENTLY ACTIVE
-    MemSetFastPaging(0);
+    InitializePaging();
 
     // INITIALIZE THE PAGING TABLES
     ZeroMemory(memshadow, MAXIMAGES * 256 * sizeof(LPBYTE));
@@ -966,30 +933,6 @@ BYTE MemReturnRandomData(BYTE highbit) {
         return 0x20 | (highbit ? 0x80 : 0);
     else
         return retval[r & 15] | (highbit ? 0x80 : 0);
-}
-
-//===========================================================================
-void MemSetFastPaging(BOOL on) {
-    if (fastpaging && modechanging) {
-        modechanging = 0;
-        UpdateFastPaging();
-    }
-    else if (!fastpaging) {
-        BackMainImage();
-        if (lastimage >= 3)
-            VirtualFree(memimage + 0x30000, (lastimage - 2) << 16, MEM_DECOMMIT);
-    }
-    fastpaging = on;
-    image = 0;
-    mem = memimage;
-    lastimage = 0;
-    imagemode[0] = memmode;
-    if (!fastpaging)
-        UpdatePaging(1, 0);
-    cpuemtype = fastpaging ? CPU_FASTPAGING : CPU_COMPILING;
-    CpuReinitialize();
-    if (cpuemtype == CPU_COMPILING)
-        CpuResetCompilerData();
 }
 
 //===========================================================================
@@ -1032,37 +975,27 @@ BYTE __stdcall MemSetPaging(WORD programcounter, BYTE address, BYTE write, BYTE 
     // IF THE EMULATED PROGRAM HAS JUST UPDATE THE MEMORY WRITE MODE AND IS
     // ABOUT TO UPDATE THE MEMORY READ MODE, HOLD OFF ON ANY PROCESSING UNTIL
     // IT DOES SO.
+    BOOL modechanging = FALSE;
     if ((address >= 4) && (address <= 5) &&
         ((*(LPDWORD)(mem + programcounter) & 0x00FFFEFF) == 0x00C0028D)) {
-        modechanging = 1;
+        modechanging = TRUE;
         return write ? 0 : MemReturnRandomData(1);
     }
     if ((address >= 0x80) && (address <= 0x8F) && (programcounter < 0xC000) &&
         (((*(LPDWORD)(mem + programcounter) & 0x00FFFEFF) == 0x00C0048D) ||
         ((*(LPDWORD)(mem + programcounter) & 0x00FFFEFF) == 0x00C0028D))) {
-        modechanging = 1;
+        modechanging = TRUE;
         return write ? 0 : MemReturnRandomData(1);
     }
 
     // IF THE MEMORY PAGING MODE HAS CHANGED, UPDATE OUR MEMORY IMAGES AND
     // WRITE TABLES.
     if ((lastmemmode != memmode) || modechanging) {
-        modechanging = 0;
         ++pages;
 
-        // IF FAST PAGING IS ACTIVE, WE KEEP MULTIPLE COMPLETE MEMORY IMAGES
-        // AND WRITE TABLES, AND SWITCH BETWEEN THEM.  THE FAST PAGING VERSION
-        // OF THE CPU EMULATOR KEEPS ALL OF THE IMAGES COHERENT.
-        if (fastpaging)
-            UpdateFastPaging();
-
-        // IF FAST PAGING IS NOT ACTIVE THEN WE KEEP ONLY ONE MEMORY IMAGE AND
-        // WRITE TABLE, AND UPDATE THEM EVERY TIME PAGING IS CHANGED.
-        else {
-            UpdatePaging(0, 0);
-            if (cpuemtype == CPU_COMPILING)
-                CpuResetCompilerData();
-        }
+        // KEEP ONLY ONE MEMORY IMAGE AND WRITE TABLE, AND UPDATE THEM
+        // EVERY TIME PAGING IS CHANGED.
+        UpdatePaging(0, 0);
 
     }
 
@@ -1070,33 +1003,5 @@ BYTE __stdcall MemSetPaging(WORD programcounter, BYTE address, BYTE write, BYTE 
         VideoSetMode(programcounter, address, write, value);
     return write ? 0
         : MemReturnRandomData(((address == 0x54) || (address == 0x55))
-            ? (SW_PAGE2 != 0) : 1);
-}
-
-//===========================================================================
-void MemTrimImages() {
-    if (fastpaging && (lastimage > 2)) {
-        if (modechanging) {
-            modechanging = 0;
-            UpdateFastPaging();
-        }
-        static DWORD trimnumber = 0;
-        if ((image != trimnumber) &&
-            (image != lastimage) &&
-            (trimnumber < lastimage)) {
-            imagemode[trimnumber] = imagemode[lastimage];
-            VirtualFree(memimage + (lastimage-- << 16), 0x10000, MEM_DECOMMIT);
-            DWORD realimage = image;
-            image = trimnumber;
-            mem = memimage + (image << 16);
-            memmode = imagemode[image];
-            UpdatePaging(1, 0);
-            image = realimage;
-            mem = memimage + (image << 16);
-            memmode = imagemode[image];
-            CpuReinitialize();
-        }
-        if (++trimnumber >= lastimage)
-            trimnumber = 0;
-    }
+            ? (SW_PAGE2() != 0) : 1);
 }
