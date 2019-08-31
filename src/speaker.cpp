@@ -53,55 +53,13 @@ void DisplayBenchmarkResults () {
 
 //===========================================================================
 void InternalBeep (DWORD frequency, DWORD duration) {
-#ifdef _X86_
-  if (directio)
-    if (duration) {
-      frequency = 1193180/frequency;
-      __asm {
-        push eax
-        mov  al,0B6h
-        out  43h,al
-        mov  eax,frequency
-        out  42h,al
-        mov  al,ah
-        out  42h,al
-        in   al,61h
-        or   al,3
-        out  61h,al
-        pop  eax
-      }
-    }
-    else
-      __asm {
-        push eax
-        in   al,61h
-        and  al,0FCh
-        out  61h,al
-        pop  eax
-      }
-  else
-#endif
     Beep(frequency,duration);
 }
 
 //===========================================================================
 void InternalClick () {
-#ifdef _X86_
-  if (directio)
-    __asm {
-      push eax
-      in   al,0x61
-      xor  al,2
-      out  0x61,al
-      pop  eax
-    }
-  else {
-#endif
-    Beep(37,(DWORD)-1);
-    Beep(0,0);
-#ifdef _X86_
-  }
-#endif
+  Beep(37,(DWORD)-1);
+  Beep(0,0);
 }
 
 //===========================================================================
@@ -259,24 +217,8 @@ void SpkrInitialize () {
   if (!waveout) {
     if (soundtype == SOUND_WAVE)
       soundtype = SOUND_SMART;
-#ifdef _X86_
-    _try {
-      __asm {
-        in  al,0x61
-        xor al,2
-        out 0x61,al
-        xor al,2
-        out 0x61,al
-      }
-      directio = 1;
-    }
-    _except (EXCEPTION_EXECUTE_HANDLER) {
-      directio = 0;
-    }
-#else
     directio = 0;
-#endif
-    if ((!directio) && (soundtype == SOUND_DIRECT))
+    if (soundtype == SOUND_DIRECT)
       soundtype = SOUND_SMART;
   }
 

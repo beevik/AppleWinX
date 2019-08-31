@@ -1396,32 +1396,6 @@ void VideoInitialize () {
     }
     bitbltfunc = NULL;
     BOOL win95 = ((GetVersion() & 0xFF) >= 4);
-#ifdef _X86_
-    if ((bitsperpixel != 4) || !i386) {
-      TCHAR filename[MAX_PATH];
-      _tcscpy(filename,progdir);
-      _tcscat(filename,TEXT("fastblt.dll"));
-      fastinst = LoadLibrary(filename);
-    }
-    if (fastinst) {
-      TCHAR funcname[16];
-      wsprintf(funcname,TEXT("FastBlt%x"),(unsigned)srcpixelformat);
-      if ((srcpixelformat == 0x401) && !win95)
-        _tcscat(funcname,TEXT("b"));
-      else if (usingdib)
-        _tcscat(funcname,TEXT("d"));
-      bitbltfunc = (bitblttype)GetProcAddress(fastinst,funcname);
-      fastbltinittype initfunc = (fastbltinittype)GetProcAddress(fastinst,
-                                                                 TEXT("FastBltInit"));
-      if (bitbltfunc && initfunc)
-        initfunc(sourcebits,framebufferbits,sourceoffsettable,frameoffsettable);
-      else {
-        FreeLibrary(fastinst);
-        fastinst   = (HINSTANCE)0;
-        bitbltfunc = NULL;
-      }
-    }
-#endif
     if (!bitbltfunc)
       switch (srcpixelformat) {
         case 0x104: bitbltfunc = BitBlt104;                          break;

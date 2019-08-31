@@ -665,44 +665,6 @@ void CpuInitialize () {
   regs.ps = 0x20;
   regs.pc = *(LPWORD)(mem+0xFFFC);
   regs.sp = 0x01FF;
-
-#ifdef _X86_
-  if (mem) {
-    TCHAR filename[MAX_PATH];
-    if (!i386) {
-      _tcscpy(filename,progdir);
-      _tcscat(filename,TEXT("65c02c.dll"));
-      cpulibrary[CPU_COMPILING] = LoadLibrary(filename);
-    }
-    _tcscpy(filename,progdir);
-    _tcscat(filename,apple2e ? TEXT("65c02.dll") : TEXT("6502.dll"));
-    cpulibrary[CPU_INTERPRETIVE] = LoadLibrary(filename);
-    if (!cpulibrary[CPU_INTERPRETIVE]) {
-      _tcscpy(filename,progdir);
-      _tcscat(filename,TEXT("65c02.dll"));
-      cpulibrary[CPU_INTERPRETIVE] = LoadLibrary(filename);
-    }
-    _tcscpy(filename,progdir);
-    _tcscat(filename,TEXT("65c02p.dll"));
-    cpulibrary[CPU_FASTPAGING] = LoadLibrary(filename);
-    if (!cpulibrary[CPU_COMPILING])
-      cpulibrary[CPU_COMPILING] = cpulibrary[CPU_INTERPRETIVE];
-    int loop = 3;
-    while (loop--)
-      if (cpulibrary[loop]) {
-        cpuexecutefunc[loop] = (cpuexecutetype)GetProcAddress(cpulibrary[loop],
-                                                              TEXT("CpuExecute"));
-        cpugetcodefunc[loop] = (cpugetcodetype)GetProcAddress(cpulibrary[loop],
-                                                              TEXT("CpuGetCode"));
-        cpuinitfunc[loop]    = (cpuinittype)GetProcAddress(cpulibrary[loop],
-                                                           TEXT("CpuInitialize"));
-        if (cpuinitfunc[loop])
-          cpuinitfunc[loop](mem,memshadow[0],memwrite[0],
-                            image,lastimage,
-                            &regs,ioread,iowrite,memdirty);
-      }
-  }
-#endif
 }
 
 //===========================================================================
