@@ -28,13 +28,8 @@ BOOL RegLoadString (LPCTSTR section, LPCTSTR key, BOOL peruser,
   advapiinst = LoadLibrary(TEXT("ADVAPI32"));
   if (advapiinst) {
     regclosetype regclose = (regclosetype)GetProcAddress(advapiinst,TEXT("RegCloseKey"));
-#ifdef UNICODE
-    regopentype  regopen  = (regopentype )GetProcAddress(advapiinst,TEXT("RegOpenKeyExW"));
-    regquerytype regquery = (regquerytype)GetProcAddress(advapiinst,TEXT("RegQueryValueExW"));
-#else
     regopentype  regopen  = (regopentype )GetProcAddress(advapiinst,TEXT("RegOpenKeyExA"));
     regquerytype regquery = (regquerytype)GetProcAddress(advapiinst,TEXT("RegQueryValueExA"));
-#endif
     BOOL success = 0;
     if (regclose && regopen && regquery) {
       usingregistry = 1;
