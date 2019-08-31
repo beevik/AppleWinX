@@ -33,7 +33,6 @@ TCHAR     progdir[MAX_PATH] = TEXT("");
 BOOL      resettiming       = 0;
 BOOL      restart           = 0;
 DWORD     speed             = 10;
-BOOL      win31             = 0;
 
 //===========================================================================
 void CheckFastPaging () {
@@ -51,12 +50,6 @@ void CheckCpuType () {
   SYSTEM_INFO sysinfo;
   GetSystemInfo(&sysinfo);
   i386 = (sysinfo.dwProcessorType == PROCESSOR_INTEL_386);
-}
-
-//===========================================================================
-void CheckWindowsVersion () {
-  win31 = ((LOBYTE(LOWORD(GetVersion())) == 3) &&
-           (HIBYTE(LOWORD(GetVersion())) <= 0x20));
 }
 
 //===========================================================================
@@ -315,10 +308,6 @@ LRESULT CALLBACK DlgProc (HWND   window,
 	       0);
     ShowWindow(window,SW_SHOW);
   }
-  if (win31 && (message == WM_CTLCOLORSTATIC)) {
-    SetBkColor((HDC)wparam,0xC0C0C0);
-    return (LRESULT)GetStockObject(LTGRAY_BRUSH);
-  }
   return DefWindowProc(window,message,wparam,lparam);
 }
 
@@ -478,7 +467,6 @@ int APIENTRY WinMain (HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
   // DO ONE-TIME INITIALIZATION
   instance = passinstance;
   CheckCpuType();
-  CheckWindowsVersion();
   GdiSetBatchLimit(512);
   GetProgramDirectory();
   RegisterExtensions();

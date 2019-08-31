@@ -777,8 +777,6 @@ HBITMAP LoadButtonBitmap (HINSTANCE instance, LPCTSTR bitmapname) {
     return bitmap;
   BITMAP info;
   GetObject(bitmap,sizeof(BITMAP),&info);
-  if (win31)
-    info.bmBitsPixel = 0;
   if (info.bmBitsPixel >= 8) {
     DWORD  bytespixel = info.bmBitsPixel >> 3;
     DWORD  bytestotal = info.bmHeight*info.bmWidthBytes;
@@ -828,10 +826,7 @@ HBITMAP LoadButtonBitmap (HINSTANCE instance, LPCTSTR bitmapname) {
       int x = 0;
       do
         if (GetPixel(memdc,x,y) == origcol)
-          if (win31)
-            SetPixel(memdc,x,y,newcol);
-          else
-            SetPixelV(memdc,x,y,newcol);
+          SetPixelV(memdc,x,y,newcol);
       while (++x < info.bmWidth);
     } while (++y < info.bmHeight);
     DeleteDC(memdc);
@@ -1028,8 +1023,7 @@ void FrameRefreshStatus () {
 
 //===========================================================================
 void FrameRegisterClass () {
-  if (!win31)
-    win95 = ((GetVersion() & 0xFF) >= 4);
+  win95 = ((GetVersion() & 0xFF) >= 4);
   if (win95) {
     HINSTANCE     userinst   = LoadLibrary(TEXT("USER32"));
     loadimagetype loadimage  = NULL;

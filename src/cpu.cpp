@@ -669,7 +669,7 @@ void CpuInitialize () {
 #ifdef _X86_
   if (mem) {
     TCHAR filename[MAX_PATH];
-    if ((!win31) && (!i386)) {
+    if (!i386) {
       _tcscpy(filename,progdir);
       _tcscat(filename,TEXT("65c02c.dll"));
       cpulibrary[CPU_COMPILING] = LoadLibrary(filename);

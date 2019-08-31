@@ -209,9 +209,9 @@ void SpkrDestroy () {
 void SpkrInitialize () {
 
   // DETERMINE THE DEFAULT BUFFER SIZE
-  buffersize = win31 ?  4096 :  8192;
-  bufferrate = win31 ? 15369 : 30994;
-  cycleshift = win31 ?     6 :     5;
+  buffersize = 8192;
+  bufferrate = 30994;
+  cycleshift = 5;
 
   // DETERMINE WHETHER A WAVEFORM OUTPUT DEVICE IS AVAILABLE
   if (soundtype == SOUND_WAVE) {

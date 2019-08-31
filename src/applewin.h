@@ -80,7 +80,6 @@ extern BOOL       restart;
 extern DWORD      serialport;
 extern DWORD      soundtype;
 extern DWORD      speed;
-extern BOOL       win31;
 
 void    CommDestroy ();
 void    CommReset ();

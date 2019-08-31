@@ -25,8 +25,7 @@ BOOL RegLoadString (LPCTSTR section, LPCTSTR key, BOOL peruser,
                     LPTSTR buffer, DWORD chars) {
   BOOL      usingregistry = 0;
   HINSTANCE advapiinst    = (HINSTANCE)0;
-  if (!win31)
-    advapiinst = LoadLibrary(TEXT("ADVAPI32"));
+  advapiinst = LoadLibrary(TEXT("ADVAPI32"));
   if (advapiinst) {
     regclosetype regclose = (regclosetype)GetProcAddress(advapiinst,TEXT("RegCloseKey"));
 #ifdef UNICODE
