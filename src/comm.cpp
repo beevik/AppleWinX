@@ -30,7 +30,7 @@ static BOOL CheckComm() {
     if ((commhandle == INVALID_HANDLE_VALUE) && serialport) {
         TCHAR portname[8];
         wsprintf(portname,
-            TEXT("COM%u"),
+            "COM%u",
             serialport);
         commhandle = CreateFile(portname,
             GENERIC_READ | GENERIC_WRITE,
@@ -183,9 +183,9 @@ void CommSetSerialPort(HWND window, DWORD newserialport) {
         serialport = newserialport;
     else
         MessageBox(window,
-            TEXT("You cannot change the serial port while it is ")
-            TEXT("in use."),
-            TEXT("Configuration"),
+            "You cannot change the serial port while it is "
+            "in use.",
+            "Configuration",
             MB_ICONEXCLAMATION);
 }
 

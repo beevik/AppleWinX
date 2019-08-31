@@ -9,12 +9,10 @@
 #include "pch.h"
 #pragma  hdrstop
 
-#define  DRIVE_1  0
-#define  DRIVE_2  1
 
-#define  DRIVES   2
-#define  NIBBLES  6384
-#define  TRACKS   35
+constexpr int DRIVES   = 2;
+constexpr int NIBBLES  = 6384;
+constexpr int TRACKS   = 35;
 
 struct floppyrec {
     TCHAR  imagename[16];
@@ -53,16 +51,16 @@ static void CheckSpinning() {
 
 //===========================================================================
 static void GetImageTitle(LPCTSTR imagefilename, LPTSTR imagename) {
-    TCHAR   imagetitle[128] = TEXT("");
+    TCHAR   imagetitle[128] = "";
     LPCTSTR startpos = imagefilename;
-    while (_tcschr(startpos, TEXT('\\')))
-        startpos = _tcschr(startpos, TEXT('\\')) + 1;
+    while (_tcschr(startpos, '\\'))
+        startpos = _tcschr(startpos, '\\') + 1;
     _tcsncpy(imagetitle, startpos, 127);
     imagetitle[127] = 0;
     if (imagetitle[0]) {
         LPTSTR dot = imagetitle;
-        while (_tcschr(dot + 1, TEXT('.')))
-            dot = _tcschr(dot + 1, TEXT('.'));
+        while (_tcschr(dot + 1, '.'))
+            dot = _tcschr(dot + 1, '.');
         if (dot > imagetitle)
             * dot = 0;
     }
@@ -125,13 +123,13 @@ static void NotifyInvalidImage(LPCTSTR imagefilename) {
     TCHAR buffer[MAX_PATH + 128];
     if (file == INVALID_HANDLE_VALUE)
         wsprintf(buffer,
-            TEXT("Unable to open the file %s."),
+            "Unable to open the file %s.",
             (LPCTSTR)imagefilename);
     else {
         CloseHandle(file);
         wsprintf(buffer,
-            TEXT("%s\nUnable to use the file because the disk ")
-            TEXT("image format is not recognized."),
+            "%s\nUnable to use the file because the disk "
+            "image format is not recognized.",
             (LPCTSTR)imagefilename);
     }
     MessageBox(framewindow,
@@ -269,27 +267,27 @@ BOOL DiskInitialize() {
       // PARSE THE COMMAND LINE LOOKING FOR THE NAME OF A DISK IMAGE.
       // (THIS IS MADE MORE COMPLICATED BY THE FACT THAT LONG FILE NAMES MAY
       //  BE EMBEDDED IN QUOTES, INCLUDING THE NAME OF THE PROGRAM ITSELF)
-    TCHAR   imagefilename[MAX_PATH] = TEXT("");
+    TCHAR   imagefilename[MAX_PATH] = "";
     LPCTSTR cmdlinenameIn = GetCommandLine();
     LPTSTR  cmdlinename = strdup(cmdlinenameIn);
     BOOL    inquotes = 0;
-    while (cmdlinename && ((*cmdlinename != TEXT(' ')) || inquotes)) {
-        if (*cmdlinename == TEXT('\"'))
+    while (cmdlinename && ((*cmdlinename != ' ') || inquotes)) {
+        if (*cmdlinename == '\"')
             inquotes = !inquotes;
         ++cmdlinename;
     }
-    while (cmdlinename && ((*cmdlinename == TEXT(' ')) || (*cmdlinename == TEXT('\"'))))
+    while (cmdlinename && ((*cmdlinename == ' ') || (*cmdlinename == '\"')))
         ++cmdlinename;
     if (cmdlinename && *cmdlinename) {
         _tcscpy(imagefilename, cmdlinename);
-        if (_tcschr(cmdlinename, TEXT('\"')))
-            * _tcschr(cmdlinename, TEXT('\"')) = 0;
+        if (_tcschr(cmdlinename, '\"'))
+            * _tcschr(cmdlinename, '\"') = 0;
     }
 
     // IF WE DIDN'T FIND AN IMAGE FILE NAME, USE MASTER.DSK
     else {
         _tcscpy(imagefilename, progdir);
-        _tcscat(imagefilename, TEXT("Master.dsk"));
+        _tcscat(imagefilename, "Master.dsk");
     }
 
     // OPEN THE IMAGE FILE
@@ -349,30 +347,30 @@ BYTE __stdcall DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
 
 //===========================================================================
 void DiskSelect(int drive) {
-    TCHAR directory[MAX_PATH] = TEXT("");
-    TCHAR filename[MAX_PATH] = TEXT("");
-    RegLoadString(TEXT("Preferences"), TEXT("Starting Directory"), 1,
+    TCHAR directory[MAX_PATH] = "";
+    TCHAR filename[MAX_PATH] = "";
+    RegLoadString("Preferences", "Starting Directory", 1,
         directory, MAX_PATH);
     OPENFILENAME ofn;
     ZeroMemory(&ofn, sizeof(OPENFILENAME));
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner = framewindow;
     ofn.hInstance = instance;
-    ofn.lpstrFilter = TEXT("All Images\0*.apl;*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0")
-        TEXT("Disk Images (*.bin,*.do,*.dsk,*.iie,*.nib,*.po)\0*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0")
-        TEXT("All Files\0*.*\0");
+    ofn.lpstrFilter = "All Images\0*.apl;*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
+        "Disk Images (*.bin,*.do,*.dsk,*.iie,*.nib,*.po)\0*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
+        "All Files\0*.*\0";
     ofn.lpstrFile = filename;
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrInitialDir = directory;
     ofn.Flags = OFN_CREATEPROMPT | OFN_HIDEREADONLY;
-    ofn.lpTemplateName = TEXT("INSERT_DIALOG");
+    ofn.lpTemplateName = "INSERT_DIALOG";
     if (GetOpenFileName(&ofn)) {
         if ((!ofn.nFileExtension) || !filename[ofn.nFileExtension])
-            _tcscat(filename, TEXT(".dsk"));
+            _tcscat(filename, ".dsk");
         if (InsertDisk(drive, filename, 1)) {
             filename[ofn.nFileOffset] = 0;
             if (_tcsicmp(directory, filename))
-                RegSaveString(TEXT("Preferences"), TEXT("Starting Directory"), 1, filename);
+                RegSaveString("Preferences", "Starting Directory", 1, filename);
         }
         else
             NotifyInvalidImage(filename);

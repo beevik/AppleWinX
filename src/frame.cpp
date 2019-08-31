@@ -48,24 +48,24 @@ typedef void(WINAPI * initcomctltype)();
 typedef HANDLE(WINAPI * loadimagetype)(HINSTANCE, LPCTSTR, UINT, int, int, UINT);
 typedef ATOM(WINAPI * regextype)(CONST WNDCLASSEX *);
 
-static const TCHAR computerchoices[] = TEXT("Apple ][+\0")
-                                       TEXT("Apple //e\0");
-static const TCHAR joystickchoices[] = TEXT("Disabled\0")
-                                       TEXT("PC Joystick\0")
-                                       TEXT("Keyboard (standard)\0")
-                                       TEXT("Keyboard (centering)\0")
-                                       TEXT("Mouse\0");
-static const TCHAR serialchoices[] =   TEXT("None\0")
-                                       TEXT("COM1\0")
-                                       TEXT("COM2\0")
-                                       TEXT("COM3\0")
-                                       TEXT("COM4\0");
-static const TCHAR soundchoices[] =    TEXT("Disabled\0")
-                                       TEXT("PC Speaker (direct)\0")
-                                       TEXT("PC Speaker (translated)\0")
-                                       TEXT("Sound Card\0");
-static const TCHAR videochoices[] =    TEXT("Color\0")
-                                       TEXT("Monochrome\0");
+static const TCHAR computerchoices[] = "Apple ][+\0"
+                                       "Apple //e\0";
+static const TCHAR joystickchoices[] = "Disabled\0"
+                                       "PC Joystick\0"
+                                       "Keyboard (standard)\0"
+                                       "Keyboard (centering)\0"
+                                       "Mouse\0";
+static const TCHAR serialchoices[] =   "None\0"
+                                       "COM1\0"
+                                       "COM2\0"
+                                       "COM3\0"
+                                       "COM4\0";
+static const TCHAR soundchoices[] =    "Disabled\0"
+                                       "PC Speaker (direct)\0"
+                                       "PC Speaker (translated)\0"
+                                       "Sound Card\0";
+static const TCHAR videochoices[] =    "Color\0"
+                                       "Monochrome\0";
 
 static HBITMAP capsbitmap[2];
 static HBITMAP diskbitmap[3];
@@ -113,12 +113,12 @@ static BOOL CALLBACK ConfigDlgProc(
                     DWORD newserialport = (DWORD)SendDlgItemMessage(window, 104, CB_GETCURSEL, 0, 0);
                     if (newcomptype != apple2e)
                         if (MessageBox(window,
-                            TEXT("You have changed the emulated computer ")
-                            TEXT("type.  This change will not take effect ")
-                            TEXT("until the next time you restart the ")
-                            TEXT("emulator.\n\n")
-                            TEXT("Would you like to restart the emulator now?"),
-                            TEXT("Configuration"),
+                            "You have changed the emulated computer "
+                            "type.  This change will not take effect "
+                            "until the next time you restart the "
+                            "emulator.\n\n"
+                            "Would you like to restart the emulator now?",
+                            "Configuration",
                             MB_ICONQUESTION | MB_YESNO) == IDYES)
                             afterclose = 2;
                     if (!JoySetEmulationType(window, newjoytype)) {
@@ -139,14 +139,14 @@ static BOOL CALLBACK ConfigDlgProc(
                         speed = SPEED_NORMAL;
                     else
                         speed = SendDlgItemMessage(window, 108, TBM_GETPOS, 0, 0);
-#define SAVE(a,b) RegSaveValue(TEXT("Configuration"),a,0,b);
-                    SAVE(TEXT("Computer Emulation"), newcomptype);
-                    SAVE(TEXT("Joystick Emulation"), joytype);
-                    SAVE(TEXT("Sound Emulation"), soundtype);
-                    SAVE(TEXT("Serial Port"), serialport);
-                    SAVE(TEXT("Custom Speed"), IsDlgButtonChecked(window, 107));
-                    SAVE(TEXT("Emulation Speed"), speed);
-                    SAVE(TEXT("Monochrome Video"), optmonochrome);
+#define SAVE(a,b) RegSaveValue("Configuration",a,0,b);
+                    SAVE("Computer Emulation", newcomptype);
+                    SAVE("Joystick Emulation", joytype);
+                    SAVE("Sound Emulation", soundtype);
+                    SAVE("Serial Port", serialport);
+                    SAVE("Custom Speed", IsDlgButtonChecked(window, 107));
+                    SAVE("Emulation Speed", speed);
+                    SAVE("Monochrome Video", optmonochrome);
 #undef SAVE
                 }
                 EndDialog(window, 1);
@@ -179,12 +179,12 @@ static BOOL CALLBACK ConfigDlgProc(
                     break;
 
                 case 112:
-                    RegSaveValue(TEXT(""), TEXT("RunningOnOS"), 0, 0);
+                    RegSaveValue("", "RunningOnOS", 0, 0);
                     if (MessageBox(window,
-                        TEXT("The emulator has been set to recalibrate ")
-                        TEXT("itself the next time it is started.\n\n")
-                        TEXT("Would you like to restart the emulator now?"),
-                        TEXT("Configuration"),
+                        "The emulator has been set to recalibrate "
+                        "itself the next time it is started.\n\n"
+                        "Would you like to restart the emulator now?",
+                        "Configuration",
                         MB_ICONQUESTION | MB_YESNO) == IDYES) {
                         afterclose = 2;
                         PostMessage(window, WM_COMMAND, IDOK, (LPARAM)GetDlgItem(window, IDOK));
@@ -212,7 +212,7 @@ static BOOL CALLBACK ConfigDlgProc(
                 BOOL custom = 1;
                 if (speed == 10) {
                     custom = 0;
-                    RegLoadValue(TEXT("Configuration"), TEXT("Custom Speed"),
+                    RegLoadValue("Configuration", "Custom Speed",
                         0, (DWORD *)& custom);
                 }
                 CheckRadioButton(window, 106, 107, 106 + custom);
@@ -248,19 +248,19 @@ static BOOL CALLBACK ConfigDlgProc(
 //===========================================================================
 static void CreateGdiObjects() {
     ZeroMemory(buttonbitmap, BUTTONS * sizeof(HBITMAP));
-    buttonbitmap[BTN_HELP] = LoadButtonBitmap(instance, TEXT("HELP_BUTTON"));
-    buttonbitmap[BTN_RUN] = LoadButtonBitmap(instance, TEXT("RUN_BUTTON"));
-    buttonbitmap[BTN_DRIVE1] = LoadButtonBitmap(instance, TEXT("DRIVE1_BUTTON"));
-    buttonbitmap[BTN_DRIVE2] = LoadButtonBitmap(instance, TEXT("DRIVE2_BUTTON"));
-    buttonbitmap[BTN_TOFILE] = LoadButtonBitmap(instance, TEXT("TOFILE_BUTTON"));
-    buttonbitmap[BTN_TODISK] = LoadButtonBitmap(instance, TEXT("TODISK_BUTTON"));
-    buttonbitmap[BTN_DEBUG] = LoadButtonBitmap(instance, TEXT("DEBUG_BUTTON"));
-    buttonbitmap[BTN_SETUP] = LoadButtonBitmap(instance, TEXT("SETUP_BUTTON"));
-    capsbitmap[0] = LoadButtonBitmap(instance, TEXT("CAPSOFF_BITMAP"));
-    capsbitmap[1] = LoadButtonBitmap(instance, TEXT("CAPSON_BITMAP"));
-    diskbitmap[0] = LoadButtonBitmap(instance, TEXT("DISKOFF_BITMAP"));
-    diskbitmap[1] = LoadButtonBitmap(instance, TEXT("DISKREAD_BITMAP"));
-    diskbitmap[2] = LoadButtonBitmap(instance, TEXT("DISKWRITE_BITMAP"));
+    buttonbitmap[BTN_HELP] = LoadButtonBitmap(instance, "HELP_BUTTON");
+    buttonbitmap[BTN_RUN] = LoadButtonBitmap(instance, "RUN_BUTTON");
+    buttonbitmap[BTN_DRIVE1] = LoadButtonBitmap(instance, "DRIVE1_BUTTON");
+    buttonbitmap[BTN_DRIVE2] = LoadButtonBitmap(instance, "DRIVE2_BUTTON");
+    buttonbitmap[BTN_TOFILE] = LoadButtonBitmap(instance, "TOFILE_BUTTON");
+    buttonbitmap[BTN_TODISK] = LoadButtonBitmap(instance, "TODISK_BUTTON");
+    buttonbitmap[BTN_DEBUG] = LoadButtonBitmap(instance, "DEBUG_BUTTON");
+    buttonbitmap[BTN_SETUP] = LoadButtonBitmap(instance, "SETUP_BUTTON");
+    capsbitmap[0] = LoadButtonBitmap(instance, "CAPSOFF_BITMAP");
+    capsbitmap[1] = LoadButtonBitmap(instance, "CAPSON_BITMAP");
+    diskbitmap[0] = LoadButtonBitmap(instance, "DISKOFF_BITMAP");
+    diskbitmap[1] = LoadButtonBitmap(instance, "DISKREAD_BITMAP");
+    diskbitmap[2] = LoadButtonBitmap(instance, "DISKWRITE_BITMAP");
     btnfacebrush = CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
     btnfacepen = CreatePen(PS_SOLID, 1, GetSysColor(COLOR_BTNFACE));
     btnhighlightpen = CreatePen(PS_SOLID, 1, GetSysColor(COLOR_BTNHIGHLIGHT));
@@ -268,7 +268,7 @@ static void CreateGdiObjects() {
     smallfont = CreateFont(11, 6, 0, 0, FW_NORMAL, 0, 0, 0, ANSI_CHARSET,
         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         DEFAULT_QUALITY, VARIABLE_PITCH | FF_SWISS,
-        TEXT("Small Fonts"));
+        "Small Fonts");
 }
 
 //===========================================================================
@@ -470,8 +470,8 @@ static void DrawStatusArea(HDC passdc, BOOL drawbackground) {
         SetTextAlign(dc, TA_CENTER | TA_TOP);
         SetTextColor(dc, 0);
         SetBkMode(dc, TRANSPARENT);
-        TextOut(dc, x + 7, y + 7, TEXT("1"), 1);
-        TextOut(dc, x + 25, y + 7, TEXT("2"), 1);
+        TextOut(dc, x + 7, y + 7, "1", 1);
+        TextOut(dc, x + 25, y + 7, "2", 1);
     }
 
     {
@@ -535,7 +535,7 @@ static LRESULT CALLBACK FrameWndProc(
                 helpquit = 0;
                 TCHAR filename[MAX_PATH];
                 _tcscpy(filename, progdir);
-                _tcscat(filename, TEXT("AppleWin.hlp"));
+                _tcscat(filename, "AppleWin.hlp");
                 WinHelp(window, filename, HELP_QUIT, 0);
             }
             break;
@@ -717,11 +717,11 @@ static LRESULT CALLBACK FrameWndProc(
         case WM_USER + 1:
             if (mode != MODE_LOGO)
                 if (MessageBox(framewindow,
-                    TEXT("Running the benchmarks will reset the state of ")
-                    TEXT("the emulated machine, causing you to lose any ")
-                    TEXT("unsaved work.\n\n")
-                    TEXT("Are you sure you want to do this?"),
-                    TEXT("Benchmarks"),
+                    "Running the benchmarks will reset the state of "
+                    "the emulated machine, causing you to lose any "
+                    "unsaved work.\n\n"
+                    "Are you sure you want to do this?",
+                    "Benchmarks",
                     MB_ICONQUESTION | MB_YESNO) == IDNO)
                     break;
             UpdateWindow(window);
@@ -741,11 +741,11 @@ static LRESULT CALLBACK FrameWndProc(
         case WM_USER + 2:
             if (mode != MODE_LOGO)
                 if (MessageBox(framewindow,
-                    TEXT("Restarting the emulator will reset the state ")
-                    TEXT("of the emulated machine, causing you to lose any ")
-                    TEXT("unsaved work.\n\n")
-                    TEXT("Are you sure you want to do this?"),
-                    TEXT("Configuration"),
+                    "Restarting the emulator will reset the state "
+                    "of the emulated machine, causing you to lose any "
+                    "unsaved work.\n\n"
+                    "Are you sure you want to do this?",
+                    "Configuration",
                     MB_ICONQUESTION | MB_YESNO) == IDNO)
                     break;
             restart = 1;
@@ -829,7 +829,7 @@ static void ProcessButtonClick(int button) {
         {
             TCHAR filename[MAX_PATH];
             _tcscpy(filename, progdir);
-            _tcscat(filename, TEXT("AppleWin.hlp"));
+            _tcscat(filename, "AppleWin.hlp");
             WinHelp(framewindow, filename, HELP_CONTENTS, 0);
             helpquit = 1;
         }
@@ -857,8 +857,8 @@ static void ProcessButtonClick(int button) {
         case BTN_TOFILE:
             MessageBeep(0);
             MessageBox(framewindow,
-                TEXT("The 'Transfer To File' button is not implemented ")
-                TEXT("in this release."),
+                "The 'Transfer To File' button is not implemented "
+                "in this release.",
                 TITLE,
                 MB_ICONINFORMATION | MB_SETFOREGROUND);
             break;
@@ -866,8 +866,8 @@ static void ProcessButtonClick(int button) {
         case BTN_TODISK:
             MessageBeep(0);
             MessageBox(framewindow,
-                TEXT("The 'Transfer To Disk Image' button is not implemented ")
-                TEXT("in this release."),
+                "The 'Transfer To Disk Image' button is not implemented "
+                "in this release.",
                 TITLE,
                 MB_ICONINFORMATION | MB_SETFOREGROUND);
             break;
@@ -887,20 +887,20 @@ static void ProcessButtonClick(int button) {
 
         case BTN_SETUP:
         {
-            HINSTANCE      comctlinstance = LoadLibrary(TEXT("COMCTL32"));
+            HINSTANCE      comctlinstance = LoadLibrary("COMCTL32");
             initcomctltype initcomctl = (initcomctltype)
                 GetProcAddress(comctlinstance,
-                    TEXT("InitCommonControls"));
+                    "InitCommonControls");
             if (initcomctl) {
                 initcomctl();
                 DialogBox(instance,
-                    TEXT("CONFIGURATION_DIALOG"),
+                    "CONFIGURATION_DIALOG",
                     framewindow,
                     (DLGPROC)ConfigDlgProc);
             }
             else
                 MessageBox(framewindow,
-                    TEXT("Required file ComCtl32.dll not found."),
+                    "Required file ComCtl32.dll not found.",
                     TITLE,
                     MB_ICONEXCLAMATION);
             FreeLibrary(comctlinstance);
@@ -962,9 +962,9 @@ void FrameCreateWindow() {
         + GetSystemMetrics(SM_CYBORDER)
         + GetSystemMetrics(SM_CYCAPTION)
         + 16;
-    framewindow = CreateWindow(TEXT("APPLE2FRAME"),
+    framewindow = CreateWindow("APPLE2FRAME",
         apple2e ? TITLE
-        : TEXT("Apple ][+ Emulator"),
+        : "Apple ][+ Emulator",
         WS_OVERLAPPED
         | WS_BORDER
         | WS_CAPTION
@@ -1009,12 +1009,12 @@ void FrameRefreshStatus() {
 
 //===========================================================================
 void FrameRegisterClass() {
-    HINSTANCE     userinst = LoadLibrary(TEXT("USER32"));
+    HINSTANCE     userinst = LoadLibrary("USER32");
     loadimagetype loadimage = NULL;
     regextype     registerex = NULL;
     if (userinst) {
-        loadimage = (loadimagetype)GetProcAddress(userinst, TEXT("LoadImageA"));
-        registerex = (regextype)GetProcAddress(userinst, TEXT("RegisterClassExA"));
+        loadimage = (loadimagetype)GetProcAddress(userinst, "LoadImageA");
+        registerex = (regextype)GetProcAddress(userinst, "RegisterClassExA");
     }
     if (loadimage && registerex) {
         WNDCLASSEX wndclass;
@@ -1023,11 +1023,11 @@ void FrameRegisterClass() {
         wndclass.style = CS_OWNDC | CS_BYTEALIGNCLIENT;
         wndclass.lpfnWndProc = FrameWndProc;
         wndclass.hInstance = instance;
-        wndclass.hIcon = LoadIcon(instance, TEXT("APPLEWIN_ICON"));
+        wndclass.hIcon = LoadIcon(instance, "APPLEWIN_ICON");
         wndclass.hCursor = LoadCursor(0, IDC_ARROW);
         wndclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-        wndclass.lpszClassName = TEXT("APPLE2FRAME");
-        wndclass.hIconSm = (HICON)loadimage(instance, TEXT("APPLEWIN_ICON"),
+        wndclass.lpszClassName = "APPLE2FRAME";
+        wndclass.hIconSm = (HICON)loadimage(instance, "APPLEWIN_ICON",
             1, 16, 16, 0);
         registerex(&wndclass);
     }

@@ -255,11 +255,11 @@ BOOL JoySetEmulationType(HWND window, DWORD newtype) {
         JOYCAPS caps;
         if (joyGetDevCaps(JOYSTICKID1, &caps, sizeof(JOYCAPS)) != JOYERR_NOERROR) {
             MessageBox(window,
-                TEXT("The emulator is unable to read your PC joystick.  ")
-                TEXT("Ensure that your game port is configured properly, ")
-                TEXT("that the joystick is firmly plugged in, and that ")
-                TEXT("you have a joystick driver installed."),
-                TEXT("Configuration"),
+                "The emulator is unable to read your PC joystick.  "
+                "Ensure that your game port is configured properly, "
+                "that the joystick is firmly plugged in, and that "
+                "you have a joystick driver installed.",
+                "Configuration",
                 MB_ICONEXCLAMATION);
             return 0;
         }
@@ -267,14 +267,14 @@ BOOL JoySetEmulationType(HWND window, DWORD newtype) {
     else if ((joyinfo[newtype].device == DEVICE_MOUSE) &&
         (joyinfo[joytype].device != DEVICE_MOUSE))
         MessageBox(window,
-            TEXT("To begin emulating a joystick with your mouse, move ")
-            TEXT("the mouse cursor over the emulated screen of a running ")
-            TEXT("program and click the left mouse button.  During the ")
-            TEXT("time the mouse is emulating a joystick, you will not ")
-            TEXT("be able to use it to perform mouse functions, and the ")
-            TEXT("mouse cursor will not be visible.  To end joystick ")
-            TEXT("emulation and regain the mouse cursor, press escape."),
-            TEXT("Configuration"),
+            "To begin emulating a joystick with your mouse, move "
+            "the mouse cursor over the emulated screen of a running "
+            "program and click the left mouse button.  During the "
+            "time the mouse is emulating a joystick, you will not "
+            "be able to use it to perform mouse functions, and the "
+            "mouse cursor will not be visible.  To end joystick "
+            "emulation and regain the mouse cursor, press escape.",
+            "Configuration",
             MB_ICONINFORMATION);
     joytype = newtype;
     JoyInitialize();

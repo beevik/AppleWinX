@@ -662,7 +662,7 @@ static void DrawMonoHiResSource(HDC dc) {
 //===========================================================================
 static void DrawMonoTextSource(HDC dc) {
     HDC     memdc = CreateCompatibleDC(dc);
-    HBITMAP bitmap = LoadBitmap(instance, TEXT("CHARSET40"));
+    HBITMAP bitmap = LoadBitmap(instance, "CHARSET40");
     SelectObject(memdc, bitmap);
     BitBlt(dc, SRCOFFS_40COL, 0, 256, 512, memdc, 0, 0, MERGECOPY);
     StretchBlt(dc, SRCOFFS_80COL, 0, 128, 512, memdc, 0, 0, 256, 512, MERGECOPY);
@@ -673,7 +673,7 @@ static void DrawMonoTextSource(HDC dc) {
 //===========================================================================
 static void DrawTextSource(HDC dc) {
     HDC     memdc = CreateCompatibleDC(dc);
-    HBITMAP bitmap = LoadBitmap(instance, TEXT("CHARSET40"));
+    HBITMAP bitmap = LoadBitmap(instance, "CHARSET40");
     SelectObject(memdc, bitmap);
     BitBlt(dc, SRCOFFS_40COL, 0, 256, 512, memdc, 0, 0, SRCCOPY);
     StretchBlt(dc, SRCOFFS_80COL, 0, 128, 512, memdc, 0, 0, 256, 512, SRCCOPY);
@@ -729,10 +729,10 @@ static BOOL LoadSourceImages() {
         return 0;
     TCHAR filename[MAX_PATH];
     wsprintf(filename,
-        TEXT("%sVid%03X%s.dat"),
+        "%sVid%03X%s.dat",
         (LPCTSTR)progdir,
         (unsigned)(srcpixelformat & 0xFFF),
-        (LPCTSTR)(optmonochrome ? TEXT("m") : TEXT("c")));
+        (LPCTSTR)(optmonochrome ? "m" : "c"));
     HANDLE file = CreateFile(filename,
         GENERIC_READ,
         FILE_SHARE_READ,
@@ -757,10 +757,10 @@ static void SaveSourceImages() {
         return;
     TCHAR filename[MAX_PATH];
     wsprintf(filename,
-        TEXT("%sVid%03X%s.dat"),
+        "%sVid%03X%s.dat",
         (LPCTSTR)progdir,
         (unsigned)(srcpixelformat & 0xFFF),
-        (LPCTSTR)(optmonochrome ? TEXT("m") : TEXT("c")));
+        (LPCTSTR)(optmonochrome ? "m" : "c"));
     HANDLE file = CreateFile(filename,
         GENERIC_WRITE,
         0,
@@ -1019,10 +1019,10 @@ void VideoBenchmark() {
     // CPU BENCHMARK, REPORT AN ERROR AND OPTIONALLY TRACK IT DOWN
     if ((regs.pc < 0x300) || (regs.pc > 0x400))
         if (MessageBox(framewindow,
-            TEXT("The emulator has detected a problem while running ")
-            TEXT("the CPU benchmark.  Would you like to gather more ")
-            TEXT("information?"),
-            TEXT("Benchmarks"),
+            "The emulator has detected a problem while running "
+            "the CPU benchmark.  Would you like to gather more "
+            "information?",
+            "Benchmarks",
             MB_ICONQUESTION | MB_YESNO) == IDYES) {
             BOOL error = 0;
             WORD lastpc = 0x300;
@@ -1040,26 +1040,26 @@ void VideoBenchmark() {
             if (error) {
                 TCHAR outstr[256];
                 wsprintf(outstr,
-                    TEXT("The emulator experienced an error %u clock cycles ")
-                    TEXT("into the CPU benchmark.  Prior to the error, the ")
-                    TEXT("program counter was at $%04X.  After the error, it ")
-                    TEXT("had jumped to $%04X."),
+                    "The emulator experienced an error %u clock cycles "
+                    "into the CPU benchmark.  Prior to the error, the "
+                    "program counter was at $%04X.  After the error, it "
+                    "had jumped to $%04X.",
                     (unsigned)loop,
                     (unsigned)lastpc,
                     (unsigned)regs.pc);
                 MessageBox(framewindow,
                     outstr,
-                    TEXT("Benchmarks"),
+                    "Benchmarks",
                     MB_ICONINFORMATION);
             }
             else
                 MessageBox(framewindow,
-                    TEXT("The emulator was unable to locate the exact ")
-                    TEXT("point of the error.  This probably means that ")
-                    TEXT("the problem is external to the emulator, ")
-                    TEXT("happening asynchronously, such as a problem in ")
-                    TEXT("a timer interrupt handler."),
-                    TEXT("Benchmarks"),
+                    "The emulator was unable to locate the exact "
+                    "point of the error.  This probably means that "
+                    "the problem is external to the emulator, "
+                    "happening asynchronously, such as a problem in "
+                    "a timer interrupt handler.",
+                    "Benchmarks",
                     MB_ICONINFORMATION);
         }
 
@@ -1101,21 +1101,21 @@ void VideoBenchmark() {
     {
         TCHAR outstr[256];
         wsprintf(outstr,
-            TEXT("Pixel Format:\t%x\n")
-            TEXT("Pure Video FPS:\t%u hires, %u text\n")
-            TEXT("Pure CPU MHz:\t%u.%u%s\n\n")
-            TEXT("EXPECTED AVERAGE VIDEO GAME\n")
-            TEXT("PERFORMANCE: %u FPS"),
+            "Pixel Format:\t%x\n"
+            "Pure Video FPS:\t%u hires, %u text\n"
+            "Pure CPU MHz:\t%u.%u%s\n\n"
+            "EXPECTED AVERAGE VIDEO GAME\n"
+            "PERFORMANCE: %u FPS",
             (unsigned)pixelformat,
             (unsigned)totalhiresfps,
             (unsigned)totaltextfps,
             (unsigned)(totalmhz10 / 10),
             (unsigned)(totalmhz10 % 10),
-            (LPCTSTR)(apple2e ? TEXT("") : TEXT(" (6502)")),
+            (LPCTSTR)(apple2e ? "" : " (6502)"),
             (unsigned)realisticfps);
         MessageBox(framewindow,
             outstr,
-            TEXT("Benchmarks"),
+            "Benchmarks",
             MB_ICONINFORMATION);
     }
 
@@ -1259,15 +1259,15 @@ void VideoDisplayLogo() {
         HFONT font = CreateFont(-20, 0, 0, 0, FW_NORMAL, 0, 0, 0, ANSI_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
             VARIABLE_PITCH | 4 | FF_SWISS,
-            TEXT("Arial"));
+            "Arial");
         HFONT oldfont = (HFONT)SelectObject(framedc, font);
         SetTextAlign(framedc, TA_RIGHT | TA_TOP);
         SetBkMode(framedc, TRANSPARENT);
 #define  DRAWVERSION(x,y,c)  SetTextColor(framedc,c);                \
                              TextOut(framedc,                        \
                                      540+x,358+y,                    \
-                                     TEXT("Version ") VERSIONSTRING, \
-                                     strlen(TEXT("Version ") VERSIONSTRING));
+                                     "Version " VERSIONSTRING, \
+                                     strlen("Version " VERSIONSTRING));
         if (bitsperpixel <= 4) {
             DRAWVERSION(2, 2, 0x000000);
             DRAWVERSION(1, 1, 0x000000);
@@ -1298,17 +1298,17 @@ void VideoDisplayLogo() {
 void VideoDisplayMode(BOOL flashon) {
     if (!framedc)
         framedc = FrameGetDC();
-    LPTSTR text = TEXT("        ");
+    LPTSTR text = "        ";
     if (mode == MODE_PAUSED) {
         SetBkColor(framedc, 0x000000);
         SetTextColor(framedc, 0x00FFFFF);
         if (flashon)
-            text = TEXT(" PAUSED ");
+            text = " PAUSED ";
     }
     else {
         SetBkColor(framedc, 0xFFFFFF);
         SetTextColor(framedc, 0x800000);
-        text = TEXT("STEPPING");
+        text = "STEPPING";
     }
     SelectObject(framedc, videofont);
     SetTextAlign(framedc, TA_LEFT | TA_TOP);
@@ -1330,7 +1330,7 @@ void VideoInitialize() {
     videofont = CreateFont(16, 0, 0, 0, FW_MEDIUM, 0, 0, 0, ANSI_CHARSET,
         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         DEFAULT_QUALITY, FIXED_PITCH | 4 | FF_MODERN,
-        TEXT("Courier New"));
+        "Courier New");
 
     // CREATE A BUFFER FOR AN IMAGE OF THE LAST DRAWN MEMORY
     vidlastmem = (LPBYTE)VirtualAlloc(NULL, 0x10000, MEM_COMMIT, PAGE_READWRITE);
@@ -1389,10 +1389,10 @@ void VideoInitialize() {
     HINSTANCE gdiinst = (HINSTANCE)0;
     if ((pixelformat == 0x108) || (pixelformat == 0x110) ||
         (pixelformat == 0x118) || (pixelformat == 0x120)) {
-        gdiinst = LoadLibrary(TEXT("GDI32"));
+        gdiinst = LoadLibrary("GDI32");
         if (gdiinst) {
             createdibsection = (createdibtype)GetProcAddress(gdiinst,
-                TEXT("CreateDIBSection"));
+                "CreateDIBSection");
             usingdib = (createdibsection != NULL);
         }
     }
@@ -1492,7 +1492,7 @@ void VideoLoadLogo() {
         return;
     TCHAR filename[MAX_PATH];
     _tcscpy(filename, progdir);
-    _tcscat(filename, TEXT("applewin.lgo"));
+    _tcscat(filename, "applewin.lgo");
     logofile = CreateFile(filename,
         GENERIC_READ,
         FILE_SHARE_READ,
@@ -1820,22 +1820,10 @@ void VideoTestCompatibility() {
         return;
     firsttime = 0;
 
-    // IF APPLEWIN HAS HAD TO DISABLE ITS FASTBLT MODULE BECAUSE THE USER
-    // HAS A 386 AND IS USING 16-COLOR MODE, WARN THAT VIDEO OUTPUT WILL
-    // BE VERY SLOW
-    if (i386 && (bitsperpixel == 4))
-        MessageBox(framewindow,
-            TEXT("AppleWin has detected that you are using a 386 with ")
-            TEXT("a 16-color display.  This will result in extremely ")
-            TEXT("slow video.  If at all possible, you should switch ")
-            TEXT("to 256-color mode using the Control Panel."),
-            TITLE,
-            MB_ICONEXCLAMATION);
-
     // DETERMINE THE NAME OF THIS VIDEO MODE
     TCHAR modename[64];
     wsprintf(modename,
-        TEXT("Video Mode %ux%u %ubpp"),
+        "Video Mode %ux%u %ubpp",
         (unsigned)GetSystemMetrics(SM_CXSCREEN),
         (unsigned)GetSystemMetrics(SM_CYSCREEN),
         (unsigned)bitsperpixel);
@@ -1843,13 +1831,13 @@ void VideoTestCompatibility() {
     // IF WE HAVE ALREADY TESTED THIS VIDEO MODE AND FOUND IT COMPATIBLE,
     // JUST RETURN
     BOOL samemode = 1;
-    if (!RegLoadValue(TEXT("Compatibility"), modename, 0, &videocompatible)) {
+    if (!RegLoadValue("Compatibility", modename, 0, &videocompatible)) {
         samemode = 0;
         videocompatible = 1;
     }
     {
-        TCHAR savedmodename[64] = TEXT("");
-        RegLoadString(TEXT("Compatibility"), TEXT("Last Video Mode"), 0,
+        TCHAR savedmodename[64] = "";
+        RegLoadString("Compatibility", "Last Video Mode", 0,
             savedmodename, 63);
         if (_tcscmp(modename, savedmodename) || rebuiltsource)
             samemode = 0;
@@ -1893,9 +1881,9 @@ void VideoTestCompatibility() {
         if (interference[0]) {
             TCHAR buffer[256];
             wsprintf(buffer,
-                TEXT("AppleWin needs to perform a routine test on your ")
-                TEXT("video driver.  Please move %s so that it does not ")
-                TEXT("obscure the emulator window, then click OK."),
+                "AppleWin needs to perform a routine test on your "
+                "video driver.  Please move %s so that it does not "
+                "obscure the emulator window, then click OK.",
                 (LPCTSTR)interference);
             MessageBox(framewindow,
                 buffer,
@@ -1912,26 +1900,26 @@ void VideoTestCompatibility() {
     // IF THE RESULTS WERE UNEXPECTED, INFORM THE USER
     if (videocompatible && !success)
         MessageBox(framewindow,
-            TEXT("AppleWin has detected a compatibility problem with your ")
-            TEXT("video driver.  You may want to use a different video ")
-            TEXT("mode, or obtain an updated driver from your vendor.\n\n")
-            TEXT("In the meantime, AppleWin will attempt to work around ")
-            TEXT("the problem by limiting its use of the driver.  This ")
-            TEXT("may significantly reduce performance."),
+            "AppleWin has detected a compatibility problem with your "
+            "video driver.  You may want to use a different video "
+            "mode, or obtain an updated driver from your vendor.\n\n"
+            "In the meantime, AppleWin will attempt to work around "
+            "the problem by limiting its use of the driver.  This "
+            "may significantly reduce performance.",
             TITLE,
             MB_ICONEXCLAMATION);
     else if (success && !videocompatible)
         MessageBox(framewindow,
-            TEXT("AppleWin had previously reported a compatibility ")
-            TEXT("problem in your video driver.  The problem seems ")
-            TEXT("to have been resolved."),
+            "AppleWin had previously reported a compatibility "
+            "problem in your video driver.  The problem seems "
+            "to have been resolved.",
             TITLE,
             MB_ICONINFORMATION);
 
     // SAVE THE RESULTS
     videocompatible = success;
-    RegSaveValue(TEXT("Compatibility"), modename, 0, videocompatible);
-    RegSaveString(TEXT("Compatibility"), TEXT("Last Video Mode"), 0, modename);
+    RegSaveValue("Compatibility", modename, 0, videocompatible);
+    RegSaveString("Compatibility", "Last Video Mode", 0, modename);
 
     // IF WE DISCOVERED A COMPATIBILITY PROBLEM, THEN REINITIALIZE VIDEO
     if (!videocompatible) {

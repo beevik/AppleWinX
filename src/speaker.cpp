@@ -43,12 +43,12 @@ static void DisplayBenchmarkResults() {
     VideoRedrawScreen();
     TCHAR buffer[64];
     wsprintf(buffer,
-        TEXT("This benchmark took %u.%02u seconds."),
+        "This benchmark took %u.%02u seconds.",
         (unsigned)(totaltime / 1000),
         (unsigned)((totaltime / 10) % 100));
     MessageBox(framewindow,
         buffer,
-        TEXT("Benchmark Results"),
+        "Benchmark Results",
         MB_ICONINFORMATION);
 }
 
@@ -206,9 +206,9 @@ void SpkrInitialize() {
             waveprep = 0;
             SubmitWaveBuffer(0);
             bufferuse = 0;
-            RegLoadValue(TEXT("Calibration"), TEXT("Wave Packet Size"), 0, &bufferuse);
+            RegLoadValue("Calibration", "Wave Packet Size", 0, &bufferuse);
             bufferuse = MAX(2048, MIN(buffersize, bufferuse));
-            RegSaveValue(TEXT("Calibration"), TEXT("Wave Packet Size"), 0, bufferuse);
+            RegSaveValue("Calibration", "Wave Packet Size", 0, bufferuse);
             if (bufferuse == 2048)
                 TestPacketSize();
         }
@@ -249,22 +249,22 @@ BOOL SpkrSetEmulationType(HWND window, DWORD newtype) {
 
             case SOUND_DIRECT:
                 MessageBox(window,
-                    TEXT("Direct emulation is not available because the ")
-                    TEXT("operating system you are using does not allow ")
-                    TEXT("direct control of the speaker."),
-                    TEXT("Configuration"),
+                    "Direct emulation is not available because the "
+                    "operating system you are using does not allow "
+                    "direct control of the speaker.",
+                    "Configuration",
                     MB_ICONEXCLAMATION);
                 return 0;
 
             case SOUND_WAVE:
                 MessageBox(window,
-                    TEXT("The emulator is unable to initialize a waveform ")
-                    TEXT("output device.  Make sure you have a sound card ")
-                    TEXT("and a driver installed and that windows is ")
-                    TEXT("correctly configured to use the driver.  Also ")
-                    TEXT("ensure that no other program is currently using ")
-                    TEXT("the device."),
-                    TEXT("Configuration"),
+                    "The emulator is unable to initialize a waveform "
+                    "output device.  Make sure you have a sound card "
+                    "and a driver installed and that windows is "
+                    "correctly configured to use the driver.  Also "
+                    "ensure that no other program is currently using "
+                    "the device.",
+                    "Configuration",
                     MB_ICONEXCLAMATION);
                 return 0;
 

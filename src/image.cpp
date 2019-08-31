@@ -62,56 +62,56 @@ struct imagetyperec {
 
 static const imagetyperec imagetype[IMAGETYPES] = {
     {
-        TEXT(""),
-        TEXT(".do;.dsk;.iie;.nib;.po"),
+        "",
+        ".do;.dsk;.iie;.nib;.po",
         PrgDetect,
         PrgBoot,
         NULL,
         NULL
     },
     {
-        TEXT(".do;.dsk"),
-        TEXT(".nib;.iie;.po;.prg"),
+        ".do;.dsk",
+        ".nib;.iie;.po;.prg",
         DoDetect,
         NULL,
         DoRead,
         DoWrite
     },
     {
-        TEXT(".po"),
-        TEXT(".do;.iie;.nib;.prg"),
+        ".po",
+        ".do;.iie;.nib;.prg",
         PoDetect,
         NULL,
         PoRead,
         PoWrite
     },
     {
-        TEXT(""),
-        TEXT(".do;.dsk;.iie;.nib;.po"),
+        "",
+        ".do;.dsk;.iie;.nib;.po",
         AplDetect,
         AplBoot,
         NULL,
         NULL
     },
     {
-        TEXT(""),
-        TEXT(".do;.iie;.po;.prg"),
+        "",
+        ".do;.iie;.po;.prg",
         Nib1Detect,
         NULL,
         Nib1Read,
         Nib1Write
     },
     {
-        TEXT(".nib"),
-        TEXT(".do;.iie;.po;.prg"),
+        ".nib",
+        ".do;.iie;.po;.prg",
         Nib2Detect,
         NULL,
         Nib2Read,
         Nib2Write
     },
     {
-        TEXT(".iie"),
-        TEXT(".do.;.nib;.po;.prg"),
+        ".iie",
+        ".do.;.nib;.po;.prg",
         IieDetect,
         NULL,
         IieRead,
@@ -790,10 +790,10 @@ BOOL ImageOpen(LPCTSTR  imagefilename,
 
             // DETERMINE THE FILE'S EXTENSION
             LPCTSTR ext = imagefilename;
-            while (_tcschr(ext, TEXT('\\')))
-                ext = _tcschr(ext, TEXT('\\')) + 1;
-            while (_tcschr(ext + 1, TEXT('.')))
-                ext = _tcschr(ext + 1, TEXT('.'));
+            while (_tcschr(ext, '\\'))
+                ext = _tcschr(ext, '\\') + 1;
+            while (_tcschr(ext + 1, '.'))
+                ext = _tcschr(ext + 1, '.');
 
               // CALL THE DETECTION FUNCTIONS IN ORDER, LOOKING FOR A MATCH
             DWORD possibleformat = 0xFFFFFFFF;
@@ -805,8 +805,8 @@ BOOL ImageOpen(LPCTSTR  imagefilename,
                     while (rejectexts && *rejectexts && !reject)
                         if (!_tcsnicmp(ext, rejectexts, _tcslen(ext)))
                             reject = 1;
-                        else if (_tcschr(rejectexts, TEXT(';')))
-                            rejectexts = _tcschr(rejectexts, TEXT(';')) + 1;
+                        else if (_tcschr(rejectexts, ';'))
+                            rejectexts = _tcschr(rejectexts, ';') + 1;
                         else
                             rejectexts = NULL;
                 }

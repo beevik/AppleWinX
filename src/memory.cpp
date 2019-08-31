@@ -608,9 +608,9 @@ static LPBYTE AlignedVirtualAlloc(LPVOID, DWORD size, DWORD alloctype, DWORD pro
     if (!notified) {
         notified = 1;
         MessageBox(GetDesktopWindow(),
-            TEXT("The operating system you are using is not correctly ")
-            TEXT("aligning memory objects.  The emulator attempted to ")
-            TEXT("to work around this problem, but was unable to do so."),
+            "The operating system you are using is not correctly "
+            "aligning memory objects.  The emulator attempted to "
+            "to work around this problem, but was unable to do so.",
             TITLE,
             MB_ICONEXCLAMATION | MB_SETFOREGROUND);
     }
@@ -843,8 +843,8 @@ void MemInitialize() {
         MEM_RESERVE, PAGE_NOACCESS);
     if ((!memaux) || (!memdirty) || (!memimage) || (!memmain) || (!memrom)) {
         MessageBox(GetDesktopWindow(),
-            TEXT("The emulator was unable to allocate the memory it ")
-            TEXT("requires.  Further execution is not possible."),
+            "The emulator was unable to allocate the memory it "
+            "requires.  Further execution is not possible.",
             TITLE,
             MB_ICONSTOP | MB_SETFOREGROUND);
         ExitProcess(1);
@@ -853,10 +853,10 @@ void MemInitialize() {
         LPVOID newloc = VirtualAlloc(memimage, 0x30000, MEM_COMMIT, PAGE_READWRITE);
         if (newloc != memimage)
             MessageBox(GetDesktopWindow(),
-                TEXT("The emulator has detected a bug in your operating ")
-                TEXT("system.  While changing the attributes of a memory ")
-                TEXT("object, the operating system also changed its ")
-                TEXT("location."),
+                "The emulator has detected a bug in your operating "
+                "system.  While changing the attributes of a memory "
+                "object, the operating system also changed its "
+                "location.",
                 TITLE,
                 MB_ICONEXCLAMATION | MB_SETFOREGROUND);
     }
@@ -864,7 +864,7 @@ void MemInitialize() {
     // READ THE APPLE FIRMWARE ROMS INTO THE ROM IMAGE
     TCHAR filename[MAX_PATH];
     _tcscpy(filename, progdir);
-    _tcscat(filename, apple2e ? TEXT("Apple2e.ROM") : TEXT("Apple2.ROM"));
+    _tcscat(filename, apple2e ? "Apple2e.ROM" : "Apple2.ROM");
     HANDLE file = CreateFile(filename,
         GENERIC_READ,
         FILE_SHARE_READ,
@@ -874,7 +874,7 @@ void MemInitialize() {
         NULL);
     if (file == INVALID_HANDLE_VALUE) {
         MessageBox(GetDesktopWindow(),
-            TEXT("Unable to open the required firmware ROM data file."),
+            "Unable to open the required firmware ROM data file.",
             TITLE,
             MB_ICONSTOP | MB_SETFOREGROUND);
         ExitProcess(1);

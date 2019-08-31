@@ -1,7 +1,7 @@
 #pragma once
 
 #define  BUILDNUMBER       4
-#define  VERSIONSTRING     TEXT("1.10")
+#define  VERSIONSTRING     "1.10"
 
 #define  MODE_LOGO         0
 #define  MODE_PAUSED       1
@@ -16,7 +16,7 @@
 #define  VIEWPORTY         5
 
 #define  MAXIMAGES         16
-#define  TITLE             TEXT("Apple //e Emulator")
+#define  TITLE             "Apple //e Emulator"
 
 #define  MAX(a,b)          (((a) > (b)) ? (a) : (b))
 #define  MIN(a,b)          (((a) < (b)) ? (a) : (b))
@@ -53,7 +53,6 @@ extern BOOL       fullspeed;
 extern HINSTANCE  instance;
 extern HWND       framewindow;
 extern BOOL       graphicsmode;
-extern BOOL       i386;
 extern DWORD      image;
 extern iofunction ioread[0x100];
 extern iofunction iowrite[0x100];

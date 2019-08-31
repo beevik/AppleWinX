@@ -29,17 +29,17 @@ BOOL RegLoadString(
 ) {
     BOOL      usingregistry = 0;
     HINSTANCE advapiinst = (HINSTANCE)0;
-    advapiinst = LoadLibrary(TEXT("ADVAPI32"));
+    advapiinst = LoadLibrary("ADVAPI32");
     if (advapiinst) {
-        regclosetype regclose = (regclosetype)GetProcAddress(advapiinst, TEXT("RegCloseKey"));
-        regopentype  regopen = (regopentype)GetProcAddress(advapiinst, TEXT("RegOpenKeyExA"));
-        regquerytype regquery = (regquerytype)GetProcAddress(advapiinst, TEXT("RegQueryValueExA"));
+        regclosetype regclose = (regclosetype)GetProcAddress(advapiinst, "RegCloseKey");
+        regopentype  regopen = (regopentype)GetProcAddress(advapiinst, "RegOpenKeyExA");
+        regquerytype regquery = (regquerytype)GetProcAddress(advapiinst, "RegQueryValueExA");
         BOOL success = 0;
         if (regclose && regopen && regquery) {
             usingregistry = 1;
             TCHAR fullkeyname[256];
             wsprintf(fullkeyname,
-                TEXT("Software\\AppleWin\\CurrentVersion\\%s"),
+                "Software\\AppleWin\\CurrentVersion\\%s",
                 (LPCTSTR)section);
             HKEY keyhandle;
             if (!regopen((peruser ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE),
@@ -60,10 +60,10 @@ BOOL RegLoadString(
     }
     DWORD result = GetPrivateProfileString(section,
         key,
-        TEXT(""),
+        "",
         buffer,
         chars,
-        TEXT("AppleWin.ini")
+        "AppleWin.ini"
     );
     return result != 0;
 }
@@ -72,7 +72,7 @@ BOOL RegLoadString(
 BOOL RegLoadValue(LPCTSTR section, LPCTSTR key, BOOL peruser, DWORD * value) {
     if (!value)
         return 0;
-    TCHAR buffer[32] = TEXT("");
+    TCHAR buffer[32] = "";
     if (!RegLoadString(section, key, peruser, buffer, 32))
         return 0;
     buffer[31] = 0;
@@ -85,7 +85,7 @@ void RegSaveString(LPCTSTR section, LPCTSTR key, BOOL peruser, LPCTSTR buffer) {
     BOOL success = 0;
     TCHAR fullkeyname[256];
     wsprintf(fullkeyname,
-        TEXT("Software\\AppleWin\\CurrentVersion\\%s"),
+        "Software\\AppleWin\\CurrentVersion\\%s",
         (LPCTSTR)section);
     HKEY  keyhandle;
     DWORD disposition;
@@ -111,7 +111,7 @@ void RegSaveString(LPCTSTR section, LPCTSTR key, BOOL peruser, LPCTSTR buffer) {
 
 //===========================================================================
 void RegSaveValue(LPCTSTR section, LPCTSTR key, BOOL peruser, DWORD value) {
-    TCHAR buffer[32] = TEXT("");
+    TCHAR buffer[32] = "";
     _ultot(value, buffer, 10);
     RegSaveString(section, key, peruser, buffer);
 }

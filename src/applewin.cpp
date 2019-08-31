@@ -9,48 +9,41 @@
 #include "pch.h"
 #pragma  hdrstop
 
-BOOL      apple2e           = 1;
-BOOL      autoboot          = 0;
-BOOL      behind            = 0;
-DWORD     calibrating       = 0;
-DWORD     clockgran         = 0;
+BOOL      apple2e           = TRUE;
+BOOL      autoboot          = FALSE;
+BOOL      behind            = FALSE;
 DWORD     cumulativecycles  = 0;
-DWORD     cyclegran         = 0;
 DWORD     cyclenum          = 0;
 DWORD     emulmsec          = 0;
-DWORD     finegraindelay    = 1;
-BOOL      fullspeed         = 0;
-BOOL      i386              = 0;
+BOOL      fullspeed         = FALSE;
 HINSTANCE instance          = (HINSTANCE)0;
-DWORD     lasttrimimages    = 0;
 int       mode              = MODE_LOGO;
 DWORD     needsprecision    = 0;
-BOOL      optenhancedisk    = 1;
-BOOL      optmonochrome     = 0;
-BOOL      optpopuplabels    = 1;
-TCHAR     progdir[MAX_PATH] = TEXT("");
-BOOL      resettiming       = 0;
-BOOL      restart           = 0;
+BOOL      optenhancedisk    = TRUE;
+BOOL      optmonochrome     = FALSE;
+TCHAR     progdir[MAX_PATH] = "";
+BOOL      resettiming       = FALSE;
+BOOL      restart           = FALSE;
 DWORD     speed             = 10;
 
-//===========================================================================
-void CheckCpuType() {
-    SYSTEM_INFO sysinfo;
-    GetSystemInfo(&sysinfo);
-    i386 = (sysinfo.dwProcessorType == PROCESSOR_INTEL_386);
-}
+static DWORD calibrating    = 0;
+static DWORD clockgran      = 0;
+static DWORD cyclegran      = 0;
+static DWORD finegraindelay = 1;
+static DWORD lasttrimimages = 0;
+static BOOL  optpopuplabels = TRUE;
 
 //===========================================================================
 void ContinueExecution() {
-    static BOOL finegrainlast = 1;
-    static BOOL finegraintiming = 1;
-    static BOOL normaldelays = 0;
-    static BOOL pageflipping = 0;
+    static BOOL finegrainlast   = TRUE;
+    static BOOL finegraintiming = TRUE;
+    static BOOL normaldelays    = FALSE;
+    static BOOL pageflipping    = FALSE;
 
     // RUN THE CPU, DISK, AND JOYSTICK TIMERS FOR ONE CLOCK TICK'S
     // WORTH OF CYCLES
-    BOOL skippedfinegrain = 0;
-    BOOL ranfinegrain = 0;
+    BOOL skippedfinegrain = FALSE;
+    BOOL ranfinegrain     = FALSE;
     {
         int   loop = 1 + (cyclegran >= 20000);
         DWORD cyclestorun = cyclegran >> (cyclegran >= 20000);
@@ -265,10 +258,12 @@ void DetermineClockGranularity() {
 }
 
 //===========================================================================
-LRESULT CALLBACK DlgProc(HWND   window,
-    UINT   message,
-    WPARAM wparam,
-    LPARAM lparam) {
+LRESULT CALLBACK DlgProc(
+    HWND    window,
+    UINT    message,
+    WPARAM  wparam,
+    LPARAM  lparam
+) {
     if (message == WM_CREATE) {
         RECT rect;
         GetWindowRect(window, &rect);
@@ -320,8 +315,8 @@ void GetProgramDirectory() {
     progdir[MAX_PATH - 1] = 0;
     int loop = _tcslen(progdir);
     while (loop--)
-        if ((progdir[loop] == TEXT('\\')) ||
-            (progdir[loop] == TEXT(':'))) {
+        if ((progdir[loop] == '\\') ||
+            (progdir[loop] == ':')) {
             progdir[loop + 1] = 0;
             break;
         }
@@ -331,24 +326,24 @@ void GetProgramDirectory() {
 BOOL LoadCalibrationData() {
 #define LOAD(a,b,c) if (!RegLoadValue(a,b,1,c)) return 0;
     DWORD buildnumber = 0;
-    LOAD(TEXT(""), TEXT("CurrentBuildNumber"), &buildnumber);
-    LOAD(TEXT("Calibration"), TEXT("Clock Granularity"), &clockgran);
-    LOAD(TEXT("Calibration"), TEXT("Cycle Granularity"), &cyclegran);
-    LOAD(TEXT("Calibration"), TEXT("Precision Timing"), &finegraindelay);
+    LOAD("", "CurrentBuildNumber", &buildnumber);
+    LOAD("Calibration", "Clock Granularity", &clockgran);
+    LOAD("Calibration", "Cycle Granularity", &cyclegran);
+    LOAD("Calibration", "Precision Timing", &finegraindelay);
 #undef LOAD
     return (clockgran && cyclegran && finegraindelay);
 }
 
 //===========================================================================
 void LoadConfiguration() {
-#define LOAD(a,b) RegLoadValue(TEXT("Configuration"),a,0,b);
-    LOAD(TEXT("Computer Emulation"), (DWORD *)& apple2e);
-    LOAD(TEXT("Joystick Emulation"), &joytype);
-    LOAD(TEXT("Sound Emulation"), &soundtype);
-    LOAD(TEXT("Serial Port"), &serialport);
-    LOAD(TEXT("Emulation Speed"), &speed);
-    LOAD(TEXT("Enhance Disk Speed"), (DWORD *)& optenhancedisk);
-    LOAD(TEXT("Monochrome Video"), (DWORD *)& optmonochrome);
+#define LOAD(a,b) RegLoadValue("Configuration",a,0,b);
+    LOAD("Computer Emulation", (DWORD *)& apple2e);
+    LOAD("Joystick Emulation", &joytype);
+    LOAD("Sound Emulation", &soundtype);
+    LOAD("Serial Port", &serialport);
+    LOAD("Emulation Speed", &speed);
+    LOAD("Enhance Disk Speed", (DWORD *)& optenhancedisk);
+    LOAD("Monochrome Video", (DWORD *)& optmonochrome);
 #undef LOAD
 }
 
@@ -361,15 +356,15 @@ void PerformCalibration() {
     wndclass.lpfnWndProc = DlgProc;
     wndclass.cbWndExtra = DLGWINDOWEXTRA;
     wndclass.hInstance = instance;
-    wndclass.hIcon = LoadIcon(instance, TEXT("APPLEWIN_ICON"));
+    wndclass.hIcon = LoadIcon(instance, "APPLEWIN_ICON");
     wndclass.hCursor = LoadCursor(0, IDC_WAIT);
     wndclass.hbrBackground = CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
-    wndclass.lpszClassName = TEXT("APPLE2CALIBRATION");
+    wndclass.lpszClassName = "APPLE2CALIBRATION";
     RegisterClass(&wndclass);
 
     // CREATE THE CALIBRATION DIALOG BOX
     HWND dlgwindow = CreateDialog(instance,
-        TEXT("CALIBRATION_DIALOG"),
+        "CALIBRATION_DIALOG",
         (HWND)0,
         NULL);
 
@@ -407,30 +402,24 @@ void RegisterExtensions() {
     GetModuleFileName((HMODULE)0, command, MAX_PATH);
     command[MAX_PATH - 1] = 0;
     TCHAR icon[MAX_PATH];
-    wsprintf(icon, TEXT("%s,1"), (LPCTSTR)command);
-    _tcscat(command, TEXT(" %1"));
+    wsprintf(icon, "%s,1", (LPCTSTR)command);
+    _tcscat(command, " %1");
     RegSetValue(HKEY_CLASSES_ROOT, ".bin", REG_SZ, "DiskImage", 10);
     RegSetValue(HKEY_CLASSES_ROOT, ".do", REG_SZ, "DiskImage", 10);
     RegSetValue(HKEY_CLASSES_ROOT, ".dsk", REG_SZ, "DiskImage", 10);
     RegSetValue(HKEY_CLASSES_ROOT, ".nib", REG_SZ, "DiskImage", 10);
     RegSetValue(HKEY_CLASSES_ROOT, ".po", REG_SZ, "DiskImage", 10);
-    RegSetValue(HKEY_CLASSES_ROOT,
-        "DiskImage",
-        REG_SZ, "Disk Image", 21);
-    RegSetValue(HKEY_CLASSES_ROOT,
-        "DiskImage\\DefaultIcon",
-        REG_SZ, icon, _tcslen(icon) + 1);
-    RegSetValue(HKEY_CLASSES_ROOT,
-        "DiskImage\\shell\\open\\command",
-        REG_SZ, command, _tcslen(command) + 1);
+    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage", REG_SZ, "Disk Image", 11);
+    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage\\DefaultIcon", REG_SZ, icon, _tcslen(icon) + 1);
+    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage\\shell\\open\\command", REG_SZ, command, _tcslen(command) + 1);
 }
 
 //===========================================================================
 void SaveCalibrationData() {
-    RegSaveValue(TEXT(""), TEXT("CurrentBuildNumber"), 1, BUILDNUMBER);
-    RegSaveValue(TEXT("Calibration"), TEXT("Clock Granularity"), 1, clockgran);
-    RegSaveValue(TEXT("Calibration"), TEXT("Cycle Granularity"), 1, cyclegran);
-    RegSaveValue(TEXT("Calibration"), TEXT("Precision Timing"), 1, finegraindelay);
+    RegSaveValue("", "CurrentBuildNumber", 1, BUILDNUMBER);
+    RegSaveValue("Calibration", "Clock Granularity", 1, clockgran);
+    RegSaveValue("Calibration", "Cycle Granularity", 1, cyclegran);
+    RegSaveValue("Calibration", "Precision Timing", 1, finegraindelay);
 }
 
 //===========================================================================
@@ -438,7 +427,6 @@ int APIENTRY WinMain(HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
 
     // DO ONE-TIME INITIALIZATION
     instance = passinstance;
-    CheckCpuType();
     GdiSetBatchLimit(512);
     GetProgramDirectory();
     RegisterExtensions();
