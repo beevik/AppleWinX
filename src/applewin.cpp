@@ -357,8 +357,6 @@ BOOL LoadCalibrationData () {
   LOAD(TEXT(""),TEXT("RunningOnOS"),&runningonos);
   if (buildnumber != BUILDNUMBER)
     return 0;
-  if (runningonos != GetVersion())
-    return 0;
   LOAD(TEXT("Calibration"),TEXT("Clock Granularity"),&clockgran);
   LOAD(TEXT("Calibration"),TEXT("Cycle Granularity"),&cyclegran);
   LOAD(TEXT("Calibration"),TEXT("Precision Timing") ,&finegraindelay);
@@ -455,7 +453,6 @@ void RegisterExtensions () {
 //===========================================================================
 void SaveCalibrationData () {
   RegSaveValue(TEXT(""),TEXT("CurrentBuildNumber"),1,BUILDNUMBER);
-  RegSaveValue(TEXT(""),TEXT("RunningOnOS")       ,1,GetVersion());
   RegSaveValue(TEXT("Calibration"),TEXT("Clock Granularity"),1,clockgran);
   RegSaveValue(TEXT("Calibration"),TEXT("Cycle Granularity"),1,cyclegran);
   RegSaveValue(TEXT("Calibration"),TEXT("Precision Timing") ,1,finegraindelay);

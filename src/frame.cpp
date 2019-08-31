@@ -98,7 +98,6 @@ HWND    framewindow     = (HWND)0;
 BOOL    helpquit        = 0;
 HFONT   smallfont       = (HFONT)0;
 BOOL    usingcursor     = 0;
-BOOL    win95           = 0;
 
 void    DrawStatusArea (HDC passdc, BOOL drawbackground);
 void    EnableTrackbar (HWND window, BOOL enable);
@@ -336,7 +335,7 @@ void DrawButton (HDC passdc, int number) {
   VideoReleaseFrameDC();
   HDC dc = (passdc ? passdc : GetDC(framewindow));
   int x  = VIEWPORTCX+(VIEWPORTX<<1);
-  int y  = number*BUTTONCY+win95;
+  int y  = number*BUTTONCY+1;
   SelectObject(dc,GetStockObject(BLACK_PEN));
   MoveToEx(dc,x,y,NULL);
   LineTo(dc,x,y+BUTTONCY-1);
@@ -474,20 +473,20 @@ void DrawFrameWindow (BOOL paint) {
 void DrawStatusArea (HDC passdc, BOOL drawbackground) {
   VideoReleaseFrameDC();
   HDC dc = (passdc ? passdc : GetDC(framewindow));
-  int x  = VIEWPORTCX+(VIEWPORTX<<1)+!win95;
-  int y  = 8*BUTTONCY+win95;
+  int x  = VIEWPORTCX+(VIEWPORTX<<1);
+  int y  = 8*BUTTONCY+1;
 
   if (drawbackground) {
     SelectObject(dc,GetStockObject(NULL_PEN));
     SelectObject(dc,btnfacebrush);
-    Rectangle(dc,x,y,x+BUTTONCX+(win95 << 1),y+35);
-    Draw3dRect(dc,x+(win95 ? 1 : 3),y+3,x+BUTTONCX-(win95 ? 0 : 4),y+31,0);
+    Rectangle(dc,x,y,x+BUTTONCX+2,y+35);
+    Draw3dRect(dc,x+1,y+3,x+BUTTONCX,y+31,0);
     SelectObject(dc,smallfont);
     SetTextAlign(dc,TA_CENTER | TA_TOP);
     SetTextColor(dc,0);
     SetBkMode(dc,TRANSPARENT);
-    TextOut(dc,x+6 +win95,y+7,TEXT("1"),1);
-    TextOut(dc,x+24+win95,y+7,TEXT("2"),1);
+    TextOut(dc,x+7,y+7,TEXT("1"),1);
+    TextOut(dc,x+25,y+7,TEXT("2"),1);
   }
 
   {
@@ -495,15 +494,15 @@ void DrawStatusArea (HDC passdc, BOOL drawbackground) {
     int  drive1 = 0;
     int  drive2 = 0;
     DiskGetLightStatus(&drive1,&drive2);
-    DrawBitmapRect(dc,x+11+win95,y+8,&rect,diskbitmap[drive1]);
-    DrawBitmapRect(dc,x+29+win95,y+8,&rect,diskbitmap[drive2]);
+    DrawBitmapRect(dc,x+12,y+8,&rect,diskbitmap[drive1]);
+    DrawBitmapRect(dc,x+30,y+8,&rect,diskbitmap[drive2]);
   }
 
   if (apple2e) {
     RECT rect = {0,0,30,8};
     BOOL caps = 0;
     KeybGetCapsStatus(&caps);
-    DrawBitmapRect(dc,x+6+win95,y+19,&rect,capsbitmap[caps != 0]);
+    DrawBitmapRect(dc,x+7,y+19,&rect,capsbitmap[caps != 0]);
   }
 
   if (!passdc)
@@ -1023,44 +1022,17 @@ void FrameRefreshStatus () {
 
 //===========================================================================
 void FrameRegisterClass () {
-  win95 = ((GetVersion() & 0xFF) >= 4);
-  if (win95) {
-    HINSTANCE     userinst   = LoadLibrary(TEXT("USER32"));
-    loadimagetype loadimage  = NULL;
-    regextype     registerex = NULL;
-    if (userinst) {
-#ifdef UNICODE
-      loadimage  = (loadimagetype)GetProcAddress(userinst,TEXT("LoadImageW"));
-      registerex = (regextype)GetProcAddress(userinst,TEXT("RegisterClassExW"));
-#else
-      loadimage  = (loadimagetype)GetProcAddress(userinst,TEXT("LoadImageA"));
-      registerex = (regextype)GetProcAddress(userinst,TEXT("RegisterClassExA"));
-#endif
-    }
-    if (loadimage && registerex) {
-      WNDCLASSEX wndclass;
-      ZeroMemory(&wndclass,sizeof(WNDCLASSEX));
-      wndclass.cbSize        = sizeof(WNDCLASSEX);
-      wndclass.style         = CS_OWNDC | CS_BYTEALIGNCLIENT;
-      wndclass.lpfnWndProc   = FrameWndProc;
-      wndclass.hInstance     = instance;
-      wndclass.hIcon         = LoadIcon(instance,TEXT("APPLEWIN_ICON"));
-      wndclass.hCursor       = LoadCursor(0,IDC_ARROW);
-      wndclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-      wndclass.lpszClassName = TEXT("APPLE2FRAME");
-      wndclass.hIconSm       = (HICON)loadimage(instance,TEXT("APPLEWIN_ICON"),
-                                         1,16,16,0);
-      if (!registerex(&wndclass))
-        win95 = 0;
-    }
-    else
-      win95 = 0;
-    if (userinst)
-      FreeLibrary(userinst);
+  HINSTANCE     userinst   = LoadLibrary(TEXT("USER32"));
+  loadimagetype loadimage  = NULL;
+  regextype     registerex = NULL;
+  if (userinst) {
+    loadimage  = (loadimagetype)GetProcAddress(userinst,TEXT("LoadImageA"));
+    registerex = (regextype)GetProcAddress(userinst,TEXT("RegisterClassExA"));
   }
-  if (!win95) {
-    WNDCLASS wndclass;
-    ZeroMemory(&wndclass,sizeof(WNDCLASS));
+  if (loadimage && registerex) {
+    WNDCLASSEX wndclass;
+    ZeroMemory(&wndclass,sizeof(WNDCLASSEX));
+    wndclass.cbSize        = sizeof(WNDCLASSEX);
     wndclass.style         = CS_OWNDC | CS_BYTEALIGNCLIENT;
     wndclass.lpfnWndProc   = FrameWndProc;
     wndclass.hInstance     = instance;
@@ -1068,8 +1040,12 @@ void FrameRegisterClass () {
     wndclass.hCursor       = LoadCursor(0,IDC_ARROW);
     wndclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
     wndclass.lpszClassName = TEXT("APPLE2FRAME");
-    RegisterClass(&wndclass);
+    wndclass.hIconSm       = (HICON)loadimage(instance,TEXT("APPLEWIN_ICON"),
+                                        1,16,16,0);
+    registerex(&wndclass);
   }
+  if (userinst)
+    FreeLibrary(userinst);
 }
 
 //===========================================================================

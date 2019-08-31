@@ -1363,7 +1363,7 @@ void VideoInitialize () {
   // CREATE OFFSET TABLES FOR EACH SCAN LINE IN THE SOURCE IMAGES AND
   // FRAME BUFFER
   if ((srcpixelformat <= 0x108) || (srcpixelformat >= 0x200)) {
-    BOOL type401b = (srcpixelformat == 0x401) && ((GetVersion() & 0xFF) < 4);
+    BOOL type401b = FALSE;
     int  loop     = 0;
     while (loop < 512) {
       if (loop < 384)
@@ -1395,7 +1395,7 @@ void VideoInitialize () {
       fastinst = (HINSTANCE)0;
     }
     bitbltfunc = NULL;
-    BOOL win95 = ((GetVersion() & 0xFF) >= 4);
+    BOOL win95 = TRUE;
     if (!bitbltfunc)
       switch (srcpixelformat) {
         case 0x104: bitbltfunc = BitBlt104;                          break;
