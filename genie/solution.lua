@@ -140,6 +140,7 @@ project("AppleWinX")
 
     -- Add -D compile options
     defines {
+        "_CRT_SECURE_NO_WARNINGS",
     }
 
     -- Add additional compile options
