@@ -339,13 +339,13 @@ static BOOL LoadCalibrationData() {
 //===========================================================================
 static void LoadConfiguration() {
 #define LOAD(a,b) RegLoadValue("Configuration",a,b);
-    LOAD("Computer Emulation", (DWORD *)& apple2e);
+    LOAD("Computer Emulation", (DWORD *)&apple2e);
     LOAD("Joystick Emulation", &joytype);
     LOAD("Sound Emulation", &soundtype);
     LOAD("Serial Port", &serialport);
     LOAD("Emulation Speed", &speed);
-    LOAD("Enhance Disk Speed", (DWORD *)& optenhancedisk);
-    LOAD("Monochrome Video", (DWORD *)& optmonochrome);
+    LOAD("Enhance Disk Speed", (DWORD *)&optenhancedisk);
+    LOAD("Monochrome Video", (DWORD *)&optmonochrome);
 #undef LOAD
 }
 

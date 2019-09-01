@@ -42,12 +42,6 @@ struct DEVMODE40 {
 };
 typedef DEVMODE40 * LPDEVMODE40;
 
-typedef BOOL   (WINAPI * changedisptype)(LPDEVMODE40, DWORD);
-typedef BOOL   (WINAPI * enumdisptype)(const char *, DWORD, LPDEVMODE40);
-typedef void   (WINAPI * initcomctltype)();
-typedef HANDLE (WINAPI * loadimagetype)(HINSTANCE, const char *, UINT, int, int, UINT);
-typedef ATOM   (WINAPI * regextype)(CONST WNDCLASSEX *);
-
 static const char computerchoices[] = "Apple ][+\0"
                                       "Apple //e\0";
 static const char joystickchoices[] = "Disabled\0"
@@ -885,23 +879,13 @@ static void ProcessButtonClick(int button) {
 
         case BTN_SETUP:
         {
-            HINSTANCE      comctlinstance = LoadLibrary("COMCTL32");
-            initcomctltype initcomctl = (initcomctltype)
-                GetProcAddress(comctlinstance,
-                    "InitCommonControls");
-            if (initcomctl) {
-                initcomctl();
-                DialogBox(instance,
-                    "CONFIGURATION_DIALOG",
-                    framewindow,
-                    (DLGPROC)ConfigDlgProc);
-            }
-            else
-                MessageBox(framewindow,
-                    "Required file ComCtl32.dll not found.",
-                    TITLE,
-                    MB_ICONEXCLAMATION);
-            FreeLibrary(comctlinstance);
+            InitCommonControls();
+            DialogBox(
+                instance,
+                "CONFIGURATION_DIALOG",
+                framewindow,
+                (DLGPROC)ConfigDlgProc
+            );
         }
         break;
 
@@ -1007,30 +991,18 @@ void FrameRefreshStatus() {
 
 //===========================================================================
 void FrameRegisterClass() {
-    HINSTANCE     userinst = LoadLibrary("USER32");
-    loadimagetype loadimage = NULL;
-    regextype     registerex = NULL;
-    if (userinst) {
-        loadimage = (loadimagetype)GetProcAddress(userinst, "LoadImageA");
-        registerex = (regextype)GetProcAddress(userinst, "RegisterClassExA");
-    }
-    if (loadimage && registerex) {
-        WNDCLASSEX wndclass;
-        ZeroMemory(&wndclass, sizeof(WNDCLASSEX));
-        wndclass.cbSize = sizeof(WNDCLASSEX);
-        wndclass.style = CS_OWNDC | CS_BYTEALIGNCLIENT;
-        wndclass.lpfnWndProc = FrameWndProc;
-        wndclass.hInstance = instance;
-        wndclass.hIcon = LoadIcon(instance, "APPLEWIN_ICON");
-        wndclass.hCursor = LoadCursor(0, IDC_ARROW);
-        wndclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-        wndclass.lpszClassName = "APPLE2FRAME";
-        wndclass.hIconSm = (HICON)loadimage(instance, "APPLEWIN_ICON",
-            1, 16, 16, 0);
-        registerex(&wndclass);
-    }
-    if (userinst)
-        FreeLibrary(userinst);
+    WNDCLASSEX wndclass;
+    ZeroMemory(&wndclass, sizeof(WNDCLASSEX));
+    wndclass.cbSize = sizeof(WNDCLASSEX);
+    wndclass.style = CS_OWNDC | CS_BYTEALIGNCLIENT;
+    wndclass.lpfnWndProc = FrameWndProc;
+    wndclass.hInstance = instance;
+    wndclass.hIcon = LoadIcon(instance, "APPLEWIN_ICON");
+    wndclass.hCursor = LoadCursor(0, IDC_ARROW);
+    wndclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    wndclass.lpszClassName = "APPLE2FRAME";
+    wndclass.hIconSm = (HICON)LoadImageA(instance, "APPLEWIN_ICON", 1, 16, 16, 0);
+    RegisterClassExA(&wndclass);
 }
 
 //===========================================================================

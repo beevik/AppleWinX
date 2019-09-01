@@ -9,84 +9,12 @@
 #include "pch.h"
 #pragma  hdrstop
 
-typedef LONG (APIENTRY * regclosetype)(HKEY);
-typedef LONG (APIENTRY * regcreatetype)(HKEY, const char *, DWORD, char *, DWORD, REGSAM, LPSECURITY_ATTRIBUTES, PHKEY, LPDWORD);
-typedef LONG (APIENTRY * regopentype)(HKEY, const char *, DWORD, REGSAM, PHKEY);
-typedef LONG (APIENTRY * regquerytype)(HKEY, const char *, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
-typedef LONG (APIENTRY * regsettype)(HKEY, const char *, DWORD, DWORD, CONST BYTE *, DWORD);
-
 //
 // ----- ALL GLOBALLY ACCESSIBLE FUNCTIONS ARE BELOW THIS LINE -----
 //
 
 //===========================================================================
-BOOL RegLoadString(
-    const char *    section,
-    const char *    key,
-    char *          buffer,
-    DWORD           chars
-) {
-    BOOL      usingregistry = 0;
-    HINSTANCE advapiinst = (HINSTANCE)0;
-    advapiinst = LoadLibrary("ADVAPI32");
-    if (advapiinst) {
-        regclosetype regclose = (regclosetype)GetProcAddress(advapiinst, "RegCloseKey");
-        regopentype  regopen = (regopentype)GetProcAddress(advapiinst, "RegOpenKeyExA");
-        regquerytype regquery = (regquerytype)GetProcAddress(advapiinst, "RegQueryValueExA");
-        BOOL success = 0;
-        if (regclose && regopen && regquery) {
-            usingregistry = 1;
-            char fullkeyname[256];
-            StrPrintf(
-                fullkeyname,
-                ARRSIZE(fullkeyname),
-                "Software\\AppleWin\\CurrentVersion\\%s",
-                section
-            );
-            HKEY keyhandle;
-            LSTATUS status = regopen(
-                HKEY_CURRENT_USER,
-                fullkeyname,
-                0,
-                KEY_READ,
-                &keyhandle
-            );
-            if (status == 0) {
-                DWORD type;
-                DWORD size = chars;
-                success = !regquery(keyhandle, key, 0, &type, (LPBYTE)buffer, &size) && size;
-                regclose(keyhandle);
-            }
-        }
-        FreeLibrary(advapiinst);
-        if (usingregistry)
-            return success;
-    }
-    DWORD result = GetPrivateProfileString(section,
-        key,
-        "",
-        buffer,
-        chars,
-        "AppleWin.ini"
-    );
-    return result != 0;
-}
-
-//===========================================================================
-BOOL RegLoadValue(const char * section, const char * key, DWORD * value) {
-    if (!value)
-        return 0;
-    char buffer[32] = "";
-    if (!RegLoadString(section, key, buffer, 32))
-        return 0;
-    buffer[31] = 0;
-    *value = (DWORD)_ttoi(buffer);
-    return 1;
-}
-
-//===========================================================================
-void RegSaveString(const char * section, const char * key, const char * value) {
-    BOOL success = 0;
+BOOL RegLoadString(const char * section, const char * key, char * buffer, DWORD chars) {
     char fullkeyname[256];
     StrPrintf(
         fullkeyname,
@@ -94,6 +22,49 @@ void RegSaveString(const char * section, const char * key, const char * value) {
         "Software\\AppleWin\\CurrentVersion\\%s",
         section
     );
+
+    BOOL success = FALSE;
+    HKEY keyhandle;
+    LSTATUS status = RegOpenKeyExA(
+        HKEY_CURRENT_USER,
+        fullkeyname,
+        0,
+        KEY_READ,
+        &keyhandle
+    );
+    if (status == 0) {
+        DWORD type;
+        DWORD size = chars;
+        status = RegQueryValueExA(keyhandle, key, 0, &type, (LPBYTE)buffer, &size);
+        success = (status == 0) && (size > 0);
+        RegCloseKey(keyhandle);
+    }
+
+    return success;
+}
+
+//===========================================================================
+BOOL RegLoadValue(const char * section, const char * key, DWORD * value) {
+    char buffer[32] = "";
+    if (!RegLoadString(section, key, buffer, ARRSIZE(buffer)))
+        return 0;
+    buffer[31] = 0;
+
+    char * endptr;
+    *value = (DWORD)StrToUnsigned(buffer, &endptr, 10);
+    return TRUE;
+}
+
+//===========================================================================
+void RegSaveString(const char * section, const char * key, const char * value) {
+    char fullkeyname[256];
+    StrPrintf(
+        fullkeyname,
+        ARRSIZE(fullkeyname),
+        "Software\\AppleWin\\CurrentVersion\\%s",
+        section
+    );
+
     HKEY  keyhandle;
     DWORD disposition;
     LSTATUS status = RegCreateKeyExA(
@@ -103,10 +74,11 @@ void RegSaveString(const char * section, const char * key, const char * value) {
         NULL,
         REG_OPTION_NON_VOLATILE,
         KEY_READ | KEY_WRITE,
-        (LPSECURITY_ATTRIBUTES)NULL,
+        NULL,
         &keyhandle,
         &disposition
     );
+
     if (status == ERROR_SUCCESS) {
         RegSetValueExA(
             keyhandle,
