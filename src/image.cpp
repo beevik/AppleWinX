@@ -52,12 +52,12 @@ static BOOL  PrgBoot(imageinforec * ptr);
 static DWORD PrgDetect(LPBYTE imageptr, DWORD imagesize);
 
 struct imagetyperec {
-    LPCTSTR    createexts;
-    LPCTSTR    rejectexts;
-    detecttype detect;
-    boottype   boot;
-    readtype   read;
-    writetype  write;
+    const char * createexts;
+    const char * rejectexts;
+    detecttype   detect;
+    boottype     boot;
+    readtype     read;
+    writetype    write;
 };
 
 static const imagetyperec imagetype[IMAGETYPES] = {
@@ -293,7 +293,7 @@ static void DenibblizeTrack(LPBYTE trackimage, BOOL dosorder, int nibbles) {
                 if (offset >= nibbles)
                     offset = 0;
             }
-            if ((bytenum == 3) && (byteval[1] = 0xAA)) {
+            if ((bytenum == 3) && (byteval[1] == 0xAA)) {
                 int loop = 0;
                 int tempoffset = offset;
                 while (loop < 384) {
@@ -733,10 +733,12 @@ void ImageInitialize() {
 }
 
 //===========================================================================
-BOOL ImageOpen(LPCTSTR  imagefilename,
-    HIMAGE * imagehandle,
-    BOOL * writeprotected,
-    BOOL     createifnecessary) {
+BOOL ImageOpen (
+    const char *    imagefilename,
+    HIMAGE *        imagehandle,
+    BOOL *          writeprotected,
+    BOOL            createifnecessary
+) {
     if (imagehandle)
         * imagehandle = (HIMAGE)0;
     if (writeprotected)
@@ -789,7 +791,7 @@ BOOL ImageOpen(LPCTSTR  imagefilename,
             }
 
             // DETERMINE THE FILE'S EXTENSION
-            LPCTSTR ext = imagefilename;
+            const char * ext = imagefilename;
             while (StrChr(ext, '\\'))
                 ext = StrChr(ext, '\\') + 1;
             while (StrChr(ext + 1, '.'))
@@ -801,7 +803,7 @@ BOOL ImageOpen(LPCTSTR  imagefilename,
             while ((loop < IMAGETYPES) && (format == 0xFFFFFFFF)) {
                 BOOL reject = 0;
                 if (ext && *ext) {
-                    LPCTSTR rejectexts = imagetype[loop].rejectexts;
+                    const char * rejectexts = imagetype[loop].rejectexts;
                     while (rejectexts && *rejectexts && !reject)
                         if (!StrCmpLenI(ext, rejectexts, StrLen(ext)))
                             reject = 1;
@@ -863,11 +865,13 @@ BOOL ImageOpen(LPCTSTR  imagefilename,
 }
 
 //===========================================================================
-void ImageReadTrack(HIMAGE  imagehandle,
+void ImageReadTrack(
+    HIMAGE  imagehandle,
     int     track,
     int     quartertrack,
     LPBYTE  trackimagebuffer,
-    int * nibbles) {
+    int *   nibbles
+) {
     *nibbles = 0;
     imageinforec * ptr = (imageinforec *)imagehandle;
     if (imagetype[ptr->format].read)
@@ -875,11 +879,13 @@ void ImageReadTrack(HIMAGE  imagehandle,
 }
 
 //===========================================================================
-void ImageWriteTrack(HIMAGE imagehandle,
-    int    track,
-    int    quartertrack,
-    LPBYTE trackimage,
-    int    nibbles) {
+void ImageWriteTrack (
+    HIMAGE  imagehandle,
+    int     track,
+    int     quartertrack,
+    LPBYTE  trackimage,
+    int     nibbles
+) {
     imageinforec * ptr = (imageinforec *)imagehandle;
     if (imagetype[ptr->format].write && !ptr->writeprotected)
         imagetype[ptr->format].write(ptr, track, quartertrack, trackimage, nibbles);

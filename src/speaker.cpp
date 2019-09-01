@@ -41,7 +41,7 @@ static int      waveprep     = 0;
 static void DisplayBenchmarkResults() {
     DWORD totaltime = GetTickCount() - extbench;
     VideoRedrawScreen();
-    TCHAR buffer[64];
+    char buffer[64];
     StrPrintf(
         buffer,
         ARRSIZE(buffer),
@@ -209,9 +209,9 @@ void SpkrInitialize() {
             waveprep = 0;
             SubmitWaveBuffer(0);
             bufferuse = 0;
-            RegLoadValue("Calibration", "Wave Packet Size", 0, &bufferuse);
+            RegLoadValue("Calibration", "Wave Packet Size", &bufferuse);
             bufferuse = MAX(2048, MIN(buffersize, bufferuse));
-            RegSaveValue("Calibration", "Wave Packet Size", 0, bufferuse);
+            RegSaveValue("Calibration", "Wave Packet Size", bufferuse);
             if (bufferuse == 2048)
                 TestPacketSize();
         }

@@ -21,11 +21,7 @@ constexpr BYTE AF_CARRY     = 0x01;
 constexpr int SHORTOPCODES = 22;
 constexpr int BENCHOPCODES = 33;
 
-typedef DWORD(__stdcall * cpuexecutetype)(DWORD);
-typedef void(__stdcall * cpugetcodetype)(WORD, LPBYTE *, DWORD *);
-typedef void(__stdcall * cpuinittype)(LPBYTE, LPBYTE *, LPBYTE *, DWORD, DWORD, LPVOID, iofunction *, iofunction *, LPBYTE);
-
-BYTE benchopcode[BENCHOPCODES] = {
+static const BYTE benchopcode[BENCHOPCODES] = {
     0x06, 0x16, 0x24, 0x45, 0x48, 0x65, 0x68, 0x76,
     0x84, 0x85, 0x86, 0x91, 0x94, 0xA4, 0xA5, 0xA6,
     0xB1, 0xB4, 0xC0, 0xC4, 0xC5, 0xE6, 0x19, 0x6D,

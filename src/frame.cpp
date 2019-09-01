@@ -25,13 +25,13 @@ constexpr int BTN_DEBUG   = 6;
 constexpr int BTN_SETUP   = 7;
 
 struct DEVMODE40 {
-    TCHAR dmDeviceName[32];
+    char  dmDeviceName[32];
     WORD  dmVersions[2];
     WORD  dmSize;
     WORD  dmDriverExtra;
     DWORD dmFields;
     short dmPrintOptions[13];
-    TCHAR dmFormName[32];
+    char  dmFormName[32];
     WORD  dmLogPixels;
     DWORD dmBitsPerPel;
     DWORD dmPelsWidth;
@@ -42,30 +42,30 @@ struct DEVMODE40 {
 };
 typedef DEVMODE40 * LPDEVMODE40;
 
-typedef BOOL(WINAPI * changedisptype)(LPDEVMODE40, DWORD);
-typedef BOOL(WINAPI * enumdisptype)(LPCTSTR, DWORD, LPDEVMODE40);
-typedef void(WINAPI * initcomctltype)();
-typedef HANDLE(WINAPI * loadimagetype)(HINSTANCE, LPCTSTR, UINT, int, int, UINT);
-typedef ATOM(WINAPI * regextype)(CONST WNDCLASSEX *);
+typedef BOOL   (WINAPI * changedisptype)(LPDEVMODE40, DWORD);
+typedef BOOL   (WINAPI * enumdisptype)(const char *, DWORD, LPDEVMODE40);
+typedef void   (WINAPI * initcomctltype)();
+typedef HANDLE (WINAPI * loadimagetype)(HINSTANCE, const char *, UINT, int, int, UINT);
+typedef ATOM   (WINAPI * regextype)(CONST WNDCLASSEX *);
 
-static const TCHAR computerchoices[] = "Apple ][+\0"
-                                       "Apple //e\0";
-static const TCHAR joystickchoices[] = "Disabled\0"
-                                       "PC Joystick\0"
-                                       "Keyboard (standard)\0"
-                                       "Keyboard (centering)\0"
-                                       "Mouse\0";
-static const TCHAR serialchoices[] =   "None\0"
-                                       "COM1\0"
-                                       "COM2\0"
-                                       "COM3\0"
-                                       "COM4\0";
-static const TCHAR soundchoices[] =    "Disabled\0"
-                                       "PC Speaker (direct)\0"
-                                       "PC Speaker (translated)\0"
-                                       "Sound Card\0";
-static const TCHAR videochoices[] =    "Color\0"
-                                       "Monochrome\0";
+static const char computerchoices[] = "Apple ][+\0"
+                                      "Apple //e\0";
+static const char joystickchoices[] = "Disabled\0"
+                                      "PC Joystick\0"
+                                      "Keyboard (standard)\0"
+                                      "Keyboard (centering)\0"
+                                      "Mouse\0";
+static const char serialchoices[] =   "None\0"
+                                      "COM1\0"
+                                      "COM2\0"
+                                      "COM3\0"
+                                      "COM4\0";
+static const char soundchoices[] =    "Disabled\0"
+                                      "PC Speaker (direct)\0"
+                                      "PC Speaker (translated)\0"
+                                      "Sound Card\0";
+static const char videochoices[] =    "Color\0"
+                                      "Monochrome\0";
 
 static HBITMAP capsbitmap[2];
 static HBITMAP diskbitmap[3];
@@ -86,8 +86,8 @@ static BOOL    usingcursor     = 0;
 
 static void    DrawStatusArea(HDC passdc, BOOL drawbackground);
 static void    EnableTrackbar(HWND window, BOOL enable);
-static void    FillComboBox(HWND window, int controlid, LPCTSTR choices, int currentchoice);
-static HBITMAP LoadButtonBitmap(HINSTANCE instance, LPCTSTR bitmapname);
+static void    FillComboBox(HWND window, int controlid, const char * choices, int currentchoice);
+static HBITMAP LoadButtonBitmap(HINSTANCE instance, const char * bitmapname);
 static void    ProcessButtonClick(int button);
 static void    ResetMachineState();
 static void    SetUsingCursor(BOOL);
@@ -139,7 +139,7 @@ static BOOL CALLBACK ConfigDlgProc(
                         speed = SPEED_NORMAL;
                     else
                         speed = SendDlgItemMessage(window, 108, TBM_GETPOS, 0, 0);
-#define SAVE(a,b) RegSaveValue("Configuration",a,0,b);
+#define SAVE(a,b) RegSaveValue("Configuration",a,b);
                     SAVE("Computer Emulation", newcomptype);
                     SAVE("Joystick Emulation", joytype);
                     SAVE("Sound Emulation", soundtype);
@@ -179,7 +179,6 @@ static BOOL CALLBACK ConfigDlgProc(
                     break;
 
                 case 112:
-                    RegSaveValue("", "RunningOnOS", 0, 0);
                     if (MessageBox(window,
                         "The emulator has been set to recalibrate "
                         "itself the next time it is started.\n\n"
@@ -212,8 +211,7 @@ static BOOL CALLBACK ConfigDlgProc(
                 BOOL custom = 1;
                 if (speed == 10) {
                     custom = 0;
-                    RegLoadValue("Configuration", "Custom Speed",
-                        0, (DWORD *)& custom);
+                    RegLoadValue("Configuration", "Custom Speed", (DWORD *)&custom);
                 }
                 CheckRadioButton(window, 106, 107, 106 + custom);
                 SetFocus(GetDlgItem(window, custom ? 108 : 106));
@@ -503,11 +501,11 @@ static void EnableTrackbar(HWND window, BOOL enable) {
 }
 
 //===========================================================================
-static void FillComboBox(HWND window, int controlid, LPCTSTR choices, int currentchoice) {
+static void FillComboBox(HWND window, int controlid, const char * choices, int currentchoice) {
     HWND combowindow = GetDlgItem(window, controlid);
     SendMessage(combowindow, CB_RESETCONTENT, 0, 0);
     while (*choices) {
-        SendMessage(combowindow, CB_ADDSTRING, 0, (LPARAM)(LPCTSTR)choices);
+        SendMessage(combowindow, CB_ADDSTRING, 0, (LPARAM)(const char *)choices);
         choices += StrLen(choices) + 1;
     }
     SendMessage(combowindow, CB_SETCURSEL, currentchoice, 0);
@@ -533,7 +531,7 @@ static LRESULT CALLBACK FrameWndProc(
             KillTimer(window, 1);
             if (helpquit) {
                 helpquit = 0;
-                TCHAR filename[MAX_PATH];
+                char filename[MAX_PATH];
                 StrCopy(filename, progdir, ARRSIZE(filename));
                 StrCat(filename, "applewin.hlp", ARRSIZE(filename));
                 WinHelp(window, filename, HELP_QUIT, 0);
@@ -542,7 +540,7 @@ static LRESULT CALLBACK FrameWndProc(
 
         case WM_CHAR:
             if (mode == MODE_DEBUG)
-                DebugProcessChar((TCHAR)wparam);
+                DebugProcessChar((char)wparam);
             break;
 
         case WM_CREATE:
@@ -757,7 +755,7 @@ static LRESULT CALLBACK FrameWndProc(
 }
 
 //===========================================================================
-static HBITMAP LoadButtonBitmap(HINSTANCE instance, LPCTSTR bitmapname) {
+static HBITMAP LoadButtonBitmap(HINSTANCE instance, const char * bitmapname) {
     HBITMAP bitmap = LoadBitmap(instance, bitmapname);
     if (!bitmap)
         return bitmap;
@@ -827,7 +825,7 @@ static void ProcessButtonClick(int button) {
 
         case BTN_HELP:
         {
-            TCHAR filename[MAX_PATH];
+            char filename[MAX_PATH];
             StrCopy(filename, progdir, ARRSIZE(filename));
             StrCat(filename, "applewin.hlp", ARRSIZE(filename));
             WinHelp(framewindow, filename, HELP_CONTENTS, 0);

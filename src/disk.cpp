@@ -15,7 +15,7 @@ constexpr int NIBBLES  = 6384;
 constexpr int TRACKS   = 35;
 
 struct floppyrec {
-    TCHAR  imagename[16];
+    char   imagename[16];
     HIMAGE imagehandle;
     int    track;
     LPBYTE trackimage;
@@ -50,14 +50,14 @@ static void CheckSpinning() {
 }
 
 //===========================================================================
-static void GetImageTitle(LPCTSTR imagefilename, LPTSTR imagename, size_t imagenamechars) {
-    TCHAR   imagetitle[128] = "";
-    LPCTSTR startpos = imagefilename;
+static void GetImageTitle(const char * imagefilename, char * imagename, size_t imagenamechars) {
+    char         imagetitle[128] = "";
+    const char * startpos        = imagefilename;
     while (StrChr(startpos, '\\'))
         startpos = StrChr(startpos, '\\') + 1;
     StrCopy(imagetitle, startpos, ARRSIZE(imagetitle));
     if (imagetitle[0]) {
-        LPTSTR dot = imagetitle;
+        char * dot = imagetitle;
         while (StrChr(dot + 1, '.'))
             dot = StrChr(dot + 1, '.');
         if (dot > imagetitle)
@@ -77,7 +77,7 @@ static void GetImageTitle(LPCTSTR imagefilename, LPTSTR imagename, size_t imagen
 }
 
 //===========================================================================
-static BOOL InsertDisk(int drive, LPCTSTR imagefilename, BOOL createifnecessary) {
+static BOOL InsertDisk(int drive, const char * imagefilename, BOOL createifnecessary) {
     floppyrec * fptr = &floppy[drive];
     if (fptr->imagehandle)
         RemoveDisk(drive);
@@ -111,7 +111,7 @@ static void ReadTrack(int drive) {
 }
 
 //===========================================================================
-static void NotifyInvalidImage(LPCTSTR imagefilename) {
+static void NotifyInvalidImage(const char * imagefilename) {
     HANDLE file = CreateFile(
         imagefilename,
         GENERIC_READ,
@@ -121,7 +121,7 @@ static void NotifyInvalidImage(LPCTSTR imagefilename) {
         FILE_ATTRIBUTE_NORMAL,
         NULL
     );
-    TCHAR buffer[MAX_PATH + 128];
+    char buffer[MAX_PATH + 128];
     if (file == INVALID_HANDLE_VALUE)
         StrPrintf(buffer, ARRSIZE(buffer), "Unable to open the file %s.", imagefilename);
     else {
@@ -253,7 +253,7 @@ void DiskGetLightStatus(int * drive1, int * drive2) {
 }
 
 //===========================================================================
-LPCTSTR DiskGetName(int drive) {
+const char * DiskGetName(int drive) {
     return floppy[drive].imagename;
 }
 
@@ -266,11 +266,11 @@ BOOL DiskInitialize() {
     // PARSE THE COMMAND LINE LOOKING FOR THE NAME OF A DISK IMAGE.
     // (THIS IS MADE MORE COMPLICATED BY THE FACT THAT LONG FILE NAMES MAY
     //  BE EMBEDDED IN QUOTES, INCLUDING THE NAME OF THE PROGRAM ITSELF)
-    TCHAR   imagefilename[MAX_PATH] = "";
-    LPCTSTR cmdlinenameIn   = GetCommandLine();
-    int     cmdlinenameLen  = StrLen(cmdlinenameIn);
-    char *  cmdlinenameCopy = new char[cmdlinenameLen + 1];
-    char *  cmdlinename     = cmdlinenameCopy;
+    char         imagefilename[MAX_PATH] = "";
+    const char * cmdlinenameIn           = GetCommandLine();
+    int          cmdlinenameLen          = StrLen(cmdlinenameIn);
+    char *       cmdlinenameCopy         = new char[cmdlinenameLen + 1];
+    char *       cmdlinename             = cmdlinenameCopy;
     StrCopy(cmdlinenameCopy, cmdlinenameIn, cmdlinenameLen + 1);
     BOOL    inquotes = 0;
     while (cmdlinename && ((*cmdlinename != ' ') || inquotes)) {
@@ -351,10 +351,9 @@ BYTE __stdcall DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
 
 //===========================================================================
 void DiskSelect(int drive) {
-    TCHAR directory[MAX_PATH] = "";
-    TCHAR filename[MAX_PATH] = "";
-    RegLoadString("Preferences", "Starting Directory", 1,
-        directory, MAX_PATH);
+    char directory[MAX_PATH] = "";
+    char filename[MAX_PATH]  = "";
+    RegLoadString("Preferences", "Starting Directory", directory, MAX_PATH);
     OPENFILENAME ofn;
     ZeroMemory(&ofn, sizeof(OPENFILENAME));
     ofn.lStructSize = sizeof(OPENFILENAME);
@@ -374,7 +373,7 @@ void DiskSelect(int drive) {
         if (InsertDisk(drive, filename, 1)) {
             filename[ofn.nFileOffset] = 0;
             if (StrCmpI(directory, filename) != 0)
-                RegSaveString("Preferences", "Starting Directory", 1, filename);
+                RegSaveString("Preferences", "Starting Directory", filename);
         }
         else
             NotifyInvalidImage(filename);

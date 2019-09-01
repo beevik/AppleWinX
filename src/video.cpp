@@ -371,11 +371,11 @@ static void __stdcall BitBlt401b(
 
 //===========================================================================
 static void CheckPixel(
-    int x,
-    int y,
-    COLORREF expected,
-    BOOL * success,
-    LPTSTR interference
+    int         x,
+    int         y,
+    COLORREF    expected,
+    BOOL *      success,
+    char *      interference
 ) {
     if (optmonochrome)
         if (y & 1)
@@ -727,12 +727,12 @@ static void InitializeSourceImages() {
 static BOOL LoadSourceImages() {
     if (!sourcebits)
         return 0;
-    TCHAR filename[MAX_PATH];
+    char filename[MAX_PATH];
     StrPrintf(
         filename,
         ARRSIZE(filename),
         "%sVid%03X%s.dat",
-        (LPCTSTR)progdir,
+        progdir,
         (unsigned)(srcpixelformat & 0xFFF),
         optmonochrome ? "m" : "c"
     );
@@ -758,7 +758,7 @@ static BOOL LoadSourceImages() {
 static void SaveSourceImages() {
     if (!sourcebits)
         return;
-    TCHAR filename[MAX_PATH];
+    char filename[MAX_PATH];
     StrPrintf(
         filename,
         ARRSIZE(filename),
@@ -1044,7 +1044,7 @@ void VideoBenchmark() {
                 }
             }
             if (error) {
-                TCHAR outstr[256];
+                char outstr[256];
                 StrPrintf(
                     outstr,
                     ARRSIZE(outstr),
@@ -1108,7 +1108,7 @@ void VideoBenchmark() {
     // DISPLAY THE RESULTS
     VideoDisplayLogo();
     {
-        TCHAR outstr[256];
+        char outstr[256];
         StrPrintf(
             outstr,
             ARRSIZE(outstr),
@@ -1310,7 +1310,7 @@ void VideoDisplayLogo() {
 void VideoDisplayMode(BOOL flashon) {
     if (!framedc)
         framedc = FrameGetDC();
-    LPTSTR text = "        ";
+    char * text = "        ";
     if (mode == MODE_PAUSED) {
         SetBkColor(framedc, 0x000000);
         SetTextColor(framedc, 0x00FFFFF);
@@ -1502,7 +1502,7 @@ void VideoInitialize() {
 void VideoLoadLogo() {
     if (logoptr)
         return;
-    TCHAR filename[MAX_PATH];
+    char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, "applewin.lgo", ARRSIZE(filename));
     logofile = CreateFile(filename,
@@ -1833,7 +1833,7 @@ void VideoTestCompatibility() {
     firsttime = 0;
 
     // DETERMINE THE NAME OF THIS VIDEO MODE
-    TCHAR modename[64];
+    char modename[64];
     StrPrintf(
         modename,
         ARRSIZE(modename),
@@ -1846,17 +1846,14 @@ void VideoTestCompatibility() {
     // IF WE HAVE ALREADY TESTED THIS VIDEO MODE AND FOUND IT COMPATIBLE,
     // JUST RETURN
     BOOL samemode = 1;
-    if (!RegLoadValue("Compatibility", modename, 0, &videocompatible)) {
+    if (!RegLoadValue("Compatibility", modename, &videocompatible)) {
         samemode = 0;
         videocompatible = 1;
     }
-    {
-        TCHAR savedmodename[64] = "";
-        RegLoadString("Compatibility", "Last Video Mode", 0,
-            savedmodename, 63);
-        if (StrCmp(modename, savedmodename) || rebuiltsource)
-            samemode = 0;
-    }
+    char savedmodename[64] = "";
+    RegLoadString("Compatibility", "Last Video Mode", savedmodename, 63);
+    if (StrCmp(modename, savedmodename) || rebuiltsource)
+        samemode = 0;
     if (samemode && videocompatible)
         return;
     if (!samemode)
@@ -1870,8 +1867,8 @@ void VideoTestCompatibility() {
     *(mem + 0x3FF7) = 0x20;
 
     // EXAMINE THE SCREEN TO MAKE SURE THAT THE PIXELS WERE DRAWN CORRECTLY
-    TCHAR interference[64];
-    BOOL  success;
+    char interference[64];
+    BOOL success;
     do {
         VideoRedrawScreen();
         success = 1;
@@ -1894,7 +1891,7 @@ void VideoTestCompatibility() {
                 &success, interference);
         }
         if (interference[0]) {
-            TCHAR buffer[256];
+            char buffer[256];
             StrPrintf(
                 buffer,
                 ARRSIZE(buffer),
@@ -1936,8 +1933,8 @@ void VideoTestCompatibility() {
 
     // SAVE THE RESULTS
     videocompatible = success;
-    RegSaveValue("Compatibility", modename, 0, videocompatible);
-    RegSaveString("Compatibility", "Last Video Mode", 0, modename);
+    RegSaveValue("Compatibility", modename, videocompatible);
+    RegSaveString("Compatibility", "Last Video Mode", modename);
 
     // IF WE DISCOVERED A COMPATIBILITY PROBLEM, THEN REINITIALIZE VIDEO
     if (!videocompatible) {

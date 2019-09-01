@@ -9,11 +9,11 @@
 #include "pch.h"
 #pragma  hdrstop
 
-typedef LONG(APIENTRY * regclosetype)(HKEY);
-typedef LONG(APIENTRY * regcreatetype)(HKEY, LPCTSTR, DWORD, LPTSTR, DWORD, REGSAM, LPSECURITY_ATTRIBUTES, PHKEY, LPDWORD);
-typedef LONG(APIENTRY * regopentype)(HKEY, LPCTSTR, DWORD, REGSAM, PHKEY);
-typedef LONG(APIENTRY * regquerytype)(HKEY, LPCTSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
-typedef LONG(APIENTRY * regsettype)(HKEY, LPCTSTR, DWORD, DWORD, CONST BYTE *, DWORD);
+typedef LONG (APIENTRY * regclosetype)(HKEY);
+typedef LONG (APIENTRY * regcreatetype)(HKEY, const char *, DWORD, char *, DWORD, REGSAM, LPSECURITY_ATTRIBUTES, PHKEY, LPDWORD);
+typedef LONG (APIENTRY * regopentype)(HKEY, const char *, DWORD, REGSAM, PHKEY);
+typedef LONG (APIENTRY * regquerytype)(HKEY, const char *, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
+typedef LONG (APIENTRY * regsettype)(HKEY, const char *, DWORD, DWORD, CONST BYTE *, DWORD);
 
 //
 // ----- ALL GLOBALLY ACCESSIBLE FUNCTIONS ARE BELOW THIS LINE -----
@@ -21,11 +21,10 @@ typedef LONG(APIENTRY * regsettype)(HKEY, LPCTSTR, DWORD, DWORD, CONST BYTE *, D
 
 //===========================================================================
 BOOL RegLoadString(
-    LPCTSTR section,
-    LPCTSTR key,
-    BOOL    peruser,
-    LPTSTR  buffer,
-    DWORD   chars
+    const char *    section,
+    const char *    key,
+    char *          buffer,
+    DWORD           chars
 ) {
     BOOL      usingregistry = 0;
     HINSTANCE advapiinst = (HINSTANCE)0;
@@ -37,7 +36,7 @@ BOOL RegLoadString(
         BOOL success = 0;
         if (regclose && regopen && regquery) {
             usingregistry = 1;
-            TCHAR fullkeyname[256];
+            char fullkeyname[256];
             StrPrintf(
                 fullkeyname,
                 ARRSIZE(fullkeyname),
@@ -45,15 +44,17 @@ BOOL RegLoadString(
                 section
             );
             HKEY keyhandle;
-            if (!regopen((peruser ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE),
+            LSTATUS status = regopen(
+                HKEY_CURRENT_USER,
                 fullkeyname,
                 0,
                 KEY_READ,
-                &keyhandle)) {
+                &keyhandle
+            );
+            if (status == 0) {
                 DWORD type;
                 DWORD size = chars;
-                success = (!regquery(keyhandle, key, 0, &type, (LPBYTE)buffer, &size)) &&
-                    size;
+                success = !regquery(keyhandle, key, 0, &type, (LPBYTE)buffer, &size) && size;
                 regclose(keyhandle);
             }
         }
@@ -72,11 +73,11 @@ BOOL RegLoadString(
 }
 
 //===========================================================================
-BOOL RegLoadValue(LPCTSTR section, LPCTSTR key, BOOL peruser, DWORD * value) {
+BOOL RegLoadValue(const char * section, const char * key, DWORD * value) {
     if (!value)
         return 0;
-    TCHAR buffer[32] = "";
-    if (!RegLoadString(section, key, peruser, buffer, 32))
+    char buffer[32] = "";
+    if (!RegLoadString(section, key, buffer, 32))
         return 0;
     buffer[31] = 0;
     *value = (DWORD)_ttoi(buffer);
@@ -84,9 +85,9 @@ BOOL RegLoadValue(LPCTSTR section, LPCTSTR key, BOOL peruser, DWORD * value) {
 }
 
 //===========================================================================
-void RegSaveString(LPCTSTR section, LPCTSTR key, BOOL peruser, LPCTSTR buffer) {
+void RegSaveString(const char * section, const char * key, const char * value) {
     BOOL success = 0;
-    TCHAR fullkeyname[256];
+    char fullkeyname[256];
     StrPrintf(
         fullkeyname,
         ARRSIZE(fullkeyname),
@@ -95,7 +96,8 @@ void RegSaveString(LPCTSTR section, LPCTSTR key, BOOL peruser, LPCTSTR buffer) {
     );
     HKEY  keyhandle;
     DWORD disposition;
-    LSTATUS status = RegCreateKeyExA((peruser ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE),
+    LSTATUS status = RegCreateKeyExA(
+        HKEY_CURRENT_USER,
         fullkeyname,
         0,
         NULL,
@@ -103,23 +105,24 @@ void RegSaveString(LPCTSTR section, LPCTSTR key, BOOL peruser, LPCTSTR buffer) {
         KEY_READ | KEY_WRITE,
         (LPSECURITY_ATTRIBUTES)NULL,
         &keyhandle,
-        &disposition);
+        &disposition
+    );
     if (status == ERROR_SUCCESS) {
         RegSetValueExA(
             keyhandle,
             key,
             0,
             REG_SZ,
-            (CONST BYTE *)buffer,
-            StrLen(buffer) + 1
+            (CONST BYTE *)value,
+            StrLen(value) + 1
         );
         RegCloseKey(keyhandle);
     }
 }
 
 //===========================================================================
-void RegSaveValue(LPCTSTR section, LPCTSTR key, BOOL peruser, DWORD value) {
-    TCHAR buffer[32] = "";
+void RegSaveValue(const char * section, const char * key, DWORD value) {
+    char buffer[32] = "";
     StrPrintf(buffer, ARRSIZE(buffer), "%u", value);
-    RegSaveString(section, key, peruser, buffer);
+    RegSaveString(section, key, buffer);
 }

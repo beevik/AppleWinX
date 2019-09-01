@@ -83,14 +83,14 @@ static BOOL CmdWatchClear(int args);
 static BOOL CmdZap(int args);
 
 struct addrrec {
-    TCHAR format[12];
-    int   bytes;
+    char format[12];
+    int  bytes;
 };
 
 struct argrec {
-    TCHAR str[12];
-    WORD  val1;
-    WORD  val2;
+    char str[12];
+    WORD val1;
+    WORD val2;
 };
 
 struct bprec {
@@ -100,18 +100,18 @@ struct bprec {
 };
 
 struct cmdrec {
-    TCHAR       name[12];
+    char        name[12];
     cmdfunction function;
 };
 
 struct instrec {
-    TCHAR mnemonic[4];
+    char  mnemonic[4];
     int   addrmode;
 };
 
 struct symbolrec {
     WORD  value;
-    TCHAR name[14];
+    char  name[14];
 };
 
 static addrrec addressmode[17] = {
@@ -480,7 +480,7 @@ static const COLORREF color[2][COLORS] = {
     },
 };
 
-static TCHAR commandstring[COMMANDLINES][80] = {
+static char commandstring[COMMANDLINES][80] = {
     "",
     " ",
     " Apple //e Emulator for Windows",
@@ -516,11 +516,11 @@ static BOOL        usingwatches  = FALSE;
 static BOOL        viewingoutput = FALSE;
 
 static void ComputeTopOffset(WORD centeroffset);
-static BOOL DisplayError(LPCTSTR errortext);
+static BOOL DisplayError(const char * errortext);
 static BOOL DisplayHelp(cmdfunction function);
 static BOOL InternalSingleStep();
-static WORD GetAddress(LPCTSTR symbol);
-static LPCTSTR GetSymbol(WORD address, int bytes);
+static WORD GetAddress(const char * symbol);
+static const char * GetSymbol(WORD address, int bytes);
 static void GetTargets(int * intermediate, int * final);
 
 //===========================================================================
@@ -721,7 +721,7 @@ static BOOL CmdFeedKey(int args) {
 
 //===========================================================================
 static BOOL CmdFlagSet(int args) {
-    static const TCHAR flagname[] = "CZIDBRVN";
+    static const char flagname[] = "CZIDBRVN";
     int loop = 0;
     while (loop < 8)
         if (flagname[loop] == arg[0].str[1])
@@ -766,7 +766,7 @@ static BOOL CmdInternalCodeDump(int args) {
         return DisplayHelp(CmdInternalCodeDump);
     if (!arg[1].val1)
         arg[1].val1 = GetAddress(arg[1].str);
-    TCHAR filename[MAX_PATH];
+    char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, "output.bin", ARRSIZE(filename));
     HANDLE file = CreateFile(filename,
@@ -783,7 +783,7 @@ static BOOL CmdInternalCodeDump(int args) {
 
 //===========================================================================
 static BOOL CmdInternalMemoryDump(int args) {
-    TCHAR filename[MAX_PATH];
+    char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, "output.bin", ARRSIZE(filename));
     HANDLE file = CreateFile(filename,
@@ -942,10 +942,10 @@ static BOOL CmdRegisterSet(int args) {
 //===========================================================================
 static BOOL CmdTrace(int args) {
     stepcount = args ? arg[1].val1 : 1;
-    stepline = 0;
+    stepline  = 0;
     stepstart = regs.pc;
     stepuntil = -1;
-    mode = MODE_STEPPING;
+    mode      = MODE_STEPPING;
     DebugContinueStepping();
     return 0;
 }
@@ -954,7 +954,7 @@ static BOOL CmdTrace(int args) {
 static BOOL CmdTraceFile(int args) {
     if (tracefile)
         fclose(tracefile);
-    TCHAR filename[MAX_PATH];
+    char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, (args && arg[1].str[0]) ? arg[1].str : "trace.txt", ARRSIZE(filename));
     tracefile = fopen(filename, "wt");
@@ -1084,7 +1084,7 @@ static void ComputeTopOffset(WORD centeroffset) {
 }
 
 //===========================================================================
-static BOOL DisplayError(LPCTSTR errortext) {
+static BOOL DisplayError(const char * errortext) {
     return 0;
 }
 
@@ -1100,7 +1100,7 @@ static void DrawBreakpoints(HDC dc, int line) {
     linerect.top = (line << 4);
     linerect.right = 560;
     linerect.bottom = linerect.top + 16;
-    TCHAR fulltext[16] = "Breakpoints";
+    char fulltext[16] = "Breakpoints";
     SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
     SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
     int loop = 0;
@@ -1158,13 +1158,13 @@ static void DrawCommandLine(HDC dc, int line) {
 }
 
 //===========================================================================
-static WORD DrawDisassembly(HDC dc, int line, WORD offset, LPTSTR text, size_t textchars) {
-    TCHAR addresstext[40] = "";
-    TCHAR bytestext[10] = "";
-    TCHAR fulltext[50] = "";
-    BYTE  inst = *(mem + offset);
-    int   addrmode = instruction[inst].addrmode;
-    WORD  bytes = addressmode[addrmode].bytes;
+static WORD DrawDisassembly(HDC dc, int line, WORD offset, char * text, size_t textchars) {
+    char addresstext[40] = "";
+    char bytestext[10]   = "";
+    char fulltext[50]    = "";
+    BYTE inst            = *(mem + offset);
+    int  addrmode        = instruction[inst].addrmode;
+    WORD bytes           = addressmode[addrmode].bytes;
 
     // BUILD A STRING CONTAINING THE TARGET ADDRESS OR SYMBOL
     if (addressmode[addrmode].format[0]) {
@@ -1178,7 +1178,7 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, LPTSTR text, size_t t
                 addresstext,
                 ARRSIZE(addresstext),
                 addressmode[addrmode].format,
-                (LPCTSTR)GetSymbol(address, bytes)
+                GetSymbol(address, bytes)
             );
         else
             StrPrintf(
@@ -1217,10 +1217,10 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, LPTSTR text, size_t t
         ARRSIZE(fulltext),
         "%04X  %s  %-9s %s %s",
         (unsigned)offset,
-        (LPCTSTR)bytestext,
-        (LPCTSTR)GetSymbol(offset, 0),
-        (LPCTSTR)instruction[inst].mnemonic,
-        (LPCTSTR)addresstext
+        bytestext,
+        GetSymbol(offset, 0),
+        instruction[inst].mnemonic,
+        addresstext
     );
     if (text)
         StrCopy(text, fulltext, textchars);
@@ -1248,9 +1248,9 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, LPTSTR text, size_t t
 }
 
 //===========================================================================
-static void DrawFlags(HDC dc, int line, WORD value, LPTSTR text, size_t textchars) {
-    TCHAR mnemonic[9] = "NVRBDIZC";
-    TCHAR fulltext[2] = "?";
+static void DrawFlags(HDC dc, int line, WORD value, char * text, size_t textchars) {
+    char mnemonic[9] = "NVRBDIZC";
+    char fulltext[2] = "?";
     RECT  linerect;
     if (dc) {
         linerect.left = SCREENSPLIT1 + 63;
@@ -1286,7 +1286,7 @@ static void DrawMemory(HDC dc, int line) {
     linerect.top = (line << 4);
     linerect.right = 560;
     linerect.bottom = linerect.top + 16;
-    TCHAR fulltext[16];
+    char fulltext[16];
     StrPrintf(fulltext, ARRSIZE(fulltext), "Mem at %04X", (unsigned)memorydump);
     SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
     SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
@@ -1330,7 +1330,7 @@ static void DrawMemory(HDC dc, int line) {
 }
 
 //===========================================================================
-static void DrawRegister(HDC dc, int line, LPCTSTR name, int bytes, WORD value) {
+static void DrawRegister(HDC dc, int line, const char * name, int bytes, WORD value) {
     RECT linerect;
     linerect.left = SCREENSPLIT1;
     linerect.top = line << 4;
@@ -1348,7 +1348,7 @@ static void DrawRegister(HDC dc, int line, LPCTSTR name, int bytes, WORD value) 
         StrLen(name),
         NULL
     );
-    TCHAR valuestr[8];
+    char valuestr[8];
     if (bytes == 2)
         StrPrintf(valuestr, ARRSIZE(valuestr), "%04X", (unsigned)value);
     else
@@ -1381,7 +1381,7 @@ static void DrawStack(HDC dc, int line) {
         linerect.bottom = linerect.top + 16;
         SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
         SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
-        TCHAR outtext[8] = "";
+        char outtext[8] = "";
         if (curraddr <= 0x1FF)
             StrPrintf(outtext, ARRSIZE(outtext), "%04X", curraddr);
         ExtTextOut(
@@ -1421,8 +1421,8 @@ static void DrawTargets(HDC dc, int line) {
     while (loop--) {
         if ((address[loop] >= 0xC000) && (address[loop] <= 0xC0FF))
             address[loop] = -1;
-        TCHAR addressstr[8] = "";
-        TCHAR valuestr[8] = "";
+        char addressstr[8] = "";
+        char valuestr[8]   = "";
         if (address[loop] >= 0) {
             StrPrintf(addressstr, ARRSIZE(addressstr), "%04X", address[loop]);
             if (loop)
@@ -1470,7 +1470,7 @@ static void DrawWatches(HDC dc, int line) {
     linerect.top = (line << 4);
     linerect.right = 560;
     linerect.bottom = linerect.top + 16;
-    TCHAR outstr[16] = "Watches";
+    char outstr[16] = "Watches";
     SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
     SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
     ExtTextOut(
@@ -1534,7 +1534,7 @@ static void DrawWatches(HDC dc, int line) {
 //===========================================================================
 static BOOL ExecuteCommand(int args) {
     char * context = NULL;
-    char * name = StrTok(commandstring[0], " ,-=", &context);
+    char * name    = StrTok(commandstring[0], " ,-=", &context);
     if (!name)
         name = commandstring[0];
     int         found = 0;
@@ -1570,7 +1570,7 @@ static void FreeSymbolTable() {
 }
 
 //===========================================================================
-static WORD GetAddress(LPCTSTR symbol) {
+static WORD GetAddress(const char * symbol) {
     int loop = symbolnum;
     while (loop--)
         if (!StrCmpI(symboltable[loop].name, symbol))
@@ -1579,8 +1579,7 @@ static WORD GetAddress(LPCTSTR symbol) {
 }
 
 //===========================================================================
-static LPCTSTR GetSymbol(WORD address, int bytes) {
-
+static const char * GetSymbol(WORD address, int bytes) {
     // PERFORM A BINARY SEARCH THROUGH THE SYMBOL TABLE LOOKING FOR A VALUE
     // MATCHING THIS ADDRESS
     {
@@ -1604,7 +1603,7 @@ static LPCTSTR GetSymbol(WORD address, int bytes) {
 
     // IF THERE IS NO SYMBOL FOR THIS ADDRESS, THEN JUST RETURN A STRING
     // CONTAINING THE ADDRESS NUMBER
-    static TCHAR buffer[16];
+    static char buffer[16];
     switch (bytes) {
         case 2:
             StrPrintf(buffer, ARRSIZE(buffer), "$%02X", (unsigned)address);
@@ -1617,7 +1616,6 @@ static LPCTSTR GetSymbol(WORD address, int bytes) {
             break;
     }
     return buffer;
-
 }
 
 //===========================================================================
@@ -1705,8 +1703,8 @@ static BOOL InternalSingleStep() {
 
 //===========================================================================
 static void OutputTraceLine() {
-    TCHAR disassembly[50];
-    TCHAR flags[9];
+    char disassembly[50];
+    char flags[9];
     DrawDisassembly((HDC)0, 0, regs.pc, disassembly, ARRSIZE(disassembly));
     DrawFlags((HDC)0, 0, regs.ps, flags, ARRSIZE(flags));
     fprintf(
@@ -1716,18 +1714,18 @@ static void OutputTraceLine() {
         (unsigned)regs.x,
         (unsigned)regs.y,
         (unsigned)regs.sp,
-        (LPCTSTR)flags,
-        (LPCTSTR)disassembly
+        flags,
+        disassembly
     );
 }
 
 //===========================================================================
 static int ParseCommandString() {
     int    args = 0;
-    LPTSTR currptr = commandstring[0];
+    char * currptr = commandstring[0];
     char * context = NULL;
     while (*currptr) {
-        LPTSTR endptr = NULL;
+        char * endptr = NULL;
         int    length = StrLen(currptr);
         StrTok(currptr, " ,-=", &context);
         StrCopy(arg[args].str, currptr, ARRSIZE(arg[args].str));
@@ -1760,7 +1758,7 @@ static int ParseCommandString() {
 
 //===========================================================================
 static void WriteProfileData() {
-    TCHAR filename[MAX_PATH];
+    char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, "Profile.txt", ARRSIZE(filename));
     FILE * file = fopen(filename, "wt");
@@ -1780,7 +1778,7 @@ static void WriteProfileData() {
                     "%9u  %02X  %s\n",
                     (unsigned)maxvalue,
                     (unsigned)maxitem,
-                    (LPCTSTR)instruction[maxitem].mnemonic);
+                    instruction[maxitem].mnemonic);
                 profiledata[maxitem] = 0;
             }
         } while (maxvalue);
@@ -1920,7 +1918,7 @@ void DebugInitialize() {
 
     // READ IN THE SYMBOL TABLE
     {
-        TCHAR filename[MAX_PATH];
+        char filename[MAX_PATH];
         StrCopy(filename, progdir, ARRSIZE(filename));
         StrCat(filename, "apple2e.sym", ARRSIZE(filename));
         int    symbolalloc = 0;
@@ -2010,7 +2008,7 @@ void DebugInitialize() {
 }
 
 //===========================================================================
-void DebugProcessChar(TCHAR ch) {
+void DebugProcessChar(char ch) {
     if (mode != MODE_DEBUG)
         return;
     if ((ch == ' ') && !commandstring[0][0])

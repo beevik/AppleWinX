@@ -21,7 +21,7 @@ int       mode              = MODE_LOGO;
 DWORD     needsprecision    = 0;
 BOOL      optenhancedisk    = TRUE;
 BOOL      optmonochrome     = FALSE;
-TCHAR     progdir[MAX_PATH] = "";
+char      progdir[MAX_PATH] = "";
 BOOL      resettiming       = FALSE;
 BOOL      restart           = FALSE;
 DWORD     speed             = 10;
@@ -326,7 +326,7 @@ static void GetProgramDirectory() {
 
 //===========================================================================
 static BOOL LoadCalibrationData() {
-#define LOAD(a,b,c) if (!RegLoadValue(a,b,1,c)) return 0;
+#define LOAD(a,b,c) if (!RegLoadValue(a,b,c)) return 0;
     DWORD buildnumber = 0;
     LOAD("", "CurrentBuildNumber", &buildnumber);
     LOAD("Calibration", "Clock Granularity", &clockgran);
@@ -338,7 +338,7 @@ static BOOL LoadCalibrationData() {
 
 //===========================================================================
 static void LoadConfiguration() {
-#define LOAD(a,b) RegLoadValue("Configuration",a,0,b);
+#define LOAD(a,b) RegLoadValue("Configuration",a,b);
     LOAD("Computer Emulation", (DWORD *)& apple2e);
     LOAD("Joystick Emulation", &joytype);
     LOAD("Sound Emulation", &soundtype);
@@ -400,10 +400,10 @@ static void PerformCalibration() {
 
 //===========================================================================
 static void RegisterExtensions() {
-    TCHAR command[MAX_PATH];
+    char command[MAX_PATH];
     GetModuleFileName((HMODULE)0, command, MAX_PATH);
     command[MAX_PATH - 1] = 0;
-    TCHAR icon[MAX_PATH];
+    char icon[MAX_PATH];
     StrPrintf(icon, ARRSIZE(icon), "%s,1", command);
     StrCat(command, " %1", ARRSIZE(command));
     RegSetValue(HKEY_CLASSES_ROOT, ".bin", REG_SZ, "DiskImage", 10);
@@ -418,10 +418,10 @@ static void RegisterExtensions() {
 
 //===========================================================================
 static void SaveCalibrationData() {
-    RegSaveValue("", "CurrentBuildNumber", 1, BUILDNUMBER);
-    RegSaveValue("Calibration", "Clock Granularity", 1, clockgran);
-    RegSaveValue("Calibration", "Cycle Granularity", 1, cyclegran);
-    RegSaveValue("Calibration", "Precision Timing", 1, finegraindelay);
+    RegSaveValue("", "CurrentBuildNumber",  BUILDNUMBER);
+    RegSaveValue("Calibration", "Clock Granularity", clockgran);
+    RegSaveValue("Calibration", "Cycle Granularity", cyclegran);
+    RegSaveValue("Calibration", "Precision Timing", finegraindelay);
 }
 
 //===========================================================================
