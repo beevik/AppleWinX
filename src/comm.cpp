@@ -83,7 +83,7 @@ static void UpdateCommState() {
 //
 
 //===========================================================================
-BYTE __stdcall CommCommand(WORD, BYTE, BYTE write, BYTE value) {
+BYTE CommCommand(WORD, BYTE, BYTE write, BYTE value) {
     if (!CheckComm())
         return 0;
     if (write && (value != commandbyte)) {
@@ -106,7 +106,7 @@ BYTE __stdcall CommCommand(WORD, BYTE, BYTE write, BYTE value) {
 }
 
 //===========================================================================
-BYTE __stdcall CommControl(WORD, BYTE, BYTE write, BYTE value) {
+BYTE CommControl(WORD, BYTE, BYTE write, BYTE value) {
     if (!CheckComm())
         return 0;
     if (write && (value != controlbyte)) {
@@ -170,7 +170,7 @@ void CommDestroy() {
 }
 
 //===========================================================================
-BYTE __stdcall CommDipSw(WORD, BYTE, BYTE, BYTE) {
+BYTE CommDipSw(WORD, BYTE, BYTE, BYTE) {
     // note: determine what values a real SSC returns
     return 0;
 }
@@ -205,7 +205,7 @@ void CommUpdate(DWORD totalcycles) {
 }
 
 //===========================================================================
-BYTE __stdcall CommReceive(WORD, BYTE, BYTE, BYTE) {
+BYTE CommReceive(WORD, BYTE, BYTE, BYTE) {
     if (!CheckComm())
         return 0;
     if (!recvbytes)
@@ -232,7 +232,7 @@ void CommReset() {
 }
 
 //===========================================================================
-BYTE __stdcall CommStatus(WORD, BYTE, BYTE, BYTE) {
+BYTE CommStatus(WORD, BYTE, BYTE, BYTE) {
     if (!CheckComm())
         return 0x70;
     if (!recvbytes)
@@ -245,7 +245,7 @@ BYTE __stdcall CommStatus(WORD, BYTE, BYTE, BYTE) {
 }
 
 //===========================================================================
-BYTE __stdcall CommTransmit(WORD, BYTE, BYTE, BYTE value) {
+BYTE CommTransmit(WORD, BYTE, BYTE, BYTE value) {
     if (!CheckComm())
         return 0;
     DWORD byteswritten;

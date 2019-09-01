@@ -34,7 +34,7 @@ constexpr DWORD MF_IMAGEMASK  = 0x000003F7;
 #define  SW_SLOTCXROM() (memmode & MF_SLOTCXROM)
 #define  SW_WRITERAM()  (memmode & MF_WRITERAM)
 
-BYTE __stdcall NullIo(WORD programcounter, BYTE address, BYTE write, BYTE value);
+BYTE NullIo(WORD programcounter, BYTE address, BYTE write, BYTE value);
 
 iofunction ioread[0x100] = {
     KeybReadData,       // $C000
@@ -640,7 +640,7 @@ static void InitializePaging() {
 }
 
 //===========================================================================
-static BYTE __stdcall NullIo(WORD programcounter, BYTE address, BYTE write, BYTE value) {
+static BYTE NullIo(WORD programcounter, BYTE address, BYTE write, BYTE value) {
     if ((address & 0xF0) == 0xA0) {
         static const BYTE retval[16] = { 0x58,0xFC,0x5B,0xFF,0x58,0xFC,0x5B,0xFF,
                                         0x0B,0x10,0x00,0x00,0xFF,0xFF,0xFF,0xFF };
@@ -779,7 +779,7 @@ static void UpdatePaging(BOOL initialize, BOOL updatewriteonly) {
 //
 
 //===========================================================================
-BYTE __stdcall MemCheckPaging(WORD, BYTE address, BYTE, BYTE) {
+BYTE MemCheckPaging(WORD, BYTE address, BYTE, BYTE) {
     BOOL result = 0;
     switch (address) {
         case 0x11: result = SW_BANK2();      break;
@@ -936,7 +936,7 @@ BYTE MemReturnRandomData(BYTE highbit) {
 }
 
 //===========================================================================
-BYTE __stdcall MemSetPaging(WORD programcounter, BYTE address, BYTE write, BYTE value) {
+BYTE MemSetPaging(WORD programcounter, BYTE address, BYTE write, BYTE value) {
     DWORD lastmemmode = memmode;
 
     // DETERMINE THE NEW MEMORY PAGING MODE.

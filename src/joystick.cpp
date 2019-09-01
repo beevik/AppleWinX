@@ -180,7 +180,7 @@ BOOL JoyProcessKey(int virtkey, BOOL extended, BOOL down, BOOL autorep) {
 }
 
 //===========================================================================
-BYTE __stdcall JoyReadButton(WORD, BYTE address, BYTE, BYTE) {
+BYTE JoyReadButton(WORD, BYTE address, BYTE, BYTE) {
     if (joyinfo[joytype].device == DEVICE_JOYSTICK)
         CheckJoystick();
     BOOL pressed = 0;
@@ -206,7 +206,7 @@ BYTE __stdcall JoyReadButton(WORD, BYTE address, BYTE, BYTE) {
 }
 
 //===========================================================================
-BYTE __stdcall JoyReadPosition(WORD programcounter, BYTE address, BYTE, BYTE) {
+BYTE JoyReadPosition(WORD programcounter, BYTE address, BYTE, BYTE) {
     needsprecision = cumulativecycles;
     if ((*(LPDWORD)(mem + programcounter) == 0xD0C80410) &&
         (*(LPWORD)(mem + programcounter + 4) == 0x88F8))
@@ -229,7 +229,7 @@ void JoyReset() {
 }
 
 //===========================================================================
-BYTE __stdcall JoyResetPosition(WORD, BYTE, BYTE, BYTE) {
+BYTE JoyResetPosition(WORD, BYTE, BYTE, BYTE) {
     needsprecision = cumulativecycles;
     if (joyinfo[joytype].device == DEVICE_JOYSTICK)
         CheckJoystick();

@@ -195,13 +195,13 @@ void DiskBoot() {
 }
 
 //===========================================================================
-BYTE __stdcall DiskControlMotor(WORD, BYTE address, BYTE, BYTE) {
+BYTE DiskControlMotor(WORD, BYTE address, BYTE, BYTE) {
     floppymotoron = address & 1;
     return MemReturnRandomData(1);
 }
 
 //===========================================================================
-BYTE __stdcall DiskControlStepper(WORD, BYTE address, BYTE, BYTE) {
+BYTE DiskControlStepper(WORD, BYTE address, BYTE, BYTE) {
     CheckSpinning();
     if (optenhancedisk)
         RemoveStepperDelay();
@@ -236,7 +236,7 @@ void DiskDestroy() {
 }
 
 //===========================================================================
-BYTE __stdcall DiskEnable(WORD, BYTE address, BYTE, BYTE) {
+BYTE DiskEnable(WORD, BYTE address, BYTE, BYTE) {
     currdrive = address & 1;
     CheckSpinning();
     return 0;
@@ -313,7 +313,7 @@ BOOL DiskIsSpinning() {
 }
 
 //===========================================================================
-BYTE __stdcall DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
+BYTE DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
     floppyrec * fptr = &floppy[currdrive];
     diskaccessed = 1;
     if ((!fptr->trackimagedata) && fptr->imagehandle)
@@ -381,20 +381,20 @@ void DiskSelect(int drive) {
 }
 
 //===========================================================================
-BYTE __stdcall DiskSetLatchValue(WORD, BYTE, BYTE write, BYTE value) {
+BYTE DiskSetLatchValue(WORD, BYTE, BYTE write, BYTE value) {
     if (write)
         floppylatch = value;
     return floppylatch;
 }
 
 //===========================================================================
-BYTE __stdcall DiskSetReadMode(WORD, BYTE, BYTE, BYTE) {
+BYTE DiskSetReadMode(WORD, BYTE, BYTE, BYTE) {
     floppywritemode = 0;
     return MemReturnRandomData(floppy[currdrive].writeprotected);
 }
 
 //===========================================================================
-BYTE __stdcall DiskSetWriteMode(WORD, BYTE, BYTE, BYTE) {
+BYTE DiskSetWriteMode(WORD, BYTE, BYTE, BYTE) {
     floppywritemode = 1;
     BOOL modechange = !floppy[currdrive].writelight;
     floppy[currdrive].writelight = 20000;

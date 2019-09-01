@@ -28,13 +28,7 @@ namespace detail {
 
 #define ARRSIZE(x)          (sizeof(detail::arr(x)))
 
-#ifndef HFINDFILE
-#ifndef WIN40
-#define HFINDFILE   HANDLE
-#endif  // ifndef WIN40
-#endif  // ifndef HFINDFILE
-
-typedef BYTE (__stdcall * iofunction)(WORD, BYTE, BYTE, BYTE);
+typedef BYTE (* iofunction)(WORD, BYTE, BYTE, BYTE);
 
 typedef struct _Image_ {
     int unused;
@@ -183,27 +177,27 @@ void         VideoResetState();
 void         VideoTestCompatibility();
 void         VideoUpdateVbl(DWORD cycles, BOOL nearrefresh);
 
-BYTE __stdcall CommCommand(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall CommControl(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall CommDipSw(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall CommReceive(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall CommStatus(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall CommTransmit(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall DiskControlMotor(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall DiskControlStepper(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall DiskEnable(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall DiskReadWrite(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall DiskSetLatchValue(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall DiskSetReadMode(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall DiskSetWriteMode(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall KeybReadData(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall KeybReadFlag(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall JoyReadButton(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall JoyReadPosition(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall JoyResetPosition(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall MemCheckPaging(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall MemSetPaging(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall SpkrToggle(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall VideoCheckMode(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall VideoCheckVbl(WORD, BYTE, BYTE, BYTE);
-BYTE __stdcall VideoSetMode(WORD, BYTE, BYTE, BYTE);
+BYTE CommCommand(WORD, BYTE, BYTE, BYTE);
+BYTE CommControl(WORD, BYTE, BYTE, BYTE);
+BYTE CommDipSw(WORD, BYTE, BYTE, BYTE);
+BYTE CommReceive(WORD, BYTE, BYTE, BYTE);
+BYTE CommStatus(WORD, BYTE, BYTE, BYTE);
+BYTE CommTransmit(WORD, BYTE, BYTE, BYTE);
+BYTE DiskControlMotor(WORD, BYTE, BYTE, BYTE);
+BYTE DiskControlStepper(WORD, BYTE, BYTE, BYTE);
+BYTE DiskEnable(WORD, BYTE, BYTE, BYTE);
+BYTE DiskReadWrite(WORD, BYTE, BYTE, BYTE);
+BYTE DiskSetLatchValue(WORD, BYTE, BYTE, BYTE);
+BYTE DiskSetReadMode(WORD, BYTE, BYTE, BYTE);
+BYTE DiskSetWriteMode(WORD, BYTE, BYTE, BYTE);
+BYTE KeybReadData(WORD, BYTE, BYTE, BYTE);
+BYTE KeybReadFlag(WORD, BYTE, BYTE, BYTE);
+BYTE JoyReadButton(WORD, BYTE, BYTE, BYTE);
+BYTE JoyReadPosition(WORD, BYTE, BYTE, BYTE);
+BYTE JoyResetPosition(WORD, BYTE, BYTE, BYTE);
+BYTE MemCheckPaging(WORD, BYTE, BYTE, BYTE);
+BYTE MemSetPaging(WORD, BYTE, BYTE, BYTE);
+BYTE SpkrToggle(WORD, BYTE, BYTE, BYTE);
+BYTE VideoCheckMode(WORD, BYTE, BYTE, BYTE);
+BYTE VideoCheckVbl(WORD, BYTE, BYTE, BYTE);
+BYTE VideoSetMode(WORD, BYTE, BYTE, BYTE);

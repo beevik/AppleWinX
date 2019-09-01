@@ -276,7 +276,7 @@ BOOL SpkrSetEmulationType(HWND window, DWORD newtype) {
 }
 
 //===========================================================================
-BYTE __stdcall SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
+BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
     needsprecision = cumulativecycles;
     if (extbench) {
         DisplayBenchmarkResults();

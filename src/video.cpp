@@ -37,9 +37,9 @@ constexpr DWORD VF_TEXT        = 0x00000040;
 #define  DIB_PAL_INDICES  2
 #endif
 
-typedef void(__stdcall * bitblttype)(int, int, int, int, int, int);
+typedef void(* bitblttype)(int, int, int, int, int, int);
 typedef HBITMAP(WINAPI * createdibtype)(HDC, CONST BITMAPINFO *, UINT, VOID **, HANDLE, WORD);
-typedef void(__stdcall * fastbltinittype)(LPBYTE, LPBYTE, LPVOID, LPVOID);
+typedef void(* fastbltinittype)(LPBYTE, LPBYTE, LPVOID, LPVOID);
 typedef BOOL(*updatetype)(int, int, int, int, int);
 
 BOOL graphicsmode = FALSE;
@@ -90,7 +90,7 @@ static BOOL LoadSourceImages();
 static void SaveSourceImages();
 
 //===========================================================================
-static void __stdcall BitBlt104(
+static void BitBlt104(
     int destx,
     int desty,
     int xsize,
@@ -111,7 +111,7 @@ static void __stdcall BitBlt104(
 }
 
 //===========================================================================
-static void __stdcall BitBlt108(
+static void BitBlt108(
     int destx,
     int desty,
     int xsize,
@@ -138,7 +138,7 @@ static void __stdcall BitBlt108(
 }
 
 //===========================================================================
-static void __stdcall BitBlt108d(
+static void BitBlt108d(
     int destx,
     int desty,
     int xsize,
@@ -165,7 +165,7 @@ static void __stdcall BitBlt108d(
 }
 
 //===========================================================================
-static void __stdcall BitBlt110(
+static void BitBlt110(
     int destx,
     int desty,
     int xsize,
@@ -186,7 +186,7 @@ static void __stdcall BitBlt110(
 }
 
 //===========================================================================
-static void __stdcall BitBlt110d(
+static void BitBlt110d(
     int destx,
     int desty,
     int xsize,
@@ -207,7 +207,7 @@ static void __stdcall BitBlt110d(
 }
 
 //===========================================================================
-static void __stdcall BitBlt118(
+static void BitBlt118(
     int destx,
     int desty,
     int xsize,
@@ -233,7 +233,7 @@ static void __stdcall BitBlt118(
 }
 
 //===========================================================================
-static void __stdcall BitBlt118d(
+static void BitBlt118d(
     int destx,
     int desty,
     int xsize,
@@ -259,7 +259,7 @@ static void __stdcall BitBlt118d(
 }
 
 //===========================================================================
-static void __stdcall BitBlt120(
+static void BitBlt120(
     int destx,
     int desty,
     int xsize,
@@ -280,7 +280,7 @@ static void __stdcall BitBlt120(
 }
 
 //===========================================================================
-static void __stdcall BitBlt120d(
+static void BitBlt120d(
     int destx,
     int desty,
     int xsize,
@@ -301,7 +301,7 @@ static void __stdcall BitBlt120d(
 }
 
 //===========================================================================
-static void __stdcall BitBlt401(
+static void BitBlt401(
     int destx,
     int desty,
     int xsize,
@@ -333,7 +333,7 @@ static void __stdcall BitBlt401(
 }
 
 //===========================================================================
-static void __stdcall BitBlt401b(
+static void BitBlt401b(
     int destx,
     int desty,
     int xsize,
@@ -1134,7 +1134,7 @@ void VideoBenchmark() {
 }
 
 //===========================================================================
-BYTE __stdcall VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
+BYTE VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
     if (address == 0x7F)
         return MemReturnRandomData(SW_DHIRES() != 0);
     else {
@@ -1163,7 +1163,7 @@ void VideoCheckPage(BOOL force) {
 }
 
 //===========================================================================
-BYTE __stdcall VideoCheckVbl(WORD, BYTE, BYTE, BYTE) {
+BYTE VideoCheckVbl(WORD, BYTE, BYTE, BYTE) {
     return MemReturnRandomData(vblcounter < 22);
 }
 
@@ -1759,7 +1759,7 @@ void VideoResetState() {
 }
 
 //===========================================================================
-BYTE __stdcall VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
+BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
     DWORD oldpage2 = SW_PAGE2();
     int   oldvalue = charoffs + (int)(vidmode & ~(VF_MASK2 | VF_PAGE2));
     switch (address) {
