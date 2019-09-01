@@ -693,7 +693,7 @@ static LRESULT CALLBACK FrameWndProc(
                 static DWORD counter = 0;
                 if (counter++ > 1)
                     counter = 0;
-                VideoDisplayMode(counter);
+                VideoDisplayMode(counter > 0);
             }
             break;
 

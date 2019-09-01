@@ -1,7 +1,8 @@
 #pragma once
 
 #define  BUILDNUMBER       4
-#define  VERSIONSTRING     "1.10"
+#define  VERSIONMAJOR      1
+#define  VERSIONMINOR      11
 
 #define  MODE_LOGO         0
 #define  MODE_PAUSED       1
