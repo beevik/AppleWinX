@@ -573,51 +573,6 @@ DWORD   pages        = 0;
 static void UpdatePaging(BOOL initialize, BOOL updatewriteonly);
 
 //===========================================================================
-static LPBYTE AlignedVirtualAlloc(LPVOID, DWORD size, DWORD alloctype, DWORD protection) {
-    // THE VIRTUALALLOC() FUNCTION IS SUPPOSED TO ALIGN ALLOCATED MEMORY
-    // OBJECTS ON 64K BOUNDARIES IN VIRTUAL MEMORY, AND THE ASSEMBLY LANGUAGE
-    // CPU EMULATOR LIBRARIES TAKE ADVANTAGE OF THIS TO OPTIMIZE POINTER
-    // ARITHMETIC.  UNFORTUNATELY, OS/2'S VIRTUALALLOC() FUNCTION DOES NOT
-    // CORRECTLY ALIGN MEMORY OBJECTS, SO HERE WE ATTEMPT TO DETECT THIS AND
-    // WORK AROUND IT.
-
-    // FIRST, TRY A NORMAL ALLOCATION.
-    LPBYTE address = (LPBYTE)VirtualAlloc(NULL, size, alloctype, protection);
-    uint64_t addrVal = (uint64_t)(ptrdiff_t)address;
-    if ((addrVal & 0xffff) == 0)
-        return address;
-
-    // IF THAT DIDN'T WORK THEN TRY MAKING SMALL ALLOCATIONS TO USE UP PART
-    // OF THE MEMORY POOL IN AN ATTEMPT TO MOVE THE LOWEST FREE MEMORY MARKER
-    // TO A 64K BOUNDARY.
-    LPVOID temp[256];
-    DWORD  tempused = 0;
-    while ((tempused < 255) && (addrVal & 0xffff) == 0) {
-        VirtualFree(address, 0, MEM_RELEASE);
-        temp[tempused++] = VirtualAlloc(NULL, 0x1000, MEM_RESERVE, PAGE_NOACCESS);
-        address = (LPBYTE)VirtualAlloc(NULL, size, alloctype, protection);
-        addrVal = (uint64_t)(ptrdiff_t)address;
-    }
-    while (tempused)
-        VirtualFree(temp[--tempused], 0, MEM_RELEASE);
-    if ((addrVal & 0xffff) == 0)
-        return address;
-
-    // IF THAT DIDN'T WORK EITHER THEN NOTIFY THE USER OF THE PROBLEM.
-    static BOOL notified = FALSE;
-    if (!notified) {
-        notified = TRUE;
-        MessageBox(GetDesktopWindow(),
-            "The operating system you are using is not correctly "
-            "aligning memory objects.  The emulator attempted to "
-            "to work around this problem, but was unable to do so.",
-            TITLE,
-            MB_ICONEXCLAMATION | MB_SETFOREGROUND);
-    }
-    return NULL;
-}
-
-//===========================================================================
 static void BackMainImage() {
     int loop = 0;
     for (loop = 0; loop < 256; loop++) {
@@ -630,20 +585,20 @@ static void BackMainImage() {
 //===========================================================================
 static void InitializePaging() {
     BackMainImage();
-    if (lastimage >= 3)
-        VirtualFree(memimage + 0x30000, (lastimage - 2) << 16, MEM_DECOMMIT);
-    image = 0;
-    mem = memimage;
-    lastimage = 0;
+    image        = 0;
+    mem          = memimage;
+    lastimage    = 0;
     imagemode[0] = memmode;
-    UpdatePaging(1, 0);
+    UpdatePaging(TRUE, FALSE);
 }
 
 //===========================================================================
 static BYTE NullIo(WORD programcounter, BYTE address, BYTE write, BYTE value) {
     if ((address & 0xF0) == 0xA0) {
-        static const BYTE retval[16] = { 0x58,0xFC,0x5B,0xFF,0x58,0xFC,0x5B,0xFF,
-                                        0x0B,0x10,0x00,0x00,0xFF,0xFF,0xFF,0xFF };
+        static const BYTE retval[16] = {
+            0x58, 0xFC, 0x5B, 0xFF, 0x58, 0xFC, 0x5B, 0xFF,
+            0x0B, 0x10, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF
+        };
         return retval[address & 15];
     }
     else if ((address >= 0xB0) && (address <= 0xCF)) {
@@ -680,7 +635,7 @@ static void ResetPaging(BOOL initialize) {
         InitializePaging();
     lastwriteram = FALSE;
     memmode = MF_BANK2 | MF_SLOTCXROM | MF_WRITERAM;
-    UpdatePaging(initialize, 0);
+    UpdatePaging(initialize, FALSE);
 }
 
 //===========================================================================
@@ -798,12 +753,11 @@ BYTE MemCheckPaging(WORD, BYTE address, BYTE, BYTE) {
 
 //===========================================================================
 void MemDestroy() {
-    VirtualFree(memimage, MAX(0x30000, 0x10000 * (lastimage + 1)), MEM_DECOMMIT);
-    VirtualFree(memaux, 0, MEM_RELEASE);
-    VirtualFree(memdirty, 0, MEM_RELEASE);
-    VirtualFree(memimage, 0, MEM_RELEASE);
-    VirtualFree(memmain, 0, MEM_RELEASE);
-    VirtualFree(memrom, 0, MEM_RELEASE);
+    delete[] memimage;
+    delete[] memaux;
+    delete[] memdirty;
+    delete[] memmain;
+    delete[] memrom;
     memaux   = NULL;
     memdirty = NULL;
     memimage = NULL;
@@ -834,47 +788,42 @@ void MemInitialize() {
     //
     // THE MEMIMAGE BUFFER CAN CONTAIN EITHER MULTIPLE MEMORY IMAGES OR
     // ONE MEMORY IMAGE WITH COMPILER DATA
-    memaux   = AlignedVirtualAlloc(NULL, 0x10000, MEM_COMMIT, PAGE_READWRITE);
-    memdirty = AlignedVirtualAlloc(NULL, 0x100, MEM_COMMIT, PAGE_READWRITE);
-    memmain  = AlignedVirtualAlloc(NULL, 0x10000, MEM_COMMIT, PAGE_READWRITE);
-    memrom   = AlignedVirtualAlloc(NULL, 0x5000, MEM_COMMIT, PAGE_READWRITE);
-    memimage = AlignedVirtualAlloc(NULL, MAX(0x30000, MAXIMAGES * 0x10000), MEM_RESERVE, PAGE_NOACCESS);
+    memaux   = (LPBYTE)new BYTE[0x10000];
+    memdirty = (LPBYTE)new BYTE[0x100];
+    memmain  = (LPBYTE)new BYTE[0x10000];
+    memrom   = (LPBYTE)new BYTE[0x5000];
+    memimage = (LPBYTE)new BYTE[MAX(0x30000, MAXIMAGES * 0x10000)];
     if (!memaux || !memdirty || !memimage || !memmain || !memrom) {
-        MessageBox(GetDesktopWindow(),
+        MessageBox(
+            GetDesktopWindow(),
             "The emulator was unable to allocate the memory it "
             "requires.  Further execution is not possible.",
             TITLE,
-            MB_ICONSTOP | MB_SETFOREGROUND);
+            MB_ICONSTOP | MB_SETFOREGROUND
+        );
         ExitProcess(1);
-    }
-    {
-        LPVOID newloc = VirtualAlloc(memimage, 0x30000, MEM_COMMIT, PAGE_READWRITE);
-        if (newloc != memimage)
-            MessageBox(GetDesktopWindow(),
-                "The emulator has detected a bug in your operating "
-                "system.  While changing the attributes of a memory "
-                "object, the operating system also changed its "
-                "location.",
-                TITLE,
-                MB_ICONEXCLAMATION | MB_SETFOREGROUND);
     }
 
     // READ THE APPLE FIRMWARE ROMS INTO THE ROM IMAGE
     char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, apple2e ? "apple2e.rom" : "apple2.rom", ARRSIZE(filename));
-    HANDLE file = CreateFile(filename,
+    HANDLE file = CreateFile(
+        filename,
         GENERIC_READ,
         FILE_SHARE_READ,
-        (LPSECURITY_ATTRIBUTES)NULL,
+        NULL,
         OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
-        NULL);
+        NULL
+    );
     if (file == INVALID_HANDLE_VALUE) {
-        MessageBox(GetDesktopWindow(),
+        MessageBox(
+            GetDesktopWindow(),
             "Unable to open the required firmware ROM data file.",
             TITLE,
-            MB_ICONSTOP | MB_SETFOREGROUND);
+            MB_ICONSTOP | MB_SETFOREGROUND
+        );
         ExitProcess(1);
     }
     DWORD bytesread;
@@ -992,8 +941,7 @@ BYTE MemSetPaging(WORD programcounter, BYTE address, BYTE write, BYTE value) {
 
         // KEEP ONLY ONE MEMORY IMAGE AND WRITE TABLE, AND UPDATE THEM
         // EVERY TIME PAGING IS CHANGED.
-        UpdatePaging(0, 0);
-
+        UpdatePaging(FALSE, FALSE);
     }
 
     if ((address <= 1) || (address >= 0x54 && address <= 0x57))

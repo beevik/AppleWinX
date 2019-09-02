@@ -99,7 +99,7 @@ static void ReadTrack(int drive) {
         return;
     }
     if (!fptr->trackimage)
-        fptr->trackimage = (LPBYTE)VirtualAlloc(NULL, 0x1A00, MEM_COMMIT, PAGE_READWRITE);
+        fptr->trackimage = (LPBYTE)new BYTE[0x1A00];
     if (fptr->trackimage && fptr->imagehandle) {
         ImageReadTrack(fptr->imagehandle,
             fptr->track,
@@ -147,7 +147,7 @@ static void RemoveDisk(int drive) {
         fptr->imagehandle = (HIMAGE)0;
     }
     if (fptr->trackimage) {
-        VirtualFree(fptr->trackimage, 0, MEM_RELEASE);
+        delete[] fptr->trackimage;
         fptr->trackimage = NULL;
         fptr->trackimagedata = 0;
     }

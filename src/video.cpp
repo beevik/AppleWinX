@@ -375,12 +375,9 @@ static void CreateIdentityPalette(RGBQUAD * srctable, RGBQUAD * rgbtable) {
         SetSystemPaletteUse(dc, SYSPAL_STATIC);
 
         // CREATE A PALETTE ENTRY ARRAY
-        LOGPALETTE * paldata = (LOGPALETTE *)VirtualAlloc(NULL,
-            sizeof(LOGPALETTE)
-            + 256 * sizeof(PALETTEENTRY),
-            MEM_COMMIT,
-            PAGE_READWRITE);
-        paldata->palVersion = 0x300;
+        int palsize = sizeof(LOGPALETTE) + 256 * sizeof(PALETTEENTRY);
+        LOGPALETTE * paldata = (LOGPALETTE *)new BYTE[palsize];
+        paldata->palVersion    = 0x300;
         paldata->palNumEntries = colors;
         GetSystemPaletteEntries(dc, 0, colors, paldata->palPalEntry);
 
@@ -442,7 +439,7 @@ static void CreateIdentityPalette(RGBQUAD * srctable, RGBQUAD * rgbtable) {
         // CREATE THE PALETTE
         palette = CreatePalette(paldata);
 
-        VirtualFree(paldata, 0, MEM_RELEASE);
+        delete[] paldata;
     }
 
     // OTHERWISE, FILL THE RGB TABLE WITH THE STANDARD WINDOWS COLORS
@@ -1188,16 +1185,16 @@ BYTE VideoCheckVbl(WORD, BYTE, BYTE, BYTE) {
 void VideoDestroy() {
     VideoReleaseFrameDC();
 
-    VirtualFree(framebufferinfo, 0, MEM_RELEASE);
-    VirtualFree(sourcebits, 0, MEM_RELEASE);
-    VirtualFree(vidlastmem, 0, MEM_RELEASE);
+    delete[] framebufferinfo;
+    delete[] sourcebits;
+    delete[] vidlastmem;
     framebufferinfo = NULL;
     sourcebits = NULL;
     vidlastmem = NULL;
 
     if (!usingdib) {
-        VirtualFree(framebufferbits, 0, MEM_RELEASE);
-        VirtualFree(framebufferdibits, 0, MEM_RELEASE);
+        delete[] framebufferbits;
+        delete[] framebufferdibits;
         framebufferbits = NULL;
         framebufferdibits = NULL;
     }
@@ -1234,6 +1231,7 @@ void VideoDisplayLogo() {
     // DRAW THE LOGO, USING SETDIBITSTODEVICE() IF IT IS AVAILABLE OR
     // BITBLT() IF IT IS NOT
     if (logoptr) {
+        int logosize = sizeof(BITMAPINFOHEADER) + ((bitsperpixel <= 4) ? 16 : 256) * sizeof(RGBQUAD);
         int result = SetDIBitsToDevice(
             framedc,
             0,
@@ -1244,37 +1242,33 @@ void VideoDisplayLogo() {
             0,
             0,
             logoptr->bmiHeader.biHeight,
-            (LPVOID)(((LPBYTE)logoptr)
-                + sizeof(BITMAPINFOHEADER)
-                + ((bitsperpixel <= 4) ? 16 : 256) * sizeof(RGBQUAD)),
+            (LPBYTE)logoptr + logosize,
             logoptr,
             (pixelformat == 0x108) ? 2 /* DIB_PAL_INDICES */ : DIB_RGB_COLORS
         );
         if (result == 0) {
-            LPBITMAPINFO info = (LPBITMAPINFO)VirtualAlloc(NULL,
-                sizeof(BITMAPINFOHEADER)
-                + 256 * sizeof(RGBQUAD),
-                MEM_COMMIT,
-                PAGE_READWRITE);
-            if (info) {
-                ZeroMemory(info, sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD));
-                info->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-                info->bmiHeader.biWidth = 560;
-                info->bmiHeader.biHeight = 384;
-                info->bmiHeader.biPlanes = 1;
-                info->bmiHeader.biBitCount = ((bitsperpixel <= 4) ? 4 : 8);
-                info->bmiHeader.biClrUsed = ((bitsperpixel <= 4) ? 16 : 256);
-                CopyMemory(info->bmiColors, logoptr->bmiColors,
-                    ((bitsperpixel <= 4) ? 16 * sizeof(RGBQUAD) : 256 * sizeof(RGBQUAD)));
-                SetDIBits(devicedc, devicebitmap, 0, 384,
-                    (LPVOID)(((LPBYTE)logoptr)
-                        + sizeof(BITMAPINFOHEADER)
-                        + ((bitsperpixel <= 4) ? 16 : 256) * sizeof(RGBQUAD)),
-                    info,
-                    DIB_RGB_COLORS);
-                BitBlt(framedc, 0, 0, 560, 384, devicedc, 0, 0, SRCCOPY);
-                VirtualFree(info, 0, MEM_RELEASE);
-            }
+            int bitmapsize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
+            BITMAPINFO * info = (BITMAPINFO *)new BYTE[bitmapsize];
+            ZeroMemory(info, sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD));
+            info->bmiHeader.biSize     = sizeof(BITMAPINFOHEADER);
+            info->bmiHeader.biWidth    = 560;
+            info->bmiHeader.biHeight   = 384;
+            info->bmiHeader.biPlanes   = 1;
+            info->bmiHeader.biBitCount = ((bitsperpixel <= 4) ? 4 : 8);
+            info->bmiHeader.biClrUsed  = ((bitsperpixel <= 4) ? 16 : 256);
+            int databytes = (bitsperpixel <= 4) ? 16 * sizeof(RGBQUAD) : 256 * sizeof(RGBQUAD);
+            CopyMemory(info->bmiColors, logoptr->bmiColors, databytes);
+            SetDIBits(
+                devicedc,
+                devicebitmap,
+                0,
+                384,
+                (LPBYTE)logoptr + sizeof(BITMAPINFOHEADER) + databytes,
+                info,
+                DIB_RGB_COLORS
+            );
+            BitBlt(framedc, 0, 0, 560, 384, devicedc, 0, 0, SRCCOPY);
+            delete[] info;
         }
     }
 
@@ -1379,7 +1373,7 @@ void VideoInitialize() {
     );
 
     // CREATE A BUFFER FOR AN IMAGE OF THE LAST DRAWN MEMORY
-    vidlastmem = (LPBYTE)VirtualAlloc(NULL, 0x10000, MEM_COMMIT, PAGE_READWRITE);
+    vidlastmem = new BYTE[0x10000];
     ZeroMemory(vidlastmem, 0x10000);
 
     // DETERMINE THE NUMBER OF BITS PER PIXEL USED BY THE CURRENT DEVICE
@@ -1407,13 +1401,9 @@ void VideoInitialize() {
     VideoLoadLogo();
 
     // CREATE A BITMAPINFO STRUCTURE FOR THE FRAME BUFFER
-    framebufferinfo = (LPBITMAPINFO)VirtualAlloc(
-        NULL,
-        sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD),
-        MEM_COMMIT,
-        PAGE_READWRITE
-    );
-    ZeroMemory(framebufferinfo, sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD));
+    int framebuffersize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
+    framebufferinfo = (BITMAPINFO *)new BYTE[framebuffersize];
+    ZeroMemory(framebufferinfo, framebuffersize);
     framebufferinfo->bmiHeader.biSize     = sizeof(BITMAPINFOHEADER);
     framebufferinfo->bmiHeader.biWidth    = 560;
     framebufferinfo->bmiHeader.biHeight   = 384;
@@ -1429,8 +1419,9 @@ void VideoInitialize() {
     );
 
     // CREATE A BIT BUFFER FOR THE SOURCE IMAGES
-    sourcebits = (LPBYTE)VirtualAlloc(NULL, SRCOFFS_TOTAL * 64 * srcpixelbits + 4, MEM_COMMIT, PAGE_READWRITE);
-    ZeroMemory(sourcebits, SRCOFFS_TOTAL * 64 * srcpixelbits + 4);
+    int sourcebitssize = SRCOFFS_TOTAL * 64 * srcpixelbits + 4;
+    sourcebits = new BYTE[sourcebitssize];
+    ZeroMemory(sourcebits, sourcebitssize);
 
     // DETERMINE WHETHER TO USE THE CREATEDIBSECTION() OR SETBITS() METHOD
     // OF BITMAP DATA UPDATING
@@ -1466,11 +1457,11 @@ void VideoInitialize() {
     // IF WE ARE NOT USING CREATEDIBSECTION() THEN CREATE BIT BUFFERS FOR THE
     // FRAME BUFFER AND DIB FRAME BUFFER
     if (!usingdib) {
-        framebufferbits = (LPBYTE)VirtualAlloc(NULL, 70 * 384 * pixelbits + 4,
-            MEM_COMMIT, PAGE_READWRITE);
-        framebufferdibits = (LPBYTE)VirtualAlloc(NULL, 70 * 384 * pixelbits + 4,
-            MEM_COMMIT, PAGE_READWRITE);
-        ZeroMemory(framebufferbits, 70 * 384 * pixelbits + 4);
+        int buffersize    = 70 * 384 * pixelbits + 4;
+        framebufferbits   = new BYTE[buffersize];
+        framebufferdibits = new BYTE[buffersize];
+        ZeroMemory(framebufferbits, buffersize);
+        ZeroMemory(framebufferdibits, buffersize);
     }
 
     // CREATE OFFSET TABLES FOR EACH SCAN LINE IN THE SOURCE IMAGES AND

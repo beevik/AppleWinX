@@ -15,7 +15,7 @@
 /* PO logical order  0 E D C B A 9 8 7 6 5 4 3 2 1 F */
 /*    physical order 0 2 4 6 8 A C E 1 3 5 7 9 B D F */
 
-#define  IMAGETYPES  7
+constexpr int IMAGETYPES = 7;
 
 struct imageinforec {
     DWORD      format;
@@ -26,38 +26,38 @@ struct imageinforec {
     LPBYTE     header;
 };
 
-typedef BOOL(*boottype)(imageinforec *);
-typedef DWORD(*detecttype)(LPBYTE, DWORD);
-typedef void  (*readtype)(imageinforec *, int, int, LPBYTE, int *);
-typedef void  (*writetype)(imageinforec *, int, int, LPBYTE, int);
+typedef BOOL  (* fboot)(imageinforec * info);
+typedef DWORD (* fdetect)(LPBYTE imageptr, DWORD size);
+typedef void  (* freadinfo)(imageinforec * info, int track, int quartertrack, LPBYTE buffer, int * nibbles);
+typedef void  (* fwriteinfo)(imageinforec * info, int track, int quartertrack, LPBYTE buffer, int nibbles);
 
 static BOOL  AplBoot(imageinforec * ptr);
 static DWORD AplDetect(LPBYTE imageptr, DWORD imagesize);
 static DWORD DoDetect(LPBYTE imageptr, DWORD imagesize);
-static void  DoRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  DoWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static void  DoRead(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int * nibbles);
+static void  DoWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int nibbles);
 static DWORD IieDetect(LPBYTE imageptr, DWORD imagesize);
-static void  IieRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  IieWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static void  IieRead(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int * nibbles);
+static void  IieWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int nibbles);
 static DWORD Nib1Detect(LPBYTE imageptr, DWORD imagesize);
-static void  Nib1Read(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  Nib1Write(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static void  Nib1Read(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int * nibbles);
+static void  Nib1Write(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int nibbles);
 static DWORD Nib2Detect(LPBYTE imageptr, DWORD imagesize);
-static void  Nib2Read(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  Nib2Write(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static void  Nib2Read(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int * nibbles);
+static void  Nib2Write(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int nibbles);
 static DWORD PoDetect(LPBYTE imageptr, DWORD imagesize);
-static void  PoRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles);
-static void  PoWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles);
+static void  PoRead(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int * nibbles);
+static void  PoWrite(imageinforec * ptr, int track, int quartertrack, LPBYTE buffer, int nibbles);
 static BOOL  PrgBoot(imageinforec * ptr);
 static DWORD PrgDetect(LPBYTE imageptr, DWORD imagesize);
 
 struct imagetyperec {
     const char * createexts;
     const char * rejectexts;
-    detecttype   detect;
-    boottype     boot;
-    readtype     read;
-    writetype    write;
+    fdetect      detect;
+    fboot        boot;
+    freadinfo    read;
+    fwriteinfo   write;
 };
 
 static const imagetyperec imagetype[IMAGETYPES] = {
@@ -120,20 +120,20 @@ static const imagetyperec imagetype[IMAGETYPES] = {
 };
 
 static const BYTE diskbyte[0x40] = {
-    0x96,0x97,0x9A,0x9B,0x9D,0x9E,0x9F,0xA6,
-    0xA7,0xAB,0xAC,0xAD,0xAE,0xAF,0xB2,0xB3,
-    0xB4,0xB5,0xB6,0xB7,0xB9,0xBA,0xBB,0xBC,
-    0xBD,0xBE,0xBF,0xCB,0xCD,0xCE,0xCF,0xD3,
-    0xD6,0xD7,0xD9,0xDA,0xDB,0xDC,0xDD,0xDE,
-    0xDF,0xE5,0xE6,0xE7,0xE9,0xEA,0xEB,0xEC,
-    0xED,0xEE,0xEF,0xF2,0xF3,0xF4,0xF5,0xF6,
-    0xF7,0xF9,0xFA,0xFB,0xFC,0xFD,0xFE,0xFF
+    0x96, 0x97, 0x9A, 0x9B, 0x9D, 0x9E, 0x9F, 0xA6,
+    0xA7, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB2, 0xB3,
+    0xB4, 0xB5, 0xB6, 0xB7, 0xB9, 0xBA, 0xBB, 0xBC,
+    0xBD, 0xBE, 0xBF, 0xCB, 0xCD, 0xCE, 0xCF, 0xD3,
+    0xD6, 0xD7, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE,
+    0xDF, 0xE5, 0xE6, 0xE7, 0xE9, 0xEA, 0xEB, 0xEC,
+    0xED, 0xEE, 0xEF, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6,
+    0xF7, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF,
 };
 
 static BYTE sectornumber[3][0x10] = {
-    {0x00,0x08,0x01,0x09,0x02,0x0A,0x03,0x0B,0x04,0x0C,0x05,0x0D,0x06,0x0E,0x07,0x0F},
-    {0x00,0x07,0x0E,0x06,0x0D,0x05,0x0C,0x04,0x0B,0x03,0x0A,0x02,0x09,0x01,0x08,0x0F},
-    {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}
+    { 0x00, 0x08, 0x01, 0x09, 0x02, 0x0A, 0x03, 0x0B, 0x04, 0x0C, 0x05, 0x0D, 0x06, 0x0E, 0x07, 0x0F },
+    { 0x00, 0x07, 0x0E, 0x06, 0x0D, 0x05, 0x0C, 0x04, 0x0B, 0x03, 0x0A, 0x02, 0x09, 0x01, 0x08, 0x0F },
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 };
 
 static LPBYTE workbuffer = NULL;
@@ -513,22 +513,22 @@ static void IieRead(imageinforec * ptr, int track, int quartertrack, LPBYTE trac
 
     // IF WE HAVEN'T ALREADY DONE SO, READ THE IMAGE FILE HEADER
     if (!ptr->header) {
-        ptr->header = (LPBYTE)VirtualAlloc(NULL, 88, MEM_COMMIT, PAGE_READWRITE);
+        ptr->header = new BYTE[88];
         if (!ptr->header)
             return;
         ZeroMemory(ptr->header, 88);
         DWORD bytesread;
         SetFilePointer(ptr->file, 0, NULL, FILE_BEGIN);
-        ReadFile(ptr->file, ptr->header, 88, &bytesread, NULL);
+        (void)ReadFile(ptr->file, ptr->header, 88, &bytesread, NULL);
     }
 
     // IF THIS IMAGE CONTAINS USER DATA, READ THE TRACK AND NIBBLIZE IT
-    if (*(ptr->header + 13) <= 2) {
+    if (ptr->header[13] <= 2) {
         IieConvertSectorOrder(ptr->header + 14);
         SetFilePointer(ptr->file, (track << 12) + 30, NULL, FILE_BEGIN);
         ZeroMemory(workbuffer, 4096);
         DWORD bytesread;
-        ReadFile(ptr->file, workbuffer, 4096, &bytesread, NULL);
+        (void)ReadFile(ptr->file, workbuffer, 4096, &bytesread, NULL);
         *nibbles = NibblizeTrack(trackimagebuffer, 2, track);
     }
 
@@ -717,19 +717,19 @@ void ImageClose(HIMAGE imagehandle) {
     if (ptr->file != INVALID_HANDLE_VALUE)
         CloseHandle(ptr->file);
     if (ptr->header)
-        VirtualFree(ptr->header, 0, MEM_RELEASE);
-    VirtualFree(ptr, 0, MEM_RELEASE);
+        delete[] ptr->header;
+    delete ptr;
 }
 
 //===========================================================================
 void ImageDestroy() {
-    VirtualFree(workbuffer, 0, MEM_RELEASE);
+    delete[] workbuffer;
     workbuffer = NULL;
 }
 
 //===========================================================================
 void ImageInitialize() {
-    workbuffer = (LPBYTE)VirtualAlloc(NULL, 0x2000, MEM_COMMIT, PAGE_READWRITE);
+    workbuffer = new BYTE[0x2000];
 }
 
 //===========================================================================
@@ -740,40 +740,53 @@ BOOL ImageOpen (
     BOOL            createifnecessary
 ) {
     if (imagehandle)
-        * imagehandle = (HIMAGE)0;
+        *imagehandle = (HIMAGE)NULL;
     if (writeprotected)
-        * writeprotected = 0;
+        *writeprotected = FALSE;
     if (!(imagefilename && imagehandle && writeprotected && workbuffer))
-        return 0;
+        return FALSE;
 
     // TRY TO OPEN THE IMAGE FILE
-    BOOL   readonly = 0;
-    HANDLE file = CreateFile(imagefilename,
+    BOOL   readonly = FALSE;
+    HANDLE file = CreateFile(
+        imagefilename,
         GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
-        (LPSECURITY_ATTRIBUTES)NULL,
+        NULL,
         OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL,
-        NULL);
+        NULL
+    );
     if (file == INVALID_HANDLE_VALUE) {
-        readonly = 1;
-        file = CreateFile(imagefilename,
+        readonly = TRUE;
+        file = CreateFile(
+            imagefilename,
             GENERIC_READ,
             FILE_SHARE_READ,
-            (LPSECURITY_ATTRIBUTES)NULL,
+            NULL,
             OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
-            NULL);
+            NULL
+        );
     }
 
     // IF WE ARE ABLE TO OPEN THE FILE, MAP IT INTO MEMORY FOR USE BY THE
     // DETECTION FUNCTIONS
     if (file != INVALID_HANDLE_VALUE) {
-        DWORD  size = GetFileSize(file, NULL);
-        HANDLE mapping = CreateFileMapping(file,
-            (LPSECURITY_ATTRIBUTES)NULL,
+        DWORD size = GetFileSize(file, NULL);
+        HANDLE mapping = CreateFileMapping(
+            file,
+            NULL,
             PAGE_READONLY,
-            0, 0, NULL);
+            0,
+            0,
+            NULL
+        );
+        if (mapping == NULL) {
+            CloseHandle(file);
+            return FALSE;
+        }
+
         LPBYTE view = (LPBYTE)MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
         LPBYTE imageptr = view;
         DWORD  format = 0xFFFFFFFF;
@@ -835,33 +848,32 @@ BOOL ImageOpen (
         // IF THE FILE DOES NOT MATCH ANY KNOWN FORMAT, CLOSE IT AND RETURN
         if (format == 0xFFFFFFFF) {
             CloseHandle(file);
-            return 0;
+            return FALSE;
         }
 
         // OTHERWISE, CREATE A RECORD FOR THE FILE, AND RETURN AN IMAGE HANDLE
         else {
-            imageinforec * ptr = (imageinforec *)VirtualAlloc(NULL, sizeof(imageinforec),
-                MEM_COMMIT, PAGE_READWRITE);
+            imageinforec * ptr = new imageinforec;
             if (ptr) {
                 ZeroMemory(ptr, sizeof(imageinforec));
-                ptr->format = format;
-                ptr->file = file;
-                ptr->offset = imageptr - view;
+                ptr->format         = format;
+                ptr->file           = file;
+                ptr->offset         = imageptr - view;
                 ptr->writeprotected = readonly;
                 if (imagehandle)
-                    * imagehandle = (HIMAGE)ptr;
+                    *imagehandle = (HIMAGE)ptr;
                 if (writeprotected)
-                    * writeprotected = readonly;
-                return 1;
+                    *writeprotected = readonly;
+                return TRUE;
             }
             else {
                 CloseHandle(file);
-                return 0;
+                return FALSE;
             }
         }
     }
 
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================

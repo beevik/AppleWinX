@@ -598,7 +598,6 @@ static BOOL CmdBreakpointAdd(int args) {
 
 //===========================================================================
 static BOOL CmdBreakpointClear(int args) {
-
     // CHECK FOR ERRORS
     if (!args)
         return DisplayHelp(CmdBreakpointClear);
@@ -624,12 +623,10 @@ static BOOL CmdBreakpointClear(int args) {
         usedslot++;
     if (usedslot >= BREAKPOINTS) {
         usingbp = 0;
-        DebugDisplay(1);
-        return 0;
+        DebugDisplay(TRUE);
+        return FALSE;
     }
-    else
-        return 1;
-
+    return TRUE;
 }
 
 //===========================================================================
@@ -694,7 +691,7 @@ static BOOL CmdCodeDump(int args) {
 //===========================================================================
 static BOOL CmdColor(int args) {
     colorscheme = 0;
-    DebugDisplay(1);
+    DebugDisplay(TRUE);
     return 0;
 }
 
@@ -1017,7 +1014,6 @@ static BOOL CmdWatchAdd(int args) {
 
 //===========================================================================
 static BOOL CmdWatchClear(int args) {
-
     // CHECK FOR ERRORS
     if (!args)
         return DisplayHelp(CmdWatchAdd);
@@ -1042,12 +1038,10 @@ static BOOL CmdWatchClear(int args) {
         usedslot++;
     if (usedslot >= WATCHES) {
         usingwatches = 0;
-        DebugDisplay(1);
-        return 0;
+        DebugDisplay(TRUE);
+        return FALSE;
     }
-    else
-        return 1;
-
+    return TRUE;
 }
 
 //===========================================================================
@@ -1564,7 +1558,7 @@ static BOOL ExecuteCommand(int args) {
 //===========================================================================
 static void FreeSymbolTable() {
     if (symboltable)
-        VirtualFree(symboltable, 0, MEM_RELEASE);
+        delete[] symboltable;
     symbolnum = 0;
     symboltable = NULL;
 }
@@ -1798,7 +1792,7 @@ void DebugBegin() {
     addressmode[INVALID2].bytes = apple2e ? 2 : 1;
     addressmode[INVALID3].bytes = apple2e ? 3 : 1;
     ComputeTopOffset(regs.pc);
-    DebugDisplay(1);
+    DebugDisplay(TRUE);
 }
 
 //===========================================================================
@@ -1933,7 +1927,7 @@ void DebugInitialize() {
                 char  name[80] = "";
                 char  line[256];
                 if (fscanf(infile, "%x %13s", &value, name) != 2)
-                    value = 0;
+                    name[0] = '\0';
                 fgets(line, 255, infile);
                 if (name[0] != '\0') {
                     if (value < lastvalue) {
@@ -1949,25 +1943,24 @@ void DebugInitialize() {
                         // IF OUR CURRENT SYMBOL TABLE IS NOT BIG ENOUGH TO HOLD THIS
                         // ADDITIONAL SYMBOL, THEN ALLOCATE A BIGGER TABLE AND COPY THE
                         // CURRENT DATA ACROSS
-                        if ((!symboltable) || (symbolalloc <= symbolnum)) {
+                        if (!symboltable || (symbolalloc <= symbolnum)) {
                             symbolalloc += 8192 / sizeof(symbolrec);
-                            symbolrec * newtable = (symbolrec *)VirtualAlloc(NULL,
-                                symbolalloc * sizeof(symbolrec),
-                                MEM_COMMIT,
-                                PAGE_READWRITE);
+                            symbolrec * newtable = (symbolrec *)new BYTE[symbolalloc * sizeof(symbolrec)];
                             if (newtable) {
                                 if (symboltable) {
                                     CopyMemory(newtable, symboltable, symbolnum * sizeof(symbolrec));
-                                    VirtualFree(symboltable, 0, MEM_RELEASE);
+                                    delete[] symboltable;
                                 }
                                 symboltable = newtable;
                             }
                             else {
-                                MessageBox(GetDesktopWindow(),
+                                MessageBox(
+                                    GetDesktopWindow(),
                                     "There is not enough memory available to load "
                                     "the symbol file.",
                                     TITLE,
-                                    MB_ICONEXCLAMATION | MB_SETFOREGROUND);
+                                    MB_ICONEXCLAMATION | MB_SETFOREGROUND
+                                );
                                 FreeSymbolTable();
                             }
                         }
@@ -1976,7 +1969,6 @@ void DebugInitialize() {
                         if (symboltable) {
                             symboltable[symbolnum].value = (WORD)(value & 0xFFFF);
                             StrCopy(symboltable[symbolnum].name, name, ARRSIZE(symboltable[symbolnum].name));
-                            symboltable[symbolnum].name[13] = 0;
                             symbolnum++;
                         }
 
@@ -2033,7 +2025,7 @@ void DebugProcessCommand(int keycode) {
     if (mode != MODE_DEBUG)
         return;
     if (viewingoutput) {
-        DebugDisplay(1);
+        DebugDisplay(TRUE);
         viewingoutput = 0;
         return;
     }
@@ -2066,7 +2058,7 @@ void DebugProcessCommand(int keycode) {
         case VK_DOWN:   needsfullrefresh = CmdLineDown(0);  break;
     }
     if (needsfullrefresh)
-        DebugDisplay(0);
+        DebugDisplay(FALSE);
     else if (needscmdrefresh && (!viewingoutput) &&
         ((mode == MODE_DEBUG) || (mode == MODE_STEPPING))) {
         HDC dc = FrameGetDC();

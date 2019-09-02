@@ -31,9 +31,7 @@ namespace detail {
 
 typedef BYTE (* iofunction)(WORD, BYTE, BYTE, BYTE);
 
-typedef struct _Image_ {
-    int unused;
-} *HIMAGE;
+typedef void * HIMAGE;
 
 struct regsrec {
     BYTE a;   // accumulator

@@ -441,7 +441,7 @@ static void DrawFrameWindow(BOOL paint) {
     if (mode == MODE_LOGO)
         VideoDisplayLogo();
     else if (mode == MODE_DEBUG)
-        DebugDisplay(1);
+        DebugDisplay(TRUE);
     else
         VideoRedrawScreen();
 }
@@ -759,7 +759,7 @@ static HBITMAP LoadButtonBitmap(HINSTANCE instance, const char * bitmapname) {
         DWORD  bytespixel = info.bmBitsPixel >> 3;
         DWORD  bytestotal = info.bmHeight * info.bmWidthBytes;
         DWORD  pixelmask = 0xFFFFFFFF >> (32 - info.bmBitsPixel);
-        LPBYTE data = (LPBYTE)VirtualAlloc(NULL, bytestotal + 4, MEM_COMMIT, PAGE_READWRITE);
+        LPBYTE data = new BYTE[bytestotal + 4];
         if (!data)
             return bitmap;
         if (pixelmask == 0xFFFFFFFF)
@@ -790,7 +790,7 @@ static HBITMAP LoadButtonBitmap(HINSTANCE instance, const char * bitmapname) {
             }
             SetBitmapBits(bitmap, bytestotal, data);
         }
-        VirtualFree(data, 0, MEM_RELEASE);
+        delete[] data;
     }
     else {
         HWND window = GetDesktopWindow();
