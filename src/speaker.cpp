@@ -49,10 +49,12 @@ static void DisplayBenchmarkResults() {
         (unsigned)(totaltime / 1000),
         (unsigned)((totaltime / 10) % 100)
     );
-    MessageBox(framewindow,
+    MessageBox(
+        framewindow,
         buffer,
         "Benchmark Results",
-        MB_ICONINFORMATION);
+        MB_ICONINFORMATION
+    );
 }
 
 //===========================================================================
@@ -72,7 +74,6 @@ static void SubmitWaveBuffer(int size) {
     // IF THIS IS WAVE BUFFER ZERO, THE OVERFLOW BUFFER, THEN IGNORE THE
     // REQUEST TO SUBMIT IT AND SKIP ON TO DETERMINING THE NEXT BUFFER TO USE
     if (waveprep) {
-
         // OTHERWISE, BUILD A HEADER AND SUBMIT IT
         ZeroMemory(wavehdr[waveprep], sizeof(WAVEHDR));
         wavehdr[waveprep]->lpData = (char *)wavedata[waveprep];
@@ -80,7 +81,6 @@ static void SubmitWaveBuffer(int size) {
         wavehdr[waveprep]->dwFlags = 0;
         waveOutPrepareHeader(waveout, wavehdr[waveprep], sizeof(WAVEHDR));
         waveOutWrite(waveout, wavehdr[waveprep], sizeof(WAVEHDR));
-
     }
 
     // UNPREPARE ANY COMPLETED BUFFERS, AND FIND A FREE BUFFER TO USE NEXT
@@ -170,7 +170,6 @@ void SpkrDestroy() {
 
 //===========================================================================
 void SpkrInitialize() {
-
     // DETERMINE THE DEFAULT BUFFER SIZE
     buffersize = 8192;
     bufferrate = 30994;
@@ -179,19 +178,19 @@ void SpkrInitialize() {
     // DETERMINE WHETHER A WAVEFORM OUTPUT DEVICE IS AVAILABLE
     if (soundtype == SOUND_WAVE) {
         if (waveOutGetNumDevs()) {
-            _try{
-              WAVEFORMATEX format;
-              format.wFormatTag = WAVE_FORMAT_PCM;
-              format.nChannels = 1;
-              format.nSamplesPerSec = bufferrate;
-              format.nAvgBytesPerSec = bufferrate;
-              format.nBlockAlign = 1;
-              format.wBitsPerSample = 8;
-              format.cbSize = sizeof(WAVEFORMATEX);
-              if (waveOutOpen(&waveout,WAVE_MAPPER,&format,NULL,0,0))
-                waveout = (HWAVEOUT)0;
+            _try {
+                WAVEFORMATEX format;
+                format.wFormatTag = WAVE_FORMAT_PCM;
+                format.nChannels = 1;
+                format.nSamplesPerSec = bufferrate;
+                format.nAvgBytesPerSec = bufferrate;
+                format.nBlockAlign = 1;
+                format.wBitsPerSample = 8;
+                format.cbSize = sizeof(WAVEFORMATEX);
+                if (waveOutOpen(&waveout,WAVE_MAPPER,&format,NULL,0,0))
+                    waveout = (HWAVEOUT)0;
             }
-                _except(EXCEPTION_EXECUTE_HANDLER) {
+            _except(EXCEPTION_EXECUTE_HANDLER) {
                 waveout = (HWAVEOUT)0;
             }
         }
@@ -201,8 +200,7 @@ void SpkrInitialize() {
             int loop = WAVEBUFFERS;
             while (loop--) {
                 wavedata[loop] = (BYTE *)GlobalLock(GlobalAlloc(GMEM_MOVEABLE, buffersize));
-                wavehdr[loop] = (WAVEHDR *)GlobalLock(GlobalAlloc(GMEM_MOVEABLE,
-                    sizeof(WAVEHDR)));
+                wavehdr[loop] = (WAVEHDR *)GlobalLock(GlobalAlloc(GMEM_MOVEABLE, sizeof(WAVEHDR)));
                 ZeroMemory(wavedata[loop], buffersize);
                 ZeroMemory(wavehdr[loop], sizeof(WAVEHDR));
             }
@@ -226,7 +224,6 @@ void SpkrInitialize() {
         if (soundtype == SOUND_DIRECT)
             soundtype = SOUND_SMART;
     }
-
 }
 
 //===========================================================================
@@ -249,18 +246,20 @@ BOOL SpkrSetEmulationType(HWND window, DWORD newtype) {
         SpkrInitialize();
     if (soundtype != newtype)
         switch (newtype) {
-
             case SOUND_DIRECT:
-                MessageBox(window,
+                MessageBox(
+                    window,
                     "Direct emulation is not available because the "
                     "operating system you are using does not allow "
                     "direct control of the speaker.",
                     "Configuration",
-                    MB_ICONEXCLAMATION);
-                return 0;
+                    MB_ICONEXCLAMATION
+                );
+                return FALSE;
 
             case SOUND_WAVE:
-                MessageBox(window,
+                MessageBox(
+                    window,
                     "The emulator is unable to initialize a waveform "
                     "output device.  Make sure you have a sound card "
                     "and a driver installed and that windows is "
@@ -268,11 +267,11 @@ BOOL SpkrSetEmulationType(HWND window, DWORD newtype) {
                     "ensure that no other program is currently using "
                     "the device.",
                     "Configuration",
-                    MB_ICONEXCLAMATION);
-                return 0;
-
+                    MB_ICONEXCLAMATION
+                );
+                return FALSE;
         }
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -291,27 +290,17 @@ BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
         if (max > buffersize - 1)
             max = buffersize - 1;
         while (loop < max)
-            * (wavedata[waveprep] + (loop++)) = toggleval;
+            *(wavedata[waveprep] + loop++) = toggleval;
         lastcyclenum = cyclenum;
         toggleval = ~toggleval;
     }
     else if (soundtype != SOUND_NONE) {
-
         // IF WE ARE CURRENTLY PLAYING A SOUND EFFECT OR ARE IN DIRECT
         // EMULATION MODE, TOGGLE THE SPEAKER
-        if ((soundeffect > 2) || (soundtype == SOUND_DIRECT))
-            if (directio)
-                __asm {
-                push eax
-                in   al, 0x61
-                xor al, 2
-                out  0x61, al
-                pop  eax
-            }
-            else {
-                Beep(37, (DWORD)-1);
-                Beep(0, 0);
-            }
+        if ((soundeffect > 2) || (soundtype == SOUND_DIRECT)) {
+            Beep(37, (DWORD)-1);
+            Beep(0, 0);
+        }
 
         // SAVE INFORMATION ABOUT THE FREQUENCY OF SPEAKER TOGGLING FOR POSSIBLE
         // LATER USE BY SOUND AVERAGING
@@ -332,7 +321,6 @@ BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
             totaldelta += delta;
         }
         lastcyclenum = cyclenum;
-
     }
     return MemReturnRandomData(TRUE);
 }
@@ -340,7 +328,6 @@ BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
 //===========================================================================
 void SpkrUpdate(DWORD totalcycles) {
     if (waveout) {
-
         // IF AT LEAST ONE TOGGLE WAS MADE DURING THIS CLOCK TICK, OR DURING A
         // PREVIOUS CLOCK TICK WHOSE BUFFER WE ARE SHARING, THEN SUBMIT THE
         // BUFFER TO THE WAVE DEVICE
@@ -350,7 +337,7 @@ void SpkrUpdate(DWORD totalcycles) {
             if (max + waveoffset > buffersize - 1)
                 max = buffersize - (waveoffset + 1);
             while (loop < max)
-                * (wavedata[waveprep] + waveoffset + (loop++)) = toggleval;
+                *(wavedata[waveprep] + waveoffset + loop++) = toggleval;
             if (waveoffset + (max << 1) >= bufferuse) {
                 SubmitWaveBuffer(waveoffset + max);
                 toggles = 0;
@@ -366,15 +353,13 @@ void SpkrUpdate(DWORD totalcycles) {
             waveprep = 0;
             SubmitWaveBuffer(0);
         }
-
     }
     else {
-
         // IF WE ARE NOT PLAYING A SOUND EFFECT, PERFORM FREQUENCY AVERAGING
         static DWORD currenthertz = 0;
-        static BOOL  lastfull = 0;
-        static DWORD lasttoggles = 0;
-        static DWORD lastval = 0;
+        static BOOL  lastfull     = FALSE;
+        static DWORD lasttoggles  = 0;
+        static DWORD lastval      = 0;
         if ((soundeffect > 2) || (soundtype == SOUND_DIRECT)) {
             lastval = 0;
             if (currenthertz && (soundeffect > 4)) {
@@ -391,16 +376,16 @@ void SpkrUpdate(DWORD totalcycles) {
                 currenthertz = newval;
                 lasttoggles = 0;
             }
-            lastfull = (totaldelta + ((totaldelta / toggles) << 1) >= totalcycles);
+            lastfull     = (totaldelta + ((totaldelta / toggles) << 1) >= totalcycles);
             lasttoggles += toggles;
-            lastval = newval;
+            lastval      = newval;
         }
         else if (currenthertz) {
             InternalBeep(0, 0);
             currenthertz = 0;
-            lastfull = 0;
-            lasttoggles = 0;
-            lastval = 0;
+            lastfull     = FALSE;
+            lasttoggles  = 0;
+            lastval      = 0;
         }
         else if (lastval) {
             currenthertz = (lasttoggles > 4) ? lastval : 0;
@@ -408,9 +393,9 @@ void SpkrUpdate(DWORD totalcycles) {
                 InternalBeep(lastval, (DWORD)-1);
             else
                 InternalClick();
-            lastfull = 0;
+            lastfull    = FALSE;
             lasttoggles = 0;
-            lastval = 0;
+            lastval     = 0;
         }
 
         // RESET THE FREQUENCY GATHERING VARIABLES
@@ -422,6 +407,5 @@ void SpkrUpdate(DWORD totalcycles) {
         totaldelta = 0;
         if (soundeffect)
             soundeffect--;
-
     }
 }
