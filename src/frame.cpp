@@ -851,7 +851,7 @@ static void ProcessButtonClick(int button) {
             MessageBox(framewindow,
                 "The 'Transfer To File' button is not implemented "
                 "in this release.",
-                TITLE,
+                title,
                 MB_ICONINFORMATION | MB_SETFOREGROUND);
             break;
 
@@ -860,7 +860,7 @@ static void ProcessButtonClick(int button) {
             MessageBox(framewindow,
                 "The 'Transfer To Disk Image' button is not implemented "
                 "in this release.",
-                TITLE,
+                title,
                 MB_ICONINFORMATION | MB_SETFOREGROUND);
             break;
 
@@ -944,9 +944,9 @@ void FrameCreateWindow() {
         + GetSystemMetrics(SM_CYBORDER)
         + GetSystemMetrics(SM_CYCAPTION)
         + 16;
-    framewindow = CreateWindow("APPLE2FRAME",
-        apple2e ? TITLE
-        : "Apple ][+ Emulator",
+    framewindow = CreateWindow(
+        "APPLE2FRAME",
+        apple2e ? title : "Apple ][+ Emulator",
         WS_OVERLAPPED
         | WS_BORDER
         | WS_CAPTION
@@ -960,7 +960,8 @@ void FrameCreateWindow() {
         HWND_DESKTOP,
         (HMENU)0,
         instance,
-        NULL);
+        NULL
+    );
 }
 
 //===========================================================================

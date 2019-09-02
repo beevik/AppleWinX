@@ -1934,7 +1934,7 @@ void DebugInitialize() {
                         MessageBox(GetDesktopWindow(),
                             "The symbol file is not sorted correctly.  "
                             "Symbols will not be loaded.",
-                            TITLE,
+                            title,
                             MB_ICONEXCLAMATION | MB_SETFOREGROUND);
                         FreeSymbolTable();
                         return;
@@ -1958,7 +1958,7 @@ void DebugInitialize() {
                                     GetDesktopWindow(),
                                     "There is not enough memory available to load "
                                     "the symbol file.",
-                                    TITLE,
+                                    title,
                                     MB_ICONEXCLAMATION | MB_SETFOREGROUND
                                 );
                                 FreeSymbolTable();

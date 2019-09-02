@@ -554,21 +554,21 @@ iofunction iowrite[0x100] = {
     NullIo              // $C0FF
 };
 
-DWORD   imagemode[MAXIMAGES];
-LPBYTE  memshadow[MAXIMAGES][0x100];
-LPBYTE  memwrite[MAXIMAGES][0x100];
-
-DWORD   image        = 0;
-DWORD   lastimage    = 0;
-BOOL    lastwriteram = FALSE;
 LPBYTE  mem          = NULL;
-LPBYTE  memaux       = NULL;
 LPBYTE  memdirty     = NULL;
-LPBYTE  memimage     = NULL;
-LPBYTE  memmain      = NULL;
-DWORD   memmode      = MF_BANK2 | MF_SLOTCXROM | MF_WRITERAM;
-LPBYTE  memrom       = NULL;
+LPBYTE  memwrite[MAXIMAGES][0x100];
 DWORD   pages        = 0;
+
+static DWORD   image       = 0;
+static DWORD  imagemode[MAXIMAGES];
+static DWORD  lastimage    = 0;
+static BOOL   lastwriteram = FALSE;
+static LPBYTE memaux       = NULL;
+static LPBYTE memimage     = NULL;
+static LPBYTE memmain      = NULL;
+static DWORD  memmode      = MF_BANK2 | MF_SLOTCXROM | MF_WRITERAM;
+static LPBYTE memrom       = NULL;
+static LPBYTE memshadow[MAXIMAGES][0x100];
 
 static void UpdatePaging(BOOL initialize, BOOL updatewriteonly);
 
@@ -798,7 +798,7 @@ void MemInitialize() {
             GetDesktopWindow(),
             "The emulator was unable to allocate the memory it "
             "requires.  Further execution is not possible.",
-            TITLE,
+            title,
             MB_ICONSTOP | MB_SETFOREGROUND
         );
         ExitProcess(1);
@@ -821,7 +821,7 @@ void MemInitialize() {
         MessageBox(
             GetDesktopWindow(),
             "Unable to open the required firmware ROM data file.",
-            TITLE,
+            title,
             MB_ICONSTOP | MB_SETFOREGROUND
         );
         ExitProcess(1);

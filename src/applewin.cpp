@@ -9,6 +9,8 @@
 #include "pch.h"
 #pragma  hdrstop
 
+const char * title = "Apple //e Emulator";
+
 BOOL      apple2e           = TRUE;
 BOOL      autoboot          = FALSE;
 BOOL      behind            = FALSE;

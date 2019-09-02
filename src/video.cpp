@@ -357,7 +357,7 @@ static void ConvertToBottomUp8() {
     while (linesleft--) {
         int loop = 140;
         while (loop--)
-            * (destptr++) = *(sourceptr++);
+            *destptr++ = *sourceptr++;
         destptr -= 280;
     }
 }
@@ -685,17 +685,19 @@ static BOOL LoadSourceImages() {
         ARRSIZE(filename),
         "%sVid%03X%s.dat",
         progdir,
-        (unsigned)(srcpixelformat & 0xFFF),
+        (unsigned)srcpixelformat & 0xFFF,
         optmonochrome ? "m" : "c"
     );
 
-    HANDLE file = CreateFile(filename,
+    HANDLE file = CreateFile(
+        filename,
         GENERIC_READ,
         FILE_SHARE_READ,
         NULL,
         OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
-        NULL);
+        NULL
+    );
 
     if (file != INVALID_HANDLE_VALUE) {
         DWORD bytestoread = SRCOFFS_TOTAL * 64 * srcpixelbits;
@@ -1920,7 +1922,7 @@ void VideoTestCompatibility() {
                 "obscure the emulator window, then click OK.",
                 interference
             );
-            MessageBox(framewindow, buffer, TITLE, MB_ICONEXCLAMATION);
+            MessageBox(framewindow, buffer, title, MB_ICONEXCLAMATION);
         }
     } while (interference[0]);
 
@@ -1939,7 +1941,7 @@ void VideoTestCompatibility() {
             "In the meantime, AppleWin will attempt to work around "
             "the problem by limiting its use of the driver.  This "
             "may significantly reduce performance.",
-            TITLE,
+            title,
             MB_ICONEXCLAMATION
         );
     }
@@ -1949,7 +1951,7 @@ void VideoTestCompatibility() {
             "AppleWin had previously reported a compatibility "
             "problem in your video driver.  The problem seems "
             "to have been resolved.",
-            TITLE,
+            title,
             MB_ICONINFORMATION
         );
     }
@@ -1969,7 +1971,7 @@ void VideoTestCompatibility() {
 //===========================================================================
 void VideoUpdateVbl(DWORD cycles, BOOL nearrefresh) {
     if (vblcounter)
-        vblcounter -= MIN(vblcounter, (cycles >> 6));
+        vblcounter -= MIN(vblcounter, cycles >> 6);
     else if (!nearrefresh)
         vblcounter = 250;
 }

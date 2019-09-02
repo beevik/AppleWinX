@@ -9,7 +9,6 @@
 #include "pch.h"
 #pragma  hdrstop
 
-
 constexpr int DRIVES   = 2;
 constexpr int NIBBLES  = 6384;
 constexpr int TRACKS   = 35;
@@ -134,7 +133,7 @@ static void NotifyInvalidImage(const char * imagefilename) {
             imagefilename
         );
     }
-    MessageBox(framewindow, buffer, TITLE, MB_ICONEXCLAMATION);
+    MessageBox(framewindow, buffer, title, MB_ICONEXCLAMATION);
 }
 
 //===========================================================================
