@@ -21,6 +21,8 @@ constexpr BYTE AF_CARRY     = 0x01;
 constexpr int SHORTOPCODES = 22;
 constexpr int BENCHOPCODES = 33;
 
+registers regs;
+
 static const BYTE benchopcode[BENCHOPCODES] = {
     0x06, 0x16, 0x24, 0x45, 0x48, 0x65, 0x68, 0x76,
     0x84, 0x85, 0x86, 0x91, 0x94, 0xA4, 0xA5, 0xA6,
@@ -28,8 +30,6 @@ static const BYTE benchopcode[BENCHOPCODES] = {
     0x8D, 0x99, 0x9D, 0xAD, 0xB9, 0xBD, 0xDD, 0xED,
     0xEE
 };
-
-regsrec regs;
 
 
 /****************************************************************************
@@ -79,19 +79,19 @@ regsrec regs;
 *
 ***/
 
-#define ABS      addr = *(LPWORD)(mem+regs.pc);  regs.pc += 2;
-#define ABSIINDX addr = *(LPWORD)((*(LPWORD)(mem+regs.pc))+(WORD)regs.x);  regs.pc += 2;
-#define ABSX     addr = (*(LPWORD)(mem+regs.pc))+(WORD)regs.x;  regs.pc += 2;
-#define ABSY     addr = (*(LPWORD)(mem+regs.pc))+(WORD)regs.y;  regs.pc += 2;
-#define IABS     addr = *(LPWORD)(mem+*(LPWORD)(mem+regs.pc));  regs.pc += 2;
-#define IMM      addr = regs.pc++;
-#define INDX     addr = *(LPWORD)(mem+(((*(mem+regs.pc++))+regs.x) & 0xFF));
-#define INDY     addr = (*(LPWORD)(mem+*(mem+regs.pc++)))+(WORD)regs.y;
-#define IZPG     addr = *(LPWORD)(mem+*(mem+regs.pc++));
-#define REL      addr = (signed char)*(mem+regs.pc++);
-#define ZPG      addr = *(mem+regs.pc++);
-#define ZPGX     addr = ((*(mem+regs.pc++))+regs.x) & 0xFF;
-#define ZPGY     addr = ((*(mem+regs.pc++))+regs.y) & 0xFF;
+#define ABS    addr = *(LPWORD)(mem + regs.pc); regs.pc += 2;
+#define ABSX   addr = *(LPWORD)(mem + regs.pc) + (WORD)regs.x; regs.pc += 2;
+#define ABSY   addr = *(LPWORD)(mem + regs.pc) + (WORD)regs.y; regs.pc += 2;
+#define IABS   addr = *(LPWORD)(mem + *(LPWORD)(mem + regs.pc)); regs.pc += 2;
+#define IABSX  addr = *(LPWORD)(mem + *(LPWORD)(mem + regs.pc) + (WORD)regs.x); regs.pc += 2;
+#define IMM    addr = regs.pc++;
+#define INDX   addr = *(LPWORD)(mem + ((mem[regs.pc++] + regs.x) & 0xFF));
+#define INDY   addr = *(LPWORD)(mem + mem[regs.pc++]) + (WORD)regs.y;
+#define IZPG   addr = *(LPWORD)(mem + mem[regs.pc++]);
+#define REL    addr = (signed char)mem[regs.pc++];
+#define ZPG    addr = mem[regs.pc++];
+#define ZPGX   addr = (mem[regs.pc++] + regs.x) & 0xFF;
+#define ZPGY   addr = (mem[regs.pc++] + regs.y) & 0xFF;
 
 
 /****************************************************************************
@@ -310,7 +310,7 @@ DWORD InternalCpuExecute(DWORD totalcycles) {
     AF_TO_EF();
     DWORD cycles = 0;
     do {
-        switch (*(mem + regs.pc++)) {
+        switch (mem[regs.pc++]) {
             case 0x00:       BRK           CYC(7);  break;
             case 0x01:       INDX ORA      CYC(6);  break;
             case 0x02:       INVALID2      CYC(2);  break;
@@ -435,7 +435,7 @@ DWORD InternalCpuExecute(DWORD totalcycles) {
             case 0x79:       ABSY ADC      CYC(4);  break;
             case 0x7A: CMOS  PLY           CYC(4);  break;
             case 0x7B:       INVALID1      CYC(1);  break;
-            case 0x7C: CMOS  ABSIINDX JMP  CYC(6);  break;
+            case 0x7C: CMOS  IABSX JMP     CYC(6);  break;
             case 0x7D:       ABSX ADC      CYC(4);  break;
             case 0x7E:       ABSX ROR      CYC(6);  break;
             case 0x7F:       INVALID1      CYC(1);  break;

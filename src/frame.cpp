@@ -132,7 +132,7 @@ static BOOL CALLBACK ConfigDlgProc(
                     if (IsDlgButtonChecked(window, 106))
                         speed = SPEED_NORMAL;
                     else
-                        speed = SendDlgItemMessage(window, 108, TBM_GETPOS, 0, 0);
+                        speed = (DWORD)SendDlgItemMessage(window, 108, TBM_GETPOS, 0, 0);
 #define SAVE(a,b) RegSaveValue("Configuration",a,b);
                     SAVE("Computer Emulation", newcomptype);
                     SAVE("Joystick Emulation", joytype);
@@ -561,7 +561,7 @@ static LRESULT CALLBACK FrameWndProc(
         case WM_KEYDOWN:
             if ((wparam >= VK_F1) && (wparam <= VK_F8) && (buttondown == -1)) {
                 SetUsingCursor(0);
-                DrawButton((HDC)0, buttondown = wparam - VK_F1);
+                DrawButton((HDC)0, buttondown = (int)(wparam - VK_F1));
             }
             else if (wparam == VK_CAPITAL)
                 KeybQueueKeypress((int)wparam, 0);
@@ -587,7 +587,7 @@ static LRESULT CALLBACK FrameWndProc(
                     KeybQueueKeypress((int)wparam, extended);
             }
             else if ((mode == MODE_DEBUG) || (mode == MODE_STEPPING))
-                DebugProcessCommand(wparam);
+                DebugProcessCommand((int)wparam);
             if (wparam == VK_F10) {
                 SetUsingCursor(0);
                 return 0;
@@ -597,8 +597,8 @@ static LRESULT CALLBACK FrameWndProc(
         case WM_KEYUP:
             if ((wparam >= VK_F1) && (wparam <= VK_F8) && (buttondown == (int)wparam - VK_F1)) {
                 buttondown = -1;
-                DrawButton((HDC)0, wparam - VK_F1);
-                ProcessButtonClick(wparam - VK_F1);
+                DrawButton((HDC)0, (int)(wparam - VK_F1));
+                ProcessButtonClick((int)(wparam - VK_F1));
             }
             else
                 JoyProcessKey((int)wparam, ((lparam & 0x1000000) != 0), 0, 0);

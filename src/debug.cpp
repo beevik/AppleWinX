@@ -49,72 +49,72 @@ constexpr COLORREF COLORS          = 8;
 
 typedef BOOL(*cmdfunction)(int);
 
-static BOOL CmdBlackWhite(int args);
-static BOOL CmdBreakpointAdd(int args);
-static BOOL CmdBreakpointClear(int args);
-static BOOL CmdBreakpointDisable(int args);
-static BOOL CmdBreakpointEnable(int args);
-static BOOL CmdCodeDump(int args);
-static BOOL CmdColor(int args);
-static BOOL CmdExtBenchmark(int args);
-static BOOL CmdFeedKey(int args);
-static BOOL CmdFlagSet(int args);
-static BOOL CmdGo(int args);
-static BOOL CmdInput(int args);
-static BOOL CmdInternalCodeDump(int args);
-static BOOL CmdInternalMemoryDump(int args);
-static BOOL CmdLineDown(int args);
-static BOOL CmdLineUp(int args);
-static BOOL CmdMemoryDump(int args);
-static BOOL CmdMemoryEnter(int args);
-static BOOL CmdMemoryFill(int args);
-static BOOL CmdOutput(int args);
-static BOOL CmdPageDown(int args);
-static BOOL CmdPageUp(int args);
-static BOOL CmdProfile(int args);
-static BOOL CmdRegisterSet(int args);
-static BOOL CmdSetupBenchmark(int args);
-static BOOL CmdTrace(int args);
-static BOOL CmdTraceFile(int args);
-static BOOL CmdTraceLine(int args);
-static BOOL CmdViewOutput(int args);
-static BOOL CmdWatchAdd(int args);
-static BOOL CmdWatchClear(int args);
-static BOOL CmdZap(int args);
+static BOOL CmdBlackWhite(int argc);
+static BOOL CmdBreakpointAdd(int argc);
+static BOOL CmdBreakpointClear(int argc);
+static BOOL CmdBreakpointDisable(int argc);
+static BOOL CmdBreakpointEnable(int argc);
+static BOOL CmdCodeDump(int argc);
+static BOOL CmdColor(int argc);
+static BOOL CmdExtBenchmark(int argc);
+static BOOL CmdFeedKey(int argc);
+static BOOL CmdFlagSet(int argc);
+static BOOL CmdGo(int argc);
+static BOOL CmdInput(int argc);
+static BOOL CmdInternalCodeDump(int argc);
+static BOOL CmdInternalMemoryDump(int argc);
+static BOOL CmdLineDown(int argc);
+static BOOL CmdLineUp(int argc);
+static BOOL CmdMemoryDump(int argc);
+static BOOL CmdMemoryEnter(int argc);
+static BOOL CmdMemoryFill(int argc);
+static BOOL CmdOutput(int argc);
+static BOOL CmdPageDown(int argc);
+static BOOL CmdPageUp(int argc);
+static BOOL CmdProfile(int argc);
+static BOOL CmdRegisterSet(int argc);
+static BOOL CmdSetupBenchmark(int argc);
+static BOOL CmdTrace(int argc);
+static BOOL CmdTraceFile(int argc);
+static BOOL CmdTraceLine(int argc);
+static BOOL CmdViewOutput(int argc);
+static BOOL CmdWatchAdd(int argc);
+static BOOL CmdWatchClear(int argc);
+static BOOL CmdZap(int argc);
 
-struct addrrec {
+struct addr {
     char format[12];
     int  bytes;
 };
 
-struct argrec {
+struct arg {
     char str[12];
     WORD val1;
     WORD val2;
 };
 
-struct bprec {
+struct bp {
     WORD address;
     WORD length;
     BOOL enabled;
 };
 
-struct cmdrec {
+struct cmd {
     char        name[12];
     cmdfunction function;
 };
 
-struct instrec {
+struct inst {
     char  mnemonic[4];
     int   addrmode;
 };
 
-struct symbolrec {
+struct symbol {
     WORD  value;
     char  name[14];
 };
 
-static addrrec addressmode[17] = {
+static addr addressmode[17] = {
     { "",             1 },    // (implied)
     { "",             1 },    // INVALID1
     { "",             2 },    // INVALID2
@@ -134,7 +134,7 @@ static addrrec addressmode[17] = {
     { "($%04X)",      3 },    // ADDR_IABS
 };
 
-static const cmdrec command[COMMANDS] = {
+static const cmd command[COMMANDS] = {
     { "BA",           CmdBreakpointAdd        },
     { "BC",           CmdBreakpointClear      },
     { "BD",           CmdBreakpointDisable    },
@@ -198,7 +198,7 @@ static const cmdrec command[COMMANDS] = {
     { "\\",           CmdViewOutput           },
 };
 
-static const instrec instruction[256] = {
+static const inst instruction[256] = {
     { "BRK", 0                },  // 00h
     { "ORA", ADDR_INDX        },  // 01h
     { "NOP", INVALID2         },  // 02h
@@ -490,8 +490,8 @@ static char commandstring[COMMANDLINES][80] = {
 
 DWORD extbench = 0;
 
-static argrec      arg[MAXARGS];
-static bprec       breakpoint[BREAKPOINTS];
+static arg         argv[MAXARGS];
+static bp          breakpoint[BREAKPOINTS];
 static DWORD       profiledata[256];
 static int         watch[WATCHES];
 
@@ -506,7 +506,7 @@ static int         stepcount     = 0;
 static BOOL        stepline      = FALSE;
 static int         stepstart     = 0;
 static int         stepuntil     = -1;
-static symbolrec * symboltable   = NULL;
+static symbol * symboltable   = NULL;
 static int         symbolnum     = 0;
 static WORD        topoffset     = 0;
 static FILE *      tracefile     = NULL;
@@ -554,23 +554,23 @@ static BOOL CheckJump(WORD targetaddress) {
 }
 
 //===========================================================================
-static BOOL CmdBlackWhite(int args) {
+static BOOL CmdBlackWhite(int argc) {
     colorscheme = 1;
     DebugDisplay(1);
     return 0;
 }
 
 //===========================================================================
-static BOOL CmdBreakpointAdd(int args) {
-    if (!args)
-        arg[args = 1].val1 = regs.pc;
+static BOOL CmdBreakpointAdd(int argc) {
+    if (!argc)
+        argv[argc = 1].val1 = regs.pc;
     BOOL addedone = 0;
     int  loop = 0;
-    while (loop++ < args)
-        if (arg[loop].val1 || (arg[loop].str[0] == '0') ||
-            GetAddress(arg[loop].str)) {
-            if (!arg[loop].val1)
-                arg[loop].val1 = GetAddress(arg[loop].str);
+    while (loop++ < argc)
+        if (argv[loop].val1 || (argv[loop].str[0] == '0') ||
+            GetAddress(argv[loop].str)) {
+            if (!argv[loop].val1)
+                argv[loop].val1 = GetAddress(argv[loop].str);
 
               // FIND A FREE SLOT FOR THIS NEW BREAKPOINT
             int freeslot = 0;
@@ -581,9 +581,9 @@ static BOOL CmdBreakpointAdd(int args) {
 
               // ADD THE BREAKPOINT
             if (freeslot < BREAKPOINTS) {
-                breakpoint[freeslot].address = arg[loop].val1;
-                breakpoint[freeslot].length = arg[loop].val2
-                    ? MIN(0x10000 - arg[loop].val1, arg[loop].val2)
+                breakpoint[freeslot].address = argv[loop].val1;
+                breakpoint[freeslot].length = argv[loop].val2
+                    ? MIN(0x10000 - argv[loop].val1, argv[loop].val2)
                     : 1;
                 breakpoint[freeslot].enabled = 1;
                 addedone = 1;
@@ -597,23 +597,23 @@ static BOOL CmdBreakpointAdd(int args) {
 }
 
 //===========================================================================
-static BOOL CmdBreakpointClear(int args) {
+static BOOL CmdBreakpointClear(int argc) {
     // CHECK FOR ERRORS
-    if (!args)
+    if (!argc)
         return DisplayHelp(CmdBreakpointClear);
     if (!usingbp)
         return DisplayError("There are no breakpoints defined.");
 
     // CLEAR EACH BREAKPOINT IN THE LIST
-    while (args) {
-        if (!StrCmp(arg[args].str, "*")) {
+    while (argc) {
+        if (!StrCmp(argv[argc].str, "*")) {
             int loop = BREAKPOINTS;
             while (loop--)
                 breakpoint[loop].length = 0;
         }
-        else if ((arg[args].val1 >= 1) && (arg[args].val1 <= BREAKPOINTS))
-            breakpoint[arg[args].val1 - 1].length = 0;
-        args--;
+        else if ((argv[argc].val1 >= 1) && (argv[argc].val1 <= BREAKPOINTS))
+            breakpoint[argv[argc].val1 - 1].length = 0;
+        argc--;
     }
 
     // IF THERE ARE NO MORE BREAKPOINTS DEFINED, DISABLE THE BREAKPOINT
@@ -630,73 +630,73 @@ static BOOL CmdBreakpointClear(int args) {
 }
 
 //===========================================================================
-static BOOL CmdBreakpointDisable(int args) {
+static BOOL CmdBreakpointDisable(int argc) {
 
     // CHECK FOR ERRORS
-    if (!args)
+    if (!argc)
         return DisplayHelp(CmdBreakpointDisable);
     if (!usingbp)
         return DisplayError("There are no breakpoints defined.");
 
     // DISABLE EACH BREAKPOINT IN THE LIST
-    while (args) {
-        if (!StrCmp(arg[args].str, "*")) {
+    while (argc) {
+        if (!StrCmp(argv[argc].str, "*")) {
             int loop = BREAKPOINTS;
             while (loop--)
                 breakpoint[loop].enabled = 0;
         }
-        else if ((arg[args].val1 >= 1) && (arg[args].val1 <= BREAKPOINTS))
-            breakpoint[arg[args].val1 - 1].enabled = 0;
-        args--;
+        else if ((argv[argc].val1 >= 1) && (argv[argc].val1 <= BREAKPOINTS))
+            breakpoint[argv[argc].val1 - 1].enabled = 0;
+        argc--;
     }
 
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdBreakpointEnable(int args) {
+static BOOL CmdBreakpointEnable(int argc) {
 
     // CHECK FOR ERRORS
-    if (!args)
+    if (!argc)
         return DisplayHelp(CmdBreakpointEnable);
     if (!usingbp)
         return DisplayError("There are no breakpoints defined.");
 
     // ENABLE EACH BREAKPOINT IN THE LIST
-    while (args) {
-        if (!StrCmp(arg[args].str, "*")) {
+    while (argc) {
+        if (!StrCmp(argv[argc].str, "*")) {
             int loop = BREAKPOINTS;
             while (loop--)
                 breakpoint[loop].enabled = 1;
         }
-        else if ((arg[args].val1 >= 1) && (arg[args].val1 <= BREAKPOINTS))
-            breakpoint[arg[args].val1 - 1].enabled = 1;
-        args--;
+        else if ((argv[argc].val1 >= 1) && (argv[argc].val1 <= BREAKPOINTS))
+            breakpoint[argv[argc].val1 - 1].enabled = 1;
+        argc--;
     }
 
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdCodeDump(int args) {
-    if ((!args) ||
-        ((arg[1].str[0] != '0') && (!arg[1].val1) && (!GetAddress(arg[1].str))))
+static BOOL CmdCodeDump(int argc) {
+    if ((!argc) ||
+        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
         return DisplayHelp(CmdCodeDump);
-    topoffset = arg[1].val1;
+    topoffset = argv[1].val1;
     if (!topoffset)
-        topoffset = GetAddress(arg[1].str);
+        topoffset = GetAddress(argv[1].str);
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdColor(int args) {
+static BOOL CmdColor(int argc) {
     colorscheme = 0;
     DebugDisplay(TRUE);
     return 0;
 }
 
 //===========================================================================
-static BOOL CmdExtBenchmark(int args) {
+static BOOL CmdExtBenchmark(int argc) {
     DebugEnd();
     mode = MODE_RUNNING;
     VideoRedrawScreen();
@@ -708,25 +708,25 @@ static BOOL CmdExtBenchmark(int args) {
 }
 
 //===========================================================================
-static BOOL CmdFeedKey(int args) {
-    KeybQueueKeypress(args ? arg[1].val1 ? arg[1].val1
-        : arg[1].str[0]
+static BOOL CmdFeedKey(int argc) {
+    KeybQueueKeypress(argc ? argv[1].val1 ? argv[1].val1
+        : argv[1].str[0]
         : VK_SPACE,
         0);
     return 0;
 }
 
 //===========================================================================
-static BOOL CmdFlagSet(int args) {
+static BOOL CmdFlagSet(int argc) {
     static const char flagname[] = "CZIDBRVN";
     int loop = 0;
     while (loop < 8)
-        if (flagname[loop] == arg[0].str[1])
+        if (flagname[loop] == argv[0].str[1])
             break;
         else
             loop++;
     if (loop < 8)
-        if (arg[0].str[0] == 'R')
+        if (argv[0].str[0] == 'R')
             regs.ps &= ~(1 << loop);
         else
             regs.ps |= (1 << loop);
@@ -734,35 +734,35 @@ static BOOL CmdFlagSet(int args) {
 }
 
 //===========================================================================
-static BOOL CmdGo(int args) {
+static BOOL CmdGo(int argc) {
     stepcount = -1;
     stepline = 0;
     stepstart = regs.pc;
-    stepuntil = args ? arg[1].val1 : -1;
+    stepuntil = argc ? argv[1].val1 : -1;
     if (!stepuntil)
-        stepuntil = GetAddress(arg[1].str);
+        stepuntil = GetAddress(argv[1].str);
     mode = MODE_STEPPING;
     return 0;
 }
 
 //===========================================================================
-static BOOL CmdInput(int args) {
-    if ((!args) ||
-        ((arg[1].str[0] != '0') && (!arg[1].val1) && (!GetAddress(arg[1].str))))
+static BOOL CmdInput(int argc) {
+    if ((!argc) ||
+        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
         return DisplayHelp(CmdInput);
-    if (!arg[1].val1)
-        arg[1].val1 = GetAddress(arg[1].str);
-    ioread[arg[1].val1 & 0xFF](regs.pc, arg[1].val1 & 0xFF, 0, 0);
+    if (!argv[1].val1)
+        argv[1].val1 = GetAddress(argv[1].str);
+    ioread[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 0, 0);
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdInternalCodeDump(int args) {
-    if ((!args) ||
-        ((arg[1].str[0] != '0') && (!arg[1].val1) && (!GetAddress(arg[1].str))))
+static BOOL CmdInternalCodeDump(int argc) {
+    if ((!argc) ||
+        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
         return DisplayHelp(CmdInternalCodeDump);
-    if (!arg[1].val1)
-        arg[1].val1 = GetAddress(arg[1].str);
+    if (!argv[1].val1)
+        argv[1].val1 = GetAddress(argv[1].str);
     char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, "output.bin", ARRSIZE(filename));
@@ -779,7 +779,7 @@ static BOOL CmdInternalCodeDump(int args) {
 }
 
 //===========================================================================
-static BOOL CmdInternalMemoryDump(int args) {
+static BOOL CmdInternalMemoryDump(int argc) {
     char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, "output.bin", ARRSIZE(filename));
@@ -803,13 +803,13 @@ static BOOL CmdInternalMemoryDump(int args) {
 }
 
 //===========================================================================
-static BOOL CmdLineDown(int args) {
+static BOOL CmdLineDown(int argc) {
     topoffset += addressmode[instruction[*(mem + topoffset)].addrmode].bytes;
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdLineUp(int args) {
+static BOOL CmdLineUp(int argc) {
     WORD savedoffset = topoffset;
     ComputeTopOffset(topoffset);
     WORD newoffset = topoffset;
@@ -822,112 +822,112 @@ static BOOL CmdLineUp(int args) {
 }
 
 //===========================================================================
-static BOOL CmdMemoryDump(int args) {
-    if ((!args) ||
-        ((arg[1].str[0] != '0') && (!arg[1].val1) && (!GetAddress(arg[1].str))))
+static BOOL CmdMemoryDump(int argc) {
+    if ((!argc) ||
+        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
         return DisplayHelp(CmdMemoryDump);
-    memorydump = arg[1].val1;
+    memorydump = argv[1].val1;
     if (!memorydump)
-        memorydump = GetAddress(arg[1].str);
+        memorydump = GetAddress(argv[1].str);
     usingmemdump = 1;
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdMemoryEnter(int args) {
-    if ((args < 2) ||
-        ((arg[1].str[0] != '0') && (!arg[1].val1) && (!GetAddress(arg[1].str))) ||
-        ((arg[2].str[0] != '0') && !arg[2].val1))
+static BOOL CmdMemoryEnter(int argc) {
+    if ((argc < 2) ||
+        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))) ||
+        ((argv[2].str[0] != '0') && !argv[2].val1))
         return DisplayHelp(CmdMemoryEnter);
-    WORD address = arg[1].val1;
+    WORD address = argv[1].val1;
     if (!address)
-        address = GetAddress(arg[1].str);
-    while (args >= 2) {
-        membank[address + args - 2] = (BYTE)arg[args].val1;
+        address = GetAddress(argv[1].str);
+    while (argc >= 2) {
+        membank[address + argc - 2] = (BYTE)argv[argc].val1;
         memdirty[address >> 8] = 1;
-        args--;
+        argc--;
     }
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdMemoryFill(int args) {
-    if ((!args) ||
-        ((arg[1].str[0] != '0') && (!arg[1].val1) && (!GetAddress(arg[1].str))))
+static BOOL CmdMemoryFill(int argc) {
+    if ((!argc) ||
+        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
         return DisplayHelp(CmdMemoryFill);
-    WORD address = arg[1].val1 ? arg[1].val1 : GetAddress(arg[1].str);
-    WORD bytes = MAX(1, arg[1].val2);
+    WORD address = argv[1].val1 ? argv[1].val1 : GetAddress(argv[1].str);
+    WORD bytes = MAX(1, argv[1].val2);
     while (bytes--) {
         if ((address < 0xC000) || (address > 0xC0FF))
-            * (membank + address) = (BYTE)(arg[2].val1 & 0xFF);
+            * (membank + address) = (BYTE)(argv[2].val1 & 0xFF);
         address++;
     }
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdOutput(int args) {
-    if ((!args) ||
-        ((arg[1].str[0] != '0') && (!arg[1].val1) && (!GetAddress(arg[1].str))))
+static BOOL CmdOutput(int argc) {
+    if ((!argc) ||
+        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
         return DisplayHelp(CmdInput);
-    if (!arg[1].val1)
-        arg[1].val1 = GetAddress(arg[1].str);
-    iowrite[arg[1].val1 & 0xFF](regs.pc, arg[1].val1 & 0xFF, 1, arg[2].val1 & 0xFF);
+    if (!argv[1].val1)
+        argv[1].val1 = GetAddress(argv[1].str);
+    iowrite[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 1, argv[2].val1 & 0xFF);
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdPageDown(int args) {
+static BOOL CmdPageDown(int argc) {
     int loop = 0;
     while (loop++ < SOURCELINES)
-        CmdLineDown(args);
+        CmdLineDown(argc);
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdPageUp(int args) {
+static BOOL CmdPageUp(int argc) {
     int loop = 0;
     while (loop++ < SOURCELINES)
-        CmdLineUp(args);
+        CmdLineUp(argc);
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdProfile(int args) {
+static BOOL CmdProfile(int argc) {
     ZeroMemory(profiledata, 256 * sizeof(DWORD));
     profiling = 1;
     return 0;
 }
 
 //===========================================================================
-static BOOL CmdSetupBenchmark(int args) {
+static BOOL CmdSetupBenchmark(int argc) {
     CpuSetupBenchmark();
     ComputeTopOffset(regs.pc);
     return 1;
 }
 
 //===========================================================================
-static BOOL CmdRegisterSet(int args) {
-    if ((args == 2) &&
-        (arg[1].str[0] == 'P') && (arg[2].str[0] == 'L'))
+static BOOL CmdRegisterSet(int argc) {
+    if ((argc == 2) &&
+        (argv[1].str[0] == 'P') && (argv[2].str[0] == 'L'))
         regs.pc = lastpc;
-    else if ((args < 2) || ((arg[2].str[0] != '0') && !arg[2].val1))
+    else if ((argc < 2) || ((argv[2].str[0] != '0') && !argv[2].val1))
         return DisplayHelp(CmdMemoryEnter);
-    else switch (arg[1].str[0]) {
+    else switch (argv[1].str[0]) {
         case 'A':
-            regs.a = (BYTE)(arg[2].val1 & 0xFF);
+            regs.a = (BYTE)(argv[2].val1 & 0xFF);
             break;
         case 'P':
-            regs.pc = arg[2].val1;
+            regs.pc = argv[2].val1;
             break;
         case 'S':
-            regs.sp = 0x100 | (arg[2].val1 & 0xFF);
+            regs.sp = 0x100 | (argv[2].val1 & 0xFF);
             break;
         case 'X':
-            regs.x = (BYTE)(arg[2].val1 & 0xFF);
+            regs.x = (BYTE)(argv[2].val1 & 0xFF);
             break;
         case 'Y':
-            regs.y = (BYTE)(arg[2].val1 & 0xFF);
+            regs.y = (BYTE)(argv[2].val1 & 0xFF);
             break;
         default:
             return DisplayHelp(CmdMemoryEnter);
@@ -937,8 +937,8 @@ static BOOL CmdRegisterSet(int args) {
 }
 
 //===========================================================================
-static BOOL CmdTrace(int args) {
-    stepcount = args ? arg[1].val1 : 1;
+static BOOL CmdTrace(int argc) {
+    stepcount = argc ? argv[1].val1 : 1;
     stepline  = 0;
     stepstart = regs.pc;
     stepuntil = -1;
@@ -948,19 +948,19 @@ static BOOL CmdTrace(int args) {
 }
 
 //===========================================================================
-static BOOL CmdTraceFile(int args) {
+static BOOL CmdTraceFile(int argc) {
     if (tracefile)
         fclose(tracefile);
     char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
-    StrCat(filename, (args && arg[1].str[0]) ? arg[1].str : "trace.txt", ARRSIZE(filename));
+    StrCat(filename, (argc && argv[1].str[0]) ? argv[1].str : "trace.txt", ARRSIZE(filename));
     tracefile = fopen(filename, "wt");
     return 0;
 }
 
 //===========================================================================
-static BOOL CmdTraceLine(int args) {
-    stepcount = args ? arg[1].val1 : 1;
+static BOOL CmdTraceLine(int argc) {
+    stepcount = argc ? argv[1].val1 : 1;
     stepline = 1;
     stepstart = regs.pc;
     stepuntil = -1;
@@ -970,23 +970,23 @@ static BOOL CmdTraceLine(int args) {
 }
 
 //===========================================================================
-static BOOL CmdViewOutput(int args) {
+static BOOL CmdViewOutput(int argc) {
     VideoRedrawScreen();
     viewingoutput = 1;
     return 0;
 }
 
 //===========================================================================
-static BOOL CmdWatchAdd(int args) {
-    if (!args)
+static BOOL CmdWatchAdd(int argc) {
+    if (!argc)
         return DisplayHelp(CmdWatchAdd);
     BOOL addedone = 0;
     int  loop = 0;
-    while (loop++ < args)
-        if (arg[loop].val1 || (arg[loop].str[0] == '0') ||
-            GetAddress(arg[loop].str)) {
-            if (!arg[loop].val1)
-                arg[loop].val1 = GetAddress(arg[loop].str);
+    while (loop++ < argc)
+        if (argv[loop].val1 || (argv[loop].str[0] == '0') ||
+            GetAddress(argv[loop].str)) {
+            if (!argv[loop].val1)
+                argv[loop].val1 = GetAddress(argv[loop].str);
 
             // FIND A FREE SLOT FOR THIS NEW WATCH
             int freeslot = 0;
@@ -996,12 +996,12 @@ static BOOL CmdWatchAdd(int args) {
                 return DisplayError("All watch slots are currently in use.");
 
             // VERIFY THAT THE WATCH IS NOT ON AN I/O LOCATION
-            if ((arg[loop].val1 >= 0xC000) && (arg[loop].val1 <= 0xC0FF))
+            if ((argv[loop].val1 >= 0xC000) && (argv[loop].val1 <= 0xC0FF))
                 return DisplayError("You may not watch an I/O location.");
 
             // ADD THE WATCH
             if (freeslot < WATCHES) {
-                watch[freeslot] = arg[loop].val1;
+                watch[freeslot] = argv[loop].val1;
                 addedone = 1;
                 usingwatches = 1;
             }
@@ -1013,23 +1013,23 @@ static BOOL CmdWatchAdd(int args) {
 }
 
 //===========================================================================
-static BOOL CmdWatchClear(int args) {
+static BOOL CmdWatchClear(int argc) {
     // CHECK FOR ERRORS
-    if (!args)
+    if (!argc)
         return DisplayHelp(CmdWatchAdd);
     if (!usingwatches)
         return DisplayError("There are no watches defined.");
 
     // CLEAR EACH WATCH IN THE LIST
-    while (args) {
-        if (StrCmp(arg[args].str, "*") == 0) {
+    while (argc) {
+        if (StrCmp(argv[argc].str, "*") == 0) {
             int loop = WATCHES;
             while (loop--)
                 watch[loop] = -1;
         }
-        else if ((arg[args].val1 >= 1) && (arg[args].val1 <= WATCHES))
-            watch[arg[args].val1 - 1] = -1;
-        args--;
+        else if ((argv[argc].val1 >= 1) && (argv[argc].val1 <= WATCHES))
+            watch[argv[argc].val1 - 1] = -1;
+        argc--;
     }
 
     // IF THERE ARE NO MORE WATCHES DEFINED, ERASE THE WATCH DISPLAY
@@ -1045,7 +1045,7 @@ static BOOL CmdWatchClear(int args) {
 }
 
 //===========================================================================
-static BOOL CmdZap(int args) {
+static BOOL CmdZap(int argc) {
     int loop = addressmode[instruction[*(mem + regs.pc)].addrmode].bytes;
     while (loop--)
         * (mem + regs.pc + loop) = 0xEA;
@@ -1526,7 +1526,7 @@ static void DrawWatches(HDC dc, int line) {
 }
 
 //===========================================================================
-static BOOL ExecuteCommand(int args) {
+static BOOL ExecuteCommand(int argc) {
     char * context = NULL;
     char * name    = StrTok(commandstring[0], " ,-=", &context);
     if (!name)
@@ -1550,7 +1550,7 @@ static BOOL ExecuteCommand(int args) {
     if (found > 1)
         return DisplayError("Ambiguous command");
     else if (function)
-        return function(args);
+        return function(argc);
     else
         return DisplayError("Illegal command");
 }
@@ -1715,39 +1715,39 @@ static void OutputTraceLine() {
 
 //===========================================================================
 static int ParseCommandString() {
-    int    args = 0;
+    int    argc = 0;
     char * currptr = commandstring[0];
     char * context = NULL;
     while (*currptr) {
         char * endptr = NULL;
         int    length = StrLen(currptr);
         StrTok(currptr, " ,-=", &context);
-        StrCopy(arg[args].str, currptr, ARRSIZE(arg[args].str));
-        arg[args].val1 = (WORD)(StrToUnsigned(currptr, &endptr, 16) & 0xFFFF);
+        StrCopy(argv[argc].str, currptr, ARRSIZE(argv[argc].str));
+        argv[argc].val1 = (WORD)(StrToUnsigned(currptr, &endptr, 16) & 0xFFFF);
         if (endptr)
             if (*endptr == 'L') {
-                arg[args].val2 = (WORD)(StrToUnsigned(endptr + 1, &endptr, 16) & 0xFFFF);
+                argv[argc].val2 = (WORD)(StrToUnsigned(endptr + 1, &endptr, 16) & 0xFFFF);
                 if (endptr && *endptr)
-                    arg[args].val2 = 0;
+                    argv[argc].val2 = 0;
             }
             else {
-                arg[args].val2 = 0;
+                argv[argc].val2 = 0;
                 if (*endptr)
-                    arg[args].val1 = 0;
+                    argv[argc].val1 = 0;
             }
         else
-            arg[args].val2 = 0;
+            argv[argc].val2 = 0;
         BOOL more = ((*currptr) && (length > StrLen(currptr)));
-        args += more;
+        argc += more;
         currptr += StrLen(currptr) + more;
     }
-    int loop = args;
+    int loop = argc;
     while (loop++ < MAXARGS - 1) {
-        arg[loop].str[0] = 0;
-        arg[loop].val1 = 0;
-        arg[loop].val2 = 0;
+        argv[loop].str[0] = 0;
+        argv[loop].val1 = 0;
+        argv[loop].val2 = 0;
     }
-    return args;
+    return argc;
 }
 
 //===========================================================================
@@ -1903,7 +1903,7 @@ void DebugEnd() {
 //===========================================================================
 void DebugInitialize() {
     // CLEAR THE BREAKPOINT AND WATCH TABLES
-    ZeroMemory(breakpoint, BREAKPOINTS * sizeof(bprec));
+    ZeroMemory(breakpoint, BREAKPOINTS * sizeof(bp));
     {
         int loop = 0;
         while (loop < WATCHES)
@@ -1944,11 +1944,11 @@ void DebugInitialize() {
                         // ADDITIONAL SYMBOL, THEN ALLOCATE A BIGGER TABLE AND COPY THE
                         // CURRENT DATA ACROSS
                         if (!symboltable || (symbolalloc <= symbolnum)) {
-                            symbolalloc += 8192 / sizeof(symbolrec);
-                            symbolrec * newtable = (symbolrec *)new BYTE[symbolalloc * sizeof(symbolrec)];
+                            symbolalloc += 8192 / sizeof(symbol);
+                            symbol * newtable = (symbol *)new BYTE[symbolalloc * sizeof(symbol)];
                             if (newtable) {
                                 if (symboltable) {
-                                    CopyMemory(newtable, symboltable, symbolnum * sizeof(symbolrec));
+                                    CopyMemory(newtable, symboltable, symbolnum * sizeof(symbol));
                                     delete[] symboltable;
                                 }
                                 symboltable = newtable;

@@ -21,12 +21,12 @@ constexpr int MODE_STANDARD    = 1;
 constexpr int MODE_CENTERING   = 2;
 constexpr int MODE_SMOOTH      = 3;
 
-struct joyinforec {
+struct joyinfo {
     int device;
     int mode;
 };
 
-static const joyinforec joyinfo[5] = {
+static const joyinfo joy[5] = {
     { DEVICE_NONE,      MODE_NONE       },
     { DEVICE_JOYSTICK,  MODE_STANDARD   },
     { DEVICE_KEYBOARD,  MODE_STANDARD   },
@@ -93,7 +93,7 @@ static void CheckJoystick() {
 
 //===========================================================================
 void JoyInitialize() {
-    if (joyinfo[joytype].device == DEVICE_JOYSTICK) {
+    if (joy[joytype].device == DEVICE_JOYSTICK) {
         JOYCAPS caps;
         if (joyGetDevCaps(JOYSTICKID1, &caps, sizeof(JOYCAPS)) == JOYERR_NOERROR) {
             joyshrx = 0;
@@ -118,7 +118,7 @@ void JoyInitialize() {
 
 //===========================================================================
 BOOL JoyProcessKey(int virtkey, BOOL extended, BOOL down, BOOL autorep) {
-    if ((joyinfo[joytype].device != DEVICE_KEYBOARD) && (virtkey != VK_MENU))
+    if ((joy[joytype].device != DEVICE_KEYBOARD) && (virtkey != VK_MENU))
         return 0;
     BOOL keychange = !extended;
     if (virtkey == VK_MENU) {
@@ -154,7 +154,7 @@ BOOL JoyProcessKey(int virtkey, BOOL extended, BOOL down, BOOL autorep) {
             if (down)
                 buttonlatch[1] = BUTTONTIME;
         }
-        else if ((down && !autorep) || (joyinfo[joytype].mode == MODE_CENTERING)) {
+        else if ((down && !autorep) || (joy[joytype].mode == MODE_CENTERING)) {
             int keys = 0;
             int xtotal = 0;
             int ytotal = 0;
@@ -171,7 +171,7 @@ BOOL JoyProcessKey(int virtkey, BOOL extended, BOOL down, BOOL autorep) {
                 xpos = xtotal / keys;
                 ypos = ytotal / keys;
             }
-            else if (joyinfo[joytype].mode == MODE_CENTERING) {
+            else if (joy[joytype].mode == MODE_CENTERING) {
                 xpos = 127;
                 ypos = 127;
             }
@@ -181,7 +181,7 @@ BOOL JoyProcessKey(int virtkey, BOOL extended, BOOL down, BOOL autorep) {
 
 //===========================================================================
 BYTE JoyReadButton(WORD, BYTE address, BYTE, BYTE) {
-    if (joyinfo[joytype].device == DEVICE_JOYSTICK)
+    if (joy[joytype].device == DEVICE_JOYSTICK)
         CheckJoystick();
     BOOL pressed = FALSE;
     switch (address) {
@@ -231,7 +231,7 @@ void JoyReset() {
 //===========================================================================
 BYTE JoyResetPosition(WORD, BYTE, BYTE, BYTE) {
     needsprecision = cumulativecycles;
-    if (joyinfo[joytype].device == DEVICE_JOYSTICK)
+    if (joy[joytype].device == DEVICE_JOYSTICK)
         CheckJoystick();
     xdelay = xpos;
     ydelay = ypos;
@@ -251,7 +251,7 @@ void JoySetButton(int number, BOOL down) {
 
 //===========================================================================
 BOOL JoySetEmulationType(HWND window, DWORD newtype) {
-    if (joyinfo[newtype].device == DEVICE_JOYSTICK) {
+    if (joy[newtype].device == DEVICE_JOYSTICK) {
         JOYCAPS caps;
         if (joyGetDevCaps(JOYSTICKID1, &caps, sizeof(JOYCAPS)) != JOYERR_NOERROR) {
             MessageBox(window,
@@ -264,8 +264,8 @@ BOOL JoySetEmulationType(HWND window, DWORD newtype) {
             return 0;
         }
     }
-    else if ((joyinfo[newtype].device == DEVICE_MOUSE) &&
-        (joyinfo[joytype].device != DEVICE_MOUSE))
+    else if ((joy[newtype].device == DEVICE_MOUSE) &&
+        (joy[joytype].device != DEVICE_MOUSE))
         MessageBox(window,
             "To begin emulating a joystick with your mouse, move "
             "the mouse cursor over the emulated screen of a running "
@@ -304,5 +304,5 @@ void JoyUpdatePosition(DWORD cycles) {
 
 //===========================================================================
 BOOL JoyUsingMouse() {
-    return (joyinfo[joytype].device == DEVICE_MOUSE);
+    return (joy[joytype].device == DEVICE_MOUSE);
 }

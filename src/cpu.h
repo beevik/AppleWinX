@@ -8,7 +8,7 @@
 
 #pragma once
 
-struct regsrec {
+struct registers {
     BYTE a;   // accumulator
     BYTE x;   // index X
     BYTE y;   // index Y
@@ -17,7 +17,7 @@ struct regsrec {
     WORD sp;  // stack pointer
 };
 
-extern regsrec regs;
+extern registers regs;
 
 void  CpuDestroy();
 DWORD CpuExecute(DWORD cycles);
