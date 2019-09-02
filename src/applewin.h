@@ -133,7 +133,7 @@ LPBYTE       MemGetMainPtr(WORD offset);
 void         MemInitialize();
 void         MemReset();
 void         MemResetPaging();
-BYTE         MemReturnRandomData(BYTE highbit);
+BYTE         MemReturnRandomData(BOOL highbit);
 BOOL         RegLoadString(const char * section, const char * key, char * buffer, DWORD chars);
 BOOL         RegLoadValue(const char * section, const char * key, DWORD * value);
 void         RegSaveString(const char * section, const char * key, const char * value);

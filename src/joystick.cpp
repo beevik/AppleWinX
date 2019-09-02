@@ -183,21 +183,21 @@ BOOL JoyProcessKey(int virtkey, BOOL extended, BOOL down, BOOL autorep) {
 BYTE JoyReadButton(WORD, BYTE address, BYTE, BYTE) {
     if (joyinfo[joytype].device == DEVICE_JOYSTICK)
         CheckJoystick();
-    BOOL pressed = 0;
+    BOOL pressed = FALSE;
     switch (address) {
 
         case 0x61:
-            pressed = (buttonlatch[0] || joybutton[0] || setbutton[0] || keydown[9]);
+            pressed = (buttonlatch[0] || joybutton[0] || setbutton[0] || keydown[9]) != 0;
             buttonlatch[0] = 0;
             break;
 
         case 0x62:
-            pressed = (buttonlatch[1] || joybutton[1] || setbutton[1] || keydown[10]);
+            pressed = (buttonlatch[1] || joybutton[1] || setbutton[1] || keydown[10]) != 0;
             buttonlatch[1] = 0;
             break;
 
         case 0x63:
-            pressed = (buttonlatch[2] || joybutton[2] || !(GetKeyState(VK_SHIFT) < 0));
+            pressed = (buttonlatch[2] || joybutton[2] || !(GetKeyState(VK_SHIFT) < 0)) != 0;
             buttonlatch[2] = 0;
             break;
 
@@ -237,7 +237,7 @@ BYTE JoyResetPosition(WORD, BYTE, BYTE, BYTE) {
     ydelay = ypos;
     delayleft = 8;
     firstdelay = 1;
-    return MemReturnRandomData(1);
+    return MemReturnRandomData(TRUE);
 }
 
 //===========================================================================

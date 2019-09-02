@@ -587,9 +587,9 @@ static LPBYTE AlignedVirtualAlloc(LPVOID, DWORD size, DWORD alloctype, DWORD pro
     if ((addrVal & 0xffff) == 0)
         return address;
 
-      // IF THAT DIDN'T WORK THEN TRY MAKING SMALL ALLOCATIONS TO USE UP PART
-      // OF THE MEMORY POOL IN AN ATTEMPT TO MOVE THE LOWEST FREE MEMORY MARKER
-      // TO A 64K BOUNDARY.
+    // IF THAT DIDN'T WORK THEN TRY MAKING SMALL ALLOCATIONS TO USE UP PART
+    // OF THE MEMORY POOL IN AN ATTEMPT TO MOVE THE LOWEST FREE MEMORY MARKER
+    // TO A 64K BOUNDARY.
     LPVOID temp[256];
     DWORD  tempused = 0;
     while ((tempused < 255) && (addrVal & 0xffff) == 0) {
@@ -603,10 +603,10 @@ static LPBYTE AlignedVirtualAlloc(LPVOID, DWORD size, DWORD alloctype, DWORD pro
     if ((addrVal & 0xffff) == 0)
         return address;
 
-      // IF THAT DIDN'T WORK EITHER THEN NOTIFY THE USER OF THE PROBLEM.
-    static BOOL notified = 0;
+    // IF THAT DIDN'T WORK EITHER THEN NOTIFY THE USER OF THE PROBLEM.
+    static BOOL notified = FALSE;
     if (!notified) {
-        notified = 1;
+        notified = TRUE;
         MessageBox(GetDesktopWindow(),
             "The operating system you are using is not correctly "
             "aligning memory objects.  The emulator attempted to "
@@ -671,14 +671,14 @@ static BYTE NullIo(WORD programcounter, BYTE address, BYTE write, BYTE value) {
             return 0;
     }
     else
-        return MemReturnRandomData(1);
+        return MemReturnRandomData(TRUE);
 }
 
 //===========================================================================
 static void ResetPaging(BOOL initialize) {
     if (!initialize)
         InitializePaging();
-    lastwriteram = 0;
+    lastwriteram = FALSE;
     memmode = MF_BANK2 | MF_SLOTCXROM | MF_WRITERAM;
     UpdatePaging(initialize, 0);
 }
@@ -688,7 +688,7 @@ static void UpdatePaging(BOOL initialize, BOOL updatewriteonly) {
 
     // SAVE THE CURRENT PAGING SHADOW TABLE
     LPBYTE oldshadow[256];
-    if (!(initialize || updatewriteonly))
+    if (!initialize && !updatewriteonly)
         CopyMemory(oldshadow, memshadow[image], 256 * sizeof(LPBYTE));
 
     // UPDATE THE PAGING TABLES BASED ON THE NEW PAGING SWITCH VALUES
@@ -780,7 +780,7 @@ static void UpdatePaging(BOOL initialize, BOOL updatewriteonly) {
 
 //===========================================================================
 BYTE MemCheckPaging(WORD, BYTE address, BYTE, BYTE) {
-    BOOL result = 0;
+    DWORD result = 0;
     switch (address) {
         case 0x11: result = SW_BANK2();      break;
         case 0x12: result = SW_HIGHRAM();    break;
@@ -804,12 +804,12 @@ void MemDestroy() {
     VirtualFree(memimage, 0, MEM_RELEASE);
     VirtualFree(memmain, 0, MEM_RELEASE);
     VirtualFree(memrom, 0, MEM_RELEASE);
-    memaux = NULL;
+    memaux   = NULL;
     memdirty = NULL;
     memimage = NULL;
-    memmain = NULL;
-    memrom = NULL;
-    mem = NULL;
+    memmain  = NULL;
+    memrom   = NULL;
+    mem      = NULL;
 }
 
 //===========================================================================
@@ -834,14 +834,12 @@ void MemInitialize() {
     //
     // THE MEMIMAGE BUFFER CAN CONTAIN EITHER MULTIPLE MEMORY IMAGES OR
     // ONE MEMORY IMAGE WITH COMPILER DATA
-    memaux = AlignedVirtualAlloc(NULL, 0x10000, MEM_COMMIT, PAGE_READWRITE);
+    memaux   = AlignedVirtualAlloc(NULL, 0x10000, MEM_COMMIT, PAGE_READWRITE);
     memdirty = AlignedVirtualAlloc(NULL, 0x100, MEM_COMMIT, PAGE_READWRITE);
-    memmain = AlignedVirtualAlloc(NULL, 0x10000, MEM_COMMIT, PAGE_READWRITE);
-    memrom = AlignedVirtualAlloc(NULL, 0x5000, MEM_COMMIT, PAGE_READWRITE);
-    memimage = AlignedVirtualAlloc(NULL,
-        MAX(0x30000, MAXIMAGES * 0x10000),
-        MEM_RESERVE, PAGE_NOACCESS);
-    if ((!memaux) || (!memdirty) || (!memimage) || (!memmain) || (!memrom)) {
+    memmain  = AlignedVirtualAlloc(NULL, 0x10000, MEM_COMMIT, PAGE_READWRITE);
+    memrom   = AlignedVirtualAlloc(NULL, 0x5000, MEM_COMMIT, PAGE_READWRITE);
+    memimage = AlignedVirtualAlloc(NULL, MAX(0x30000, MAXIMAGES * 0x10000), MEM_RESERVE, PAGE_NOACCESS);
+    if (!memaux || !memdirty || !memimage || !memmain || !memrom) {
         MessageBox(GetDesktopWindow(),
             "The emulator was unable to allocate the memory it "
             "requires.  Further execution is not possible.",
@@ -880,22 +878,19 @@ void MemInitialize() {
         ExitProcess(1);
     }
     DWORD bytesread;
-    ReadFile(file, memrom, 0x5000, &bytesread, NULL);
+    (void)ReadFile(file, memrom, 0x5000, &bytesread, NULL);
     CloseHandle(file);
 
     // REMOVE A WAIT ROUTINE FROM THE DISK CONTROLLER'S FIRMWARE
-    {
-        *(memrom + 0x064C) = 0xA9;
-        *(memrom + 0x064D) = 0x00;
-        *(memrom + 0x064E) = 0xEA;
-    }
+    memrom[0x064C] = 0xA9;
+    memrom[0x064D] = 0x00;
+    memrom[0x064E] = 0xEA;
 
     MemReset();
 }
 
 //===========================================================================
 void MemReset() {
-
     InitializePaging();
 
     // INITIALIZE THE PAGING TABLES
@@ -914,20 +909,22 @@ void MemReset() {
     CpuInitialize();
 
     // INITIALIZE PAGING, FILLING IN THE 64K MEMORY IMAGE
-    ResetPaging(1);
+    ResetPaging(TRUE);
     regs.pc = *(LPWORD)(mem + 0xFFFC);
-
 }
 
 //===========================================================================
 void MemResetPaging() {
-    ResetPaging(0);
+    ResetPaging(FALSE);
 }
 
 //===========================================================================
-BYTE MemReturnRandomData(BYTE highbit) {
-    static const BYTE retval[16] = { 0x00,0x2D,0x2D,0x30,0x30,0x32,0x32,0x34,
-                                    0x35,0x39,0x43,0x43,0x43,0x60,0x7F,0x7F };
+BYTE MemReturnRandomData(BOOL highbit) {
+    static const BYTE retval[16] = {
+        0x00, 0x2D, 0x2D, 0x30, 0x30, 0x32, 0x32, 0x34,
+        0x35, 0x39, 0x43, 0x43, 0x43, 0x60, 0x7F, 0x7F
+    };
+
     BYTE r = (BYTE)(rand() & 0xFF);
     if (r <= 170)
         return 0x20 | (highbit ? 0x80 : 0);
@@ -941,9 +938,9 @@ BYTE MemSetPaging(WORD programcounter, BYTE address, BYTE write, BYTE value) {
 
     // DETERMINE THE NEW MEMORY PAGING MODE.
     if ((address >= 0x80) && (address <= 0x8F)) {
-        BOOL writeram = (address & 1);
+        BOOL writeram = (address & 1) != 0;
         memmode &= ~(MF_BANK2 | MF_HIGHRAM | MF_WRITERAM);
-        lastwriteram = 1; // note: because diags.do doesn't set switches twice!
+        lastwriteram = TRUE; // note: because diags.do doesn't set switches twice!
         if (lastwriteram && writeram)
             memmode |= MF_WRITERAM;
         if (!(address & 8))
@@ -979,13 +976,13 @@ BYTE MemSetPaging(WORD programcounter, BYTE address, BYTE write, BYTE value) {
     if ((address >= 4) && (address <= 5) &&
         ((*(LPDWORD)(mem + programcounter) & 0x00FFFEFF) == 0x00C0028D)) {
         modechanging = TRUE;
-        return write ? 0 : MemReturnRandomData(1);
+        return write ? 0 : MemReturnRandomData(TRUE);
     }
     if ((address >= 0x80) && (address <= 0x8F) && (programcounter < 0xC000) &&
         (((*(LPDWORD)(mem + programcounter) & 0x00FFFEFF) == 0x00C0048D) ||
         ((*(LPDWORD)(mem + programcounter) & 0x00FFFEFF) == 0x00C0028D))) {
         modechanging = TRUE;
-        return write ? 0 : MemReturnRandomData(1);
+        return write ? 0 : MemReturnRandomData(TRUE);
     }
 
     // IF THE MEMORY PAGING MODE HAS CHANGED, UPDATE OUR MEMORY IMAGES AND
@@ -999,9 +996,10 @@ BYTE MemSetPaging(WORD programcounter, BYTE address, BYTE write, BYTE value) {
 
     }
 
-    if ((address <= 1) || ((address >= 0x54) && (address <= 0x57)))
+    if ((address <= 1) || (address >= 0x54 && address <= 0x57))
         VideoSetMode(programcounter, address, write, value);
-    return write ? 0
-        : MemReturnRandomData(((address == 0x54) || (address == 0x55))
-            ? (SW_PAGE2() != 0) : 1);
+
+    return write
+        ? 0
+        : MemReturnRandomData((address == 0x54 || address == 0x55) ? (SW_PAGE2() != 0) : TRUE);
 }

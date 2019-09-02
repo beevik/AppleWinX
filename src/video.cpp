@@ -90,15 +90,15 @@ static void BitBlt104(
     int sourcex,
     int sourcey
 ) {
-    LPBYTE currdestptr   = frameoffsettable[desty] + (destx >> 1);
-    LPBYTE currsourceptr = sourceoffsettable[sourcey] + (sourcex >> 1);
+    LPBYTE destptr   = frameoffsettable[desty] + (destx >> 1);
+    LPBYTE sourceptr = sourceoffsettable[sourcey] + (sourcex >> 1);
     int bytesleft;
     while (ysize--) {
         bytesleft = xsize >> 1;
         while (bytesleft--)
-            * (currdestptr + bytesleft) = *(currsourceptr + bytesleft);
-        currdestptr += 280;
-        currsourceptr += (SRCOFFS_TOTAL >> 1);
+            * (destptr + bytesleft) = *(sourceptr + bytesleft);
+        destptr += 280;
+        sourceptr += (SRCOFFS_TOTAL >> 1);
     }
 }
 
@@ -111,21 +111,21 @@ static void BitBlt108(
     int sourcex,
     int sourcey
 ) {
-    LPBYTE currdestptr   = frameoffsettable[desty] + destx;
-    LPBYTE currsourceptr = sourceoffsettable[sourcey] + sourcex;
+    LPBYTE destptr   = frameoffsettable[desty] + destx;
+    LPBYTE sourceptr = sourceoffsettable[sourcey] + sourcex;
     int bytesleft;
     while (ysize--) {
         bytesleft = xsize;
         while (bytesleft & 3) {
             --bytesleft;
-            *(currdestptr + bytesleft) = *(currsourceptr + bytesleft);
+            *(destptr + bytesleft) = *(sourceptr + bytesleft);
         }
         while (bytesleft) {
             bytesleft -= 4;
-            *(LPDWORD)(currdestptr + bytesleft) = *(LPDWORD)(currsourceptr + bytesleft);
+            *(LPDWORD)(destptr + bytesleft) = *(LPDWORD)(sourceptr + bytesleft);
         }
-        currdestptr += 560;
-        currsourceptr += SRCOFFS_TOTAL;
+        destptr += 560;
+        sourceptr += SRCOFFS_TOTAL;
     }
 }
 
@@ -138,21 +138,21 @@ static void BitBlt108d(
     int sourcex,
     int sourcey
 ) {
-    LPBYTE currdestptr   = frameoffsettable[desty] + destx;
-    LPBYTE currsourceptr = sourceoffsettable[sourcey] + sourcex;
+    LPBYTE destptr   = frameoffsettable[desty] + destx;
+    LPBYTE sourceptr = sourceoffsettable[sourcey] + sourcex;
     int bytesleft;
     while (ysize--) {
         bytesleft = xsize;
         while (bytesleft & 3) {
             --bytesleft;
-            *(currdestptr + bytesleft) = *(currsourceptr + bytesleft);
+            *(destptr + bytesleft) = *(sourceptr + bytesleft);
         }
         while (bytesleft) {
             bytesleft -= 4;
-            *(LPDWORD)(currdestptr + bytesleft) = *(LPDWORD)(currsourceptr + bytesleft);
+            *(LPDWORD)(destptr + bytesleft) = *(LPDWORD)(sourceptr + bytesleft);
         }
-        currdestptr -= 560;
-        currsourceptr += SRCOFFS_TOTAL;
+        destptr -= 560;
+        sourceptr += SRCOFFS_TOTAL;
     }
 }
 
@@ -165,15 +165,15 @@ static void BitBlt110(
     int sourcex,
     int sourcey
 ) {
-    LPWORD currdestptr   = ((LPWORD)(frameoffsettable[desty])) + destx;
-    LPWORD currsourceptr = ((LPWORD)(sourceoffsettable[sourcey])) + sourcex;
+    LPWORD destptr   = ((LPWORD)(frameoffsettable[desty])) + destx;
+    LPWORD sourceptr = ((LPWORD)(sourceoffsettable[sourcey])) + sourcex;
     int pixelsleft;
     while (ysize--) {
         pixelsleft = xsize;
         while (pixelsleft--)
-            * (currdestptr + pixelsleft) = *(currsourceptr + pixelsleft);
-        currdestptr += 560;
-        currsourceptr += SRCOFFS_TOTAL;
+            * (destptr + pixelsleft) = *(sourceptr + pixelsleft);
+        destptr += 560;
+        sourceptr += SRCOFFS_TOTAL;
     }
 }
 
@@ -186,15 +186,15 @@ static void BitBlt110d(
     int sourcex,
     int sourcey
 ) {
-    LPWORD currdestptr   = ((LPWORD)(frameoffsettable[desty])) + destx;
-    LPWORD currsourceptr = ((LPWORD)(sourceoffsettable[sourcey])) + sourcex;
+    LPWORD destptr   = ((LPWORD)(frameoffsettable[desty])) + destx;
+    LPWORD sourceptr = ((LPWORD)(sourceoffsettable[sourcey])) + sourcex;
     int pixelsleft;
     while (ysize--) {
         pixelsleft = xsize;
         while (pixelsleft--)
-            * (currdestptr + pixelsleft) = *(currsourceptr + pixelsleft);
-        currdestptr -= 560;
-        currsourceptr += SRCOFFS_TOTAL;
+            * (destptr + pixelsleft) = *(sourceptr + pixelsleft);
+        destptr -= 560;
+        sourceptr += SRCOFFS_TOTAL;
     }
 }
 
@@ -207,20 +207,20 @@ static void BitBlt118(
     int sourcex,
     int sourcey
 ) {
-    LPBYTE currdestptr   = frameoffsettable[desty] + (destx * 3);
-    LPBYTE currsourceptr = sourceoffsettable[sourcey] + (sourcex * 3);
+    LPBYTE destptr   = frameoffsettable[desty] + (destx * 3);
+    LPBYTE sourceptr = sourceoffsettable[sourcey] + (sourcex * 3);
     xsize *= 3;
     int pixelsleft;
     while (ysize--) {
         pixelsleft = xsize;
         while (pixelsleft >= 4) {
             pixelsleft -= 4;
-            *(LPDWORD)(currdestptr + pixelsleft) = *(LPDWORD)(currsourceptr + pixelsleft);
+            *(LPDWORD)(destptr + pixelsleft) = *(LPDWORD)(sourceptr + pixelsleft);
         }
         while (pixelsleft--)
-            * (currdestptr + pixelsleft) = *(currsourceptr + pixelsleft);
-        currdestptr += 560 * 3;
-        currsourceptr += SRCOFFS_TOTAL * 3;
+            *(destptr + pixelsleft) = *(sourceptr + pixelsleft);
+        destptr += 560 * 3;
+        sourceptr += SRCOFFS_TOTAL * 3;
     }
 }
 
@@ -233,20 +233,20 @@ static void BitBlt118d(
     int sourcex,
     int sourcey
 ) {
-    LPBYTE currdestptr   = frameoffsettable[desty] + (destx * 3);
-    LPBYTE currsourceptr = sourceoffsettable[sourcey] + (sourcex * 3);
+    LPBYTE destptr   = frameoffsettable[desty] + (destx * 3);
+    LPBYTE sourceptr = sourceoffsettable[sourcey] + (sourcex * 3);
     xsize *= 3;
     int pixelsleft;
     while (ysize--) {
         pixelsleft = xsize;
         while (pixelsleft >= 4) {
             pixelsleft -= 4;
-            *(LPDWORD)(currdestptr + pixelsleft) = *(LPDWORD)(currsourceptr + pixelsleft);
+            *(LPDWORD)(destptr + pixelsleft) = *(LPDWORD)(sourceptr + pixelsleft);
         }
         while (pixelsleft--)
-            * (currdestptr + pixelsleft) = *(currsourceptr + pixelsleft);
-        currdestptr -= 560 * 3;
-        currsourceptr += SRCOFFS_TOTAL * 3;
+            * (destptr + pixelsleft) = *(sourceptr + pixelsleft);
+        destptr -= 560 * 3;
+        sourceptr += SRCOFFS_TOTAL * 3;
     }
 }
 
@@ -259,15 +259,15 @@ static void BitBlt120(
     int sourcex,
     int sourcey
 ) {
-    LPDWORD currdestptr   = ((LPDWORD)(frameoffsettable[desty])) + destx;
-    LPDWORD currsourceptr = ((LPDWORD)(sourceoffsettable[sourcey])) + sourcex;
+    LPDWORD destptr   = ((LPDWORD)(frameoffsettable[desty])) + destx;
+    LPDWORD sourceptr = ((LPDWORD)(sourceoffsettable[sourcey])) + sourcex;
     int pixelsleft;
     while (ysize--) {
         pixelsleft = xsize;
         while (pixelsleft--)
-            * (currdestptr + pixelsleft) = *(currsourceptr + pixelsleft);
-        currdestptr += 560;
-        currsourceptr += SRCOFFS_TOTAL;
+            destptr[pixelsleft] = sourceptr[pixelsleft];
+        destptr += 560;
+        sourceptr += SRCOFFS_TOTAL;
     }
 }
 
@@ -280,15 +280,15 @@ static void BitBlt120d(
     int sourcex,
     int sourcey
 ) {
-    LPDWORD currdestptr   = ((LPDWORD)(frameoffsettable[desty])) + destx;
-    LPDWORD currsourceptr = ((LPDWORD)(sourceoffsettable[sourcey])) + sourcex;
+    LPDWORD destptr   = ((LPDWORD)(frameoffsettable[desty])) + destx;
+    LPDWORD sourceptr = ((LPDWORD)(sourceoffsettable[sourcey])) + sourcex;
     int pixelsleft;
     while (ysize--) {
         pixelsleft = xsize;
         while (pixelsleft--)
-            * (currdestptr + pixelsleft) = *(currsourceptr + pixelsleft);
-        currdestptr -= 560;
-        currsourceptr += SRCOFFS_TOTAL;
+            destptr[pixelsleft] = sourceptr[pixelsleft];
+        destptr -= 560;
+        sourceptr += SRCOFFS_TOTAL;
     }
 }
 
@@ -301,8 +301,8 @@ static void BitBlt401(
     int sourcex,
     int sourcey
 ) {
-    LPBYTE currdestptr   = (LPBYTE)(frameoffsettable[desty] + (destx >> 3));
-    LPBYTE currsourceptr = (LPBYTE)(sourceoffsettable[sourcey] + (sourcex >> 3));
+    LPBYTE destptr   = (LPBYTE)(frameoffsettable[desty] + (destx >> 3));
+    LPBYTE sourceptr = (LPBYTE)(sourceoffsettable[sourcey] + (sourcex >> 3));
     ysize <<= 2;
     destx &= 7;
     DWORD mask = 0xFFFFFFFF;
@@ -314,13 +314,13 @@ static void BitBlt401(
         int  offset = 0;
         while (offset <= ((xsize + destx - 1) >> 3)) {
             bytemask = (BYTE)(mask >> ((3 - offset) << 3));
-            source |= *(currsourceptr + offset) >> destx;
-            *(currdestptr + offset) = (source & bytemask)
-                | (*(currdestptr + offset) & ~bytemask);
-            source = *(currsourceptr + offset++) << (8 - destx);
+            source |= *(sourceptr + offset) >> destx;
+            *(destptr + offset) = (source & bytemask)
+                | (*(destptr + offset) & ~bytemask);
+            source = *(sourceptr + offset++) << (8 - destx);
         }
-        currdestptr += 70;
-        currsourceptr += (SRCOFFS_TOTAL >> 3);
+        destptr += 70;
+        sourceptr += (SRCOFFS_TOTAL >> 3);
     }
 }
 
@@ -497,9 +497,12 @@ static void DrawDHiResSource(HDC dc) {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 2; y++) {
                 int color = (x < 4) ? (value & 0xF) : (value >> 4);
-                SetPixel(dc,
-                    SRCOFFS_DHIRES + x, (value << 1) + y,
-                    colorval[color + (((x & 1) ^ (y & 1)) << 4)]);
+                SetPixel(
+                    dc,
+                    SRCOFFS_DHIRES + x,
+                    (value << 1) + y,
+                    colorval[color + (((x & 1) ^ (y & 1)) << 4)]
+                );
             }
         }
     }
@@ -521,9 +524,12 @@ static void DrawLoResSource(HDC dc) {
     for (int color = 0; color < 16; color++) {
         for (int x = 0; x < 16; x++) {
             for (int y = 0; y < 16; y++) {
-                SetPixelV(dc,
-                    SRCOFFS_LORES + x, (color << 4) + y,
-                    colorval[color + (((x & 1) ^ (y & 1)) << 4)]);
+                SetPixelV(
+                    dc,
+                    SRCOFFS_LORES + x,
+                    (color << 4) + y,
+                    colorval[color + (((x & 1) ^ (y & 1)) << 4)]
+                );
             }
         }
     }
@@ -532,37 +538,26 @@ static void DrawLoResSource(HDC dc) {
 //===========================================================================
 static void DrawHiResSource(HDC dc) {
     static const COLORREF colorval[12] = {
-        0xFF00FF, 0xFF0000, 0x00FF00,
-        0x0000F0, 0x000000, 0xFFFFFF,
-        0xFF00FF, 0xFF0000, 0x00FF00,
-        0x00FFFF, 0x000000, 0xFFFFFF,
+        0xFF00FF, 0xFF0000, 0x00FF00, 0x0000F0, 0x000000, 0xFFFFFF,
+        0xFF00FF, 0xFF0000, 0x00FF00, 0x00FFFF, 0x000000, 0xFFFFFF,
     };
 
-    int column = 0;
-    do {
-        int coloffs = column << 5;
-        unsigned byteval = 0;
-        do {
-            BOOL pixelon[9];
-            {
-                int bitval = 1;
-                int pixel = 1;
-                do {
-                    pixelon[pixel] = ((byteval & bitval) != 0);
-                    pixel++;
-                    bitval <<= 1;
-                } while (pixel < 8);
-                pixelon[0] = (column & 2) != 0;
-                pixelon[8] = (column & 1) != 0;
-            }
-            int hibit = ((byteval & 0x80) != 0);
+    for (int column = 0; column < 4; ++column) {
+        BOOL pixelon[9];
+        pixelon[0] = (column & 2) != 0;
+        pixelon[8] = (column & 1) != 0;
+
+        const int coloffs = column << 5;
+        for (int byteval = 0; byteval < 256; ++byteval) {
+            for (int pixel = 1, mask = 1; pixel < 8; ++pixel, mask <<= 1)
+                pixelon[pixel] = ((byteval & mask) != 0);
+            const int hibit = (byteval & 0x80) ? 1 : 0;
             int x = 0;
             int y = byteval << 1;
             while (x < 28) {
-                int adj = (x >= 14) << 1;
-                int odd = (x >= 14);
-                int pixel = 1;
-                do {
+                const int adj = (x >= 14 ? 2 : 0);
+                const int odd = (x >= 14 ? 1 : 0);
+                for (int pixel = 1; pixel < 8; pixel++, x += 2) {
                     int color = 4;
                     if (pixelon[pixel]) {
                         if (pixelon[pixel - 1] || pixelon[pixel + 1])
@@ -570,18 +565,18 @@ static void DrawHiResSource(HDC dc) {
                         else
                             color = ((odd ^ !(pixel & 1)) << 1) | hibit;
                     }
-                    else if (pixelon[pixel - 1] && pixelon[pixel + 1])
+                    else if (pixelon[pixel - 1] && pixelon[pixel + 1]) {
                         color = ((odd ^ (pixel & 1)) << 1) | hibit;
-                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj, y, colorval[color]);
-                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 1, y, colorval[color + 6]);
-                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj, y + 1, colorval[color + 6]);
+                    }
+
+                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 0, y + 0, colorval[color]);
+                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 1, y + 0, colorval[color + 6]);
+                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 0, y + 1, colorval[color + 6]);
                     SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 1, y + 1, colorval[color]);
-                    pixel++;
-                    x += 2;
-                } while (pixel < 8);
+                }
             }
-        } while (++byteval < 256);
-    } while (++column < 4);
+        }
+    }
 }
 
 //===========================================================================
@@ -678,14 +673,14 @@ static void InitializeSourceImages() {
         DeleteObject(bitmap);
         DeleteObject(brush);
         SaveSourceImages();
-        rebuiltsource = 1;
+        rebuiltsource = TRUE;
     }
 }
 
 //===========================================================================
 static BOOL LoadSourceImages() {
     if (!sourcebits)
-        return 0;
+        return FALSE;
 
     char filename[MAX_PATH];
     StrPrintf(
@@ -700,7 +695,7 @@ static BOOL LoadSourceImages() {
     HANDLE file = CreateFile(filename,
         GENERIC_READ,
         FILE_SHARE_READ,
-        (LPSECURITY_ATTRIBUTES)NULL,
+        NULL,
         OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
         NULL);
@@ -757,6 +752,7 @@ static void SetLastDrawnImage() {
 
     if (SW_HIRES())
         memcpy(vidlastmem + 0x2000, hiresmainptr, 0x2000);
+
     if (SW_DHIRES())
         memcpy(vidlastmem, hiresauxptr, 0x2000);
     else if (SW_80COL())
@@ -768,14 +764,15 @@ static void SetLastDrawnImage() {
 
 //===========================================================================
 static BOOL Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
-    BYTE ch = *(textmainptr + offset);
-    if ((ch != *(vidlastmem + offset + 0x400)) || redrawfull) {
+    BYTE ch = textmainptr[offset];
+    if ((ch != vidlastmem[offset + 0x400]) || redrawfull) {
         bltfunc(
             xpixel,
             ypixel,
             14,
             16,
-            SRCOFFS_40COL + ((ch & 0x0F) << 4), (ch & 0xF0) + charoffs
+            SRCOFFS_40COL + ((ch & 0x0F) << 4),
+            (ch & 0xF0) + charoffs
         );
         return TRUE;
     }
@@ -784,10 +781,10 @@ static BOOL Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
 
 //===========================================================================
 static BOOL Update80ColCell(int x, int y, int xpixel, int ypixel, int offset) {
-    BYTE auxval  = *(textauxptr + offset);
-    BYTE mainval = *(textmainptr + offset);
-    if ((auxval != *(vidlastmem + offset)) ||
-        (mainval != *(vidlastmem + offset + 0x400)) ||
+    BYTE auxval  = textauxptr[offset];
+    BYTE mainval = textmainptr[offset];
+    if ((auxval != vidlastmem[offset]) ||
+        (mainval != vidlastmem[offset + 0x400]) ||
         redrawfull)
     {
         bltfunc(
@@ -795,14 +792,16 @@ static BOOL Update80ColCell(int x, int y, int xpixel, int ypixel, int offset) {
             ypixel,
             7,
             16,
-            SRCOFFS_80COL + ((auxval & 15) << 3), ((auxval >> 4) << 4) + charoffs
+            SRCOFFS_80COL + ((auxval & 15) << 3),
+            ((auxval >> 4) << 4) + charoffs
         );
         bltfunc(
             xpixel + 7,
             ypixel,
             7,
             16,
-            SRCOFFS_80COL + ((mainval & 15) << 3), ((mainval >> 4) << 4) + charoffs
+            SRCOFFS_80COL + ((mainval & 15) << 3),
+            ((mainval >> 4) << 4) + charoffs
         );
         return TRUE;
     }
@@ -814,14 +813,14 @@ static BOOL UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
     BOOL dirty   = FALSE;
     int  yoffset = 0;
     while (yoffset < 0x2000) {
-        BYTE auxval  = *(hiresauxptr + offset + yoffset);
-        BYTE mainval = *(hiresmainptr + offset + yoffset);
-        BOOL draw = (auxval != *(vidlastmem + offset + yoffset)) ||
-            (mainval != *(vidlastmem + offset + yoffset + 0x2000)) ||
+        BYTE auxval  = hiresauxptr[offset + yoffset];
+        BYTE mainval = hiresmainptr[offset + yoffset];
+        BOOL draw = (auxval != vidlastmem[offset + yoffset]) ||
+            (mainval != vidlastmem[offset + yoffset + 0x2000]) ||
             redrawfull;
         if (offset & 1) {
-            BYTE thirdval = *(hiresmainptr + offset + yoffset - 1);
-            draw |= (thirdval != *(vidlastmem + offset + yoffset + 0x1FFF));
+            BYTE thirdval = hiresmainptr[offset + yoffset - 1];
+            draw |= (thirdval != vidlastmem[offset + yoffset + 0x1FFF]);
             if (draw) {
                 int value1 = ((auxval & 0x3F) << 2) | ((thirdval & 0x60) >> 5);
                 int value2 = ((mainval & 0x7F) << 1) | ((auxval & 0x40) >> 6);
@@ -831,7 +830,7 @@ static BOOL UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
                     8,
                     2,
                     SRCOFFS_DHIRES,
-                    (value1 << 1)
+                    value1 << 1
                 );
                 bltfunc(
                     xpixel + 6,
@@ -839,13 +838,13 @@ static BOOL UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
                     8,
                     2,
                     SRCOFFS_DHIRES,
-                    (value2 << 1)
+                    value2 << 1
                 );
             }
         }
         else {
-            BYTE thirdval = *(hiresauxptr + offset + yoffset + 1);
-            draw |= (thirdval != *(vidlastmem + offset + yoffset + 1));
+            BYTE thirdval = hiresauxptr[offset + yoffset + 1];
+            draw |= (thirdval != vidlastmem[offset + yoffset + 1]);
             if (draw) {
                 int value1 = (auxval & 0x7F) | ((mainval & 1) << 7);
                 int value2 = ((mainval & 0x7E) >> 1) | ((thirdval & 3) << 6);
@@ -855,7 +854,7 @@ static BOOL UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
                     8,
                     2,
                     SRCOFFS_DHIRES,
-                    (value1 << 1)
+                    value1 << 1
                 );
                 bltfunc(
                     xpixel + 8,
@@ -863,7 +862,7 @@ static BOOL UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
                     8,
                     2,
                     SRCOFFS_DHIRES,
-                    (value2 << 1)
+                    value2 << 1
                 );
             }
         }
@@ -876,8 +875,8 @@ static BOOL UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
 
 //===========================================================================
 static BOOL UpdateLoResCell(int x, int y, int xpixel, int ypixel, int offset) {
-    BYTE val = *(textmainptr + offset);
-    if ((val != *(vidlastmem + offset + 0x400)) || redrawfull) {
+    BYTE val = textmainptr[offset];
+    if ((val != vidlastmem[offset + 0x400]) || redrawfull) {
         bltfunc(
             xpixel,
             ypixel,
@@ -903,28 +902,26 @@ static BOOL UpdateLoResCell(int x, int y, int xpixel, int ypixel, int offset) {
 static BOOL UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
     BOOL dirty   = FALSE;
     int  yoffset = 0;
-    BYTE byteval1;
-    BYTE byteval2;
-    BYTE byteval3;
     while (yoffset < 0x2000) {
-        byteval1 = (x > 0) ? *(hiresmainptr + offset + yoffset - 1) : 0;
-        byteval2 = *(hiresmainptr + offset + yoffset);
-        byteval3 = (x < 39) ? *(hiresmainptr + offset + yoffset + 1) : 0;
-        if ((byteval2 != *(vidlastmem + offset + yoffset + 0x2000)) ||
-            ((x > 0) && ((byteval1 & 64) != (*(vidlastmem + offset + yoffset + 0x1FFF) & 64))) ||
-            ((x < 39) && ((byteval3 & 1) != (*(vidlastmem + offset + yoffset + 0x2001) & 1))) ||
+        BYTE prev = (x > 0) ? hiresmainptr[offset + yoffset - 1] : 0;
+        BYTE curr = hiresmainptr[offset + yoffset];
+        BYTE next = (x < 39) ? hiresmainptr[offset + yoffset + 1] : 0;
+        if ((curr != vidlastmem[offset + yoffset + 0x2000]) ||
+            ((x > 0)  && ((prev & 64) != (vidlastmem[offset + yoffset + 0x1FFF] & 64))) ||
+            ((x < 39) && ((next & 1)  != (vidlastmem[offset + yoffset + 0x2001] & 1)))  ||
             redrawfull)
         {
-#define COLOFFS (((((x > 0) && (byteval1 & 64)) << 1) | \
-                  ((x < 39) && (byteval3 & 1))) << 5)
+            const int c1 = (x > 0  && (prev & 64)) ? 1 : 0;
+            const int c2 = (x < 39 && (next & 1))  ? 1 : 0;
+            const int coloffs = c1 << 6 | c2 << 5;
             bltfunc(
                 xpixel,
                 ypixel + (yoffset >> 9),
                 14,
                 2,
-                SRCOFFS_HIRES + COLOFFS + ((x & 1) << 4), (((int)byteval2) << 1)
+                SRCOFFS_HIRES + coloffs + ((x & 1) << 4),
+                (int)curr << 1
             );
-#undef COLOFFS
             dirty = TRUE;
         }
         yoffset += 0x400;
@@ -939,13 +936,14 @@ static BOOL UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
 
 //===========================================================================
 BOOL VideoApparentlyDirty() {
+    // TODO: Handle mixed mode and double hires dirty page checks properly.
     if (SW_MIXED() || redrawfull)
         return TRUE;
 
-    DWORD address = (SW_HIRES() && !SW_TEXT()) ? (0x20 << displaypage2) : (0x4 << displaypage2);
-    DWORD length  = (SW_HIRES() && !SW_TEXT()) ? 0x20 : 0x4;
-    while (length--) {
-        if (memdirty[address++] & 2)
+    DWORD page  = (SW_HIRES() && !SW_TEXT()) ? (0x20 << displaypage2) : (0x04 << displaypage2);
+    DWORD count = (SW_HIRES() && !SW_TEXT()) ? 0x20 : 0x04;
+    while (count--) {
+        if (memdirty[page++] & 2)
             return TRUE;
     }
     return FALSE;
@@ -1478,27 +1476,21 @@ void VideoInitialize() {
     // CREATE OFFSET TABLES FOR EACH SCAN LINE IN THE SOURCE IMAGES AND
     // FRAME BUFFER
     if ((srcpixelformat <= 0x108) || (srcpixelformat >= 0x200)) {
-        BOOL type401b = FALSE;
-        int  loop = 0;
-        while (loop < 512) {
+        for (int loop = 0; loop < 512; ++loop) {
             if (loop < 384) {
                 frameoffsettable[loop] = framebufferbits
-                    + (bitsperpixel == 4 ? (type401b ? 70 : 280) : 560)
+                    + (bitsperpixel == 4 ? 280 : 560)
                     * (usingdib ? (383 - loop) : loop);
             }
             sourceoffsettable[loop] = sourcebits + ((SRCOFFS_TOTAL * loop) >> ((bitsperpixel == 4) ? 1 : 0));
-            loop++;
         }
     }
     else {
-        int bytespixel = srcpixelbits >> 3;
-        int loop = 0;
-        while (loop < 512) {
-            if (loop < 384) {
+        const int bytespixel = srcpixelbits >> 3;
+        for (int loop = 0; loop < 512; ++loop) {
+            if (loop < 384)
                 frameoffsettable[loop] = framebufferbits + (560 * bytespixel) * (usingdib ? (383 - loop) : loop);
-            }
             sourceoffsettable[loop] = sourcebits + SRCOFFS_TOTAL * bytespixel * loop;
-            loop++;
         }
     }
 
@@ -1570,7 +1562,7 @@ void VideoRealizePalette(HDC dc) {
 
 //===========================================================================
 void VideoRedrawScreen() {
-    redrawfull = 1;
+    redrawfull = TRUE;
     VideoRefreshScreen();
 }
 
@@ -1600,7 +1592,7 @@ void VideoRefreshScreen() {
     textmainptr  = MemGetMainPtr(0x400 << (displaypage2 ? 1 : 0));
     ZeroMemory(celldirty, 40 * 32);
     {
-        fupdate updatefunc1 =
+        fupdate updateupper =
             SW_TEXT()
                 ? SW_80COL()
                     ? Update80ColCell
@@ -1611,41 +1603,29 @@ void VideoRefreshScreen() {
                         : UpdateHiResCell
                     : UpdateLoResCell;
 
-        fupdate updatefunc2 =
+        fupdate updatelower =
             SW_MIXED()
                 ? SW_80COL()
                     ? Update80ColCell
                     : Update40ColCell
-                : updatefunc1;
+                : updateupper;
 
         BOOL anydirty = FALSE;
         int  y        = 0;
         int  ypixel   = 0;
-        while (y < 20) {
+        for (; y < 20; y++, ypixel += 16) {
             int offset = ((y & 7) << 7) + ((y >> 3) * 40);
-            int x      = 0;
-            int xpixel = 0;
-            while (x < 40) {
-                celldirty[x][y] = updatefunc1(x, y, xpixel, ypixel, offset + x);
+            for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14) {
+                celldirty[x][y] = updateupper(x, y, xpixel, ypixel, offset + x);
                 anydirty |= (celldirty[x][y] != 0);
-                ++x;
-                xpixel += 14;
             }
-            ++y;
-            ypixel += 16;
         }
-        while (y < 24) {
+        for (; y < 24; y++, ypixel += 16) {
             int offset = ((y & 7) << 7) + ((y >> 3) * 40);
-            int x      = 0;
-            int xpixel = 0;
-            while (x < 40) {
-                celldirty[x][y] = updatefunc2(x, y, xpixel, ypixel, offset + x);
+            for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14) {
+                celldirty[x][y] = updatelower(x, y, xpixel, ypixel, offset + x);
                 anydirty |= (celldirty[x][y] != 0);
-                ++x;
-                xpixel += 14;
             }
-            ++y;
-            ypixel += 16;
         }
         if (!anydirty) {
             SetLastDrawnImage();
@@ -1697,77 +1677,63 @@ void VideoRefreshScreen() {
     // COPY DIRTY CELLS FROM THE DEVICE DEPENDENT BITMAP ONTO THE SCREEN
     // IN LONG HORIZONTAL RECTANGLES
     BOOL remainingdirty = FALSE;
-    {
-        int y      = 0;
-        int ypixel = 0;
-        while (y < 24) {
-            int start  = -1;
-            int startx = 0;
-            int x      = 0;
-            int xpixel = 0;
-            while (x < 40) {
-                if ((x == 39) && celldirty[x][y]) {
-                    if (start >= 0) {
-                        xpixel += 14;
-                        celldirty[x][y] = 0;
-                    }
-                    else
-                        remainingdirty = TRUE;
+    for (int y = 0, ypixel = 0; y < 24; y++, ypixel += 16) {
+        int start  = -1;
+        int startx = 0;
+        for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14) {
+            if ((x == 39) && celldirty[x][y]) {
+                if (start >= 0) {
+                    xpixel += 14;
+                    celldirty[x][y] = 0;
                 }
-                if ((start >= 0) && !celldirty[x][y]) {
-                    if ((x - startx > 1) || ((x == 39) && (xpixel == 560))) {
-                        int height = 1;
-                        while ((y + height < 24)
-                            && celldirty[startx][y + height]
-                            && celldirty[x - 1][y + height]
-                            && celldirty[(startx + x - 1) >> 1][y + height])
-                        {
-                            height++;
-                        }
-                        BitBlt(
-                            framedc,
-                            start,
-                            ypixel,
-                            xpixel - start,
-                            height << 4,
-                            devicedc,
-                            start,
-                            ypixel,
-                            SRCCOPY
-                        );
-                        while (height--) {
-                            int loop = startx;
-                            while (loop < x + (xpixel == 560))
-                                celldirty[loop++][y + height] = 0;
-                        }
-                        start = -1;
+                else
+                    remainingdirty = TRUE;
+            }
+            if ((start >= 0) && !celldirty[x][y]) {
+                if ((x - startx > 1) || ((x == 39) && (xpixel == 560))) {
+                    int height = 1;
+                    while ((y + height < 24)
+                        && celldirty[startx][y + height]
+                        && celldirty[x - 1][y + height]
+                        && celldirty[(startx + x - 1) >> 1][y + height])
+                    {
+                        height++;
                     }
-                    else
-                        remainingdirty = TRUE;
+                    BitBlt(
+                        framedc,
+                        start,
+                        ypixel,
+                        xpixel - start,
+                        height << 4,
+                        devicedc,
+                        start,
+                        ypixel,
+                        SRCCOPY
+                    );
+                    while (height--) {
+                        int loop = startx;
+                        while (loop < x + (xpixel == 560))
+                            celldirty[loop++][y + height] = 0;
+                    }
                     start = -1;
                 }
-                else if ((start == -1) && celldirty[x][y] && (x < 39)) {
-                    start = xpixel;
-                    startx = x;
-                }
-                x++;
-                xpixel += 14;
+                else
+                    remainingdirty = TRUE;
+                start = -1;
             }
-            y++;
-            ypixel += 16;
+            else if ((start == -1) && celldirty[x][y] && (x < 39)) {
+                start = xpixel;
+                startx = x;
+            }
         }
     }
 
     // COPY ANY REMAINING DIRTY CELLS FROM THE DEVICE DEPENDENT BITMAP
     // ONTO THE SCREEN IN VERTICAL RECTANGLES
     if (remainingdirty) {
-        int x      = 0;
-        int xpixel = 0;
-        while (x < 40) {
+        for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14) {
             int start  = -1;
-            int y      = 0;
-            int ypixel = 0;
-            while (y < 24) {
+            for (int y = 0, ypixel = 0; y < 24; y++, ypixel += 16) {
                 if ((y == 23) && celldirty[x][y]) {
                     if (start == -1)
                         start = ypixel;
@@ -1790,17 +1756,13 @@ void VideoRefreshScreen() {
                 }
                 else if ((start == -1) && celldirty[x][y])
                     start = ypixel;
-                y++;
-                ypixel += 16;
             }
-            x++;
-            xpixel += 14;
         }
     }
 
     GdiFlush();
     SetLastDrawnImage();
-    redrawfull = 0;
+    redrawfull = FALSE;
 
     if ((mode == MODE_PAUSED) || (mode == MODE_STEPPING))
         VideoDisplayMode(TRUE);
@@ -1872,7 +1834,7 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
     if (oldpage2 != SW_PAGE2()) {
         static DWORD lastrefresh      = 0;
         BOOL         fastvideoslowcpu = FALSE;
-        if ((displaypage2 && !SW_PAGE2()) || (!behind) || fastvideoslowcpu) {
+        if ((displaypage2 && !SW_PAGE2()) || !behind || fastvideoslowcpu) {
             displaypage2 = (SW_PAGE2() != 0);
             if (!redrawfull) {
                 VideoRefreshScreen();
@@ -1880,7 +1842,7 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
                 lastrefresh  = emulmsec;
             }
         }
-        else if ((!SW_PAGE2()) && (!redrawfull) && (emulmsec - lastrefresh >= 20)) {
+        else if (!SW_PAGE2() && !redrawfull && (emulmsec - lastrefresh >= 20)) {
             displaypage2 = FALSE;
             VideoRefreshScreen();
             hasrefreshed = TRUE;
@@ -1892,7 +1854,7 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
     if (address == 0x50)
         return VideoCheckVbl(0, 0, 0, 0);
     else
-        return MemReturnRandomData(1);
+        return MemReturnRandomData(TRUE);
 }
 
 //===========================================================================

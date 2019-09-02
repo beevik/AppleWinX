@@ -100,7 +100,7 @@ static void ContinueExecution() {
     // DETERMINE WHETHER THE SCREEN WAS UPDATED, THE DISK WAS SPINNING,
     // OR THE KEYBOARD I/O PORTS WERE BEING EXCESSIVELY QUERIED THIS
     // CLOCKTICK
-    VideoCheckPage(0);
+    VideoCheckPage(FALSE);
     BOOL diskspinning  = DiskIsSpinning();
     BOOL screenupdated = VideoHasRefreshed();
     BOOL systemidle    = (KeybGetNumQueries() > (clockgran << 2)) && (calibrating == 0) && !ranfinegrain;
@@ -120,9 +120,8 @@ static void ContinueExecution() {
             cyclelimit <<= 1;
         if ((cumulativecycles - lastcycles) >= cyclelimit) {
             lastcycles = cumulativecycles;
-            if ((!anyupdates) && (!lastupdates[0]) && (!lastupdates[1]) &&
-                VideoApparentlyDirty()) {
-                VideoCheckPage(1);
+            if (!anyupdates && !lastupdates[0] && !lastupdates[1] && VideoApparentlyDirty()) {
+                VideoCheckPage(TRUE);
                 static DWORD lasttime = 0;
                 DWORD currtime = GetTickCount();
                 if ((!fullspeed) ||

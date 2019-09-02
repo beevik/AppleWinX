@@ -197,7 +197,7 @@ void DiskBoot() {
 //===========================================================================
 BYTE DiskControlMotor(WORD, BYTE address, BYTE, BYTE) {
     floppymotoron = address & 1;
-    return MemReturnRandomData(1);
+    return MemReturnRandomData(TRUE);
 }
 
 //===========================================================================
@@ -226,7 +226,7 @@ BYTE DiskControlStepper(WORD, BYTE address, BYTE, BYTE) {
             }
         }
     }
-    return (address == 0xE0) ? 0xFF : MemReturnRandomData(1);
+    return (address == 0xE0) ? 0xFF : MemReturnRandomData(TRUE);
 }
 
 //===========================================================================
@@ -259,51 +259,48 @@ const char * DiskGetName(int drive) {
 
 //===========================================================================
 BOOL DiskInitialize() {
-    int loop = DRIVES;
-    while (loop--)
+    for (int loop = 0; loop < DRIVES; loop++)
         ZeroMemory(&floppy[loop], sizeof(floppyrec));
 
     // PARSE THE COMMAND LINE LOOKING FOR THE NAME OF A DISK IMAGE.
     // (THIS IS MADE MORE COMPLICATED BY THE FACT THAT LONG FILE NAMES MAY
-    //  BE EMBEDDED IN QUOTES, INCLUDING THE NAME OF THE PROGRAM ITSELF)
+    // BE EMBEDDED IN QUOTES, INCLUDING THE NAME OF THE PROGRAM ITSELF)
     char         imagefilename[MAX_PATH] = "";
     const char * cmdlinenameIn           = GetCommandLine();
     int          cmdlinenameLen          = StrLen(cmdlinenameIn);
     char *       cmdlinenameCopy         = new char[cmdlinenameLen + 1];
     char *       cmdlinename             = cmdlinenameCopy;
     StrCopy(cmdlinenameCopy, cmdlinenameIn, cmdlinenameLen + 1);
-    BOOL    inquotes = 0;
-    while (cmdlinename && ((*cmdlinename != ' ') || inquotes)) {
+    BOOL inquotes = FALSE;
+    while (*cmdlinename && (*cmdlinename != ' ' || inquotes)) {
         if (*cmdlinename == '\"')
             inquotes = !inquotes;
         ++cmdlinename;
     }
-    while (cmdlinename && ((*cmdlinename == ' ') || (*cmdlinename == '\"')))
+    while (*cmdlinename && (*cmdlinename == ' ' || *cmdlinename == '\"'))
         ++cmdlinename;
-    if (cmdlinename && *cmdlinename) {
+
+    if (*cmdlinename) {
         StrCopy(imagefilename, cmdlinename, ARRSIZE(imagefilename));
-        char * ptr = StrChr(cmdlinename, '"');
+        char * ptr = StrChr(imagefilename, '"');
         if (ptr != NULL)
             *ptr = '\0';
     }
-
-    // IF WE DIDN'T FIND AN IMAGE FILE NAME, USE MASTER.DSK
     else {
         StrCopy(imagefilename, progdir, ARRSIZE(imagefilename));
         StrCat(imagefilename, "master.dsk", ARRSIZE(imagefilename));
     }
 
-    // OPEN THE IMAGE FILE
     if (InsertDisk(0, imagefilename, 0)) {
-        if (cmdlinename && *cmdlinename)
-            autoboot = 1;
+        if (*cmdlinename)
+            autoboot = TRUE;
         delete[] cmdlinenameCopy;
-        return 1;
+        return TRUE;
     }
     else {
         NotifyInvalidImage(imagefilename);
         delete[] cmdlinenameCopy;
-        return 0;
+        return FALSE;
     }
 }
 
@@ -400,7 +397,7 @@ BYTE DiskSetWriteMode(WORD, BYTE, BYTE, BYTE) {
     floppy[currdrive].writelight = 20000;
     if (modechange)
         FrameRefreshStatus();
-    return MemReturnRandomData(1);
+    return MemReturnRandomData(TRUE);
 }
 
 //===========================================================================

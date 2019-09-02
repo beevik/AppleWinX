@@ -334,7 +334,7 @@ BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
         lastcyclenum = cyclenum;
 
     }
-    return MemReturnRandomData(1);
+    return MemReturnRandomData(TRUE);
 }
 
 //===========================================================================

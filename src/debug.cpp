@@ -846,8 +846,8 @@ static BOOL CmdMemoryEnter(int args) {
     if (!address)
         address = GetAddress(arg[1].str);
     while (args >= 2) {
-        *(membank + address + args - 2) = (BYTE)arg[args].val1;
-        *(memdirty + (address >> 8)) = 1;
+        membank[address + args - 2] = (BYTE)arg[args].val1;
+        memdirty[address >> 8] = 1;
         args--;
     }
     return 1;

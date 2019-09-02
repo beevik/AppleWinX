@@ -408,7 +408,7 @@ static BOOL AplBoot(imageinforec * ptr) {
     ReadFile(ptr->file, mem + address, length, &bytesread, NULL);
     int loop = 192;
     while (loop--)
-        * (memdirty + loop) = 0xFF;
+        memdirty[loop] = 0xFF;
     regs.pc = address;
     return 1;
 }
@@ -685,7 +685,7 @@ static BOOL PrgBoot(imageinforec * ptr) {
     ReadFile(ptr->file, mem + address, length, &bytesread, NULL);
     int loop = 192;
     while (loop--)
-        * (memdirty + loop) = 0xFF;
+        memdirty[loop] = 0xFF;
     regs.pc = address;
     return 1;
 }
