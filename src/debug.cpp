@@ -47,7 +47,7 @@ constexpr COLORREF COLOR_BPDATA    = 6;
 constexpr COLORREF COLOR_COMMAND   = 7;
 constexpr COLORREF COLORS          = 8;
 
-typedef BOOL(*cmdfunction)(int);
+typedef BOOL (*fcmd)(int);
 
 static BOOL CmdBlackWhite(int argc);
 static BOOL CmdBreakpointAdd(int argc);
@@ -100,8 +100,8 @@ struct bp {
 };
 
 struct cmd {
-    char        name[12];
-    cmdfunction function;
+    char name[12];
+    fcmd function;
 };
 
 struct inst {
@@ -517,7 +517,7 @@ static BOOL        viewingoutput = FALSE;
 
 static void ComputeTopOffset(WORD centeroffset);
 static BOOL DisplayError(const char * errortext);
-static BOOL DisplayHelp(cmdfunction function);
+static BOOL DisplayHelp(fcmd function);
 static BOOL InternalSingleStep();
 static WORD GetAddress(const char * symbol);
 static const char * GetSymbol(WORD address, int bytes);
@@ -1083,7 +1083,7 @@ static BOOL DisplayError(const char * errortext) {
 }
 
 //===========================================================================
-static BOOL DisplayHelp(cmdfunction function) {
+static BOOL DisplayHelp(fcmd function) {
     return 0;
 }
 
@@ -1532,7 +1532,7 @@ static BOOL ExecuteCommand(int argc) {
     if (!name)
         name = commandstring[0];
     int         found = 0;
-    cmdfunction function = NULL;
+    fcmd function = NULL;
     int         length = StrLen(name);
     int         loop = 0;
     while ((loop < COMMANDS) && (name[0] >= command[loop].name[0])) {

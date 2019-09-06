@@ -6,15 +6,20 @@
 *
 ***/
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+
+#include "platform.h"
+
+#ifdef COMPILER_MSVC
 #include <windows.h>
 #include <commctrl.h>
+#endif
 
 #include "applewin.h"
 #include "comm.h"

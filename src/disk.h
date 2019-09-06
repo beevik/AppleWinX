@@ -17,10 +17,10 @@ BOOL         DiskIsSpinning();
 void         DiskSelect(int drive);
 void         DiskUpdatePosition(DWORD cycles);
 
-BYTE DiskControlMotor(WORD, BYTE, BYTE, BYTE);
-BYTE DiskControlStepper(WORD, BYTE, BYTE, BYTE);
-BYTE DiskEnable(WORD, BYTE, BYTE, BYTE);
-BYTE DiskReadWrite(WORD, BYTE, BYTE, BYTE);
-BYTE DiskSetLatchValue(WORD, BYTE, BYTE, BYTE);
-BYTE DiskSetReadMode(WORD, BYTE, BYTE, BYTE);
-BYTE DiskSetWriteMode(WORD, BYTE, BYTE, BYTE);
+BYTE DiskControlMotor(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE DiskControlStepper(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE DiskEnable(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE DiskReadWrite(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE DiskSetLatchValue(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE DiskSetReadMode(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE DiskSetWriteMode(WORD pc, BYTE address, BYTE write, BYTE value);

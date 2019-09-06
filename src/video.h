@@ -28,6 +28,6 @@ void VideoResetState();
 void VideoTestCompatibility();
 void VideoUpdateVbl(DWORD cycles, BOOL nearrefresh);
 
-BYTE VideoCheckMode(WORD, BYTE, BYTE, BYTE);
-BYTE VideoCheckVbl(WORD, BYTE, BYTE, BYTE);
-BYTE VideoSetMode(WORD, BYTE, BYTE, BYTE);
+BYTE VideoCheckMode(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE VideoCheckVbl(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE VideoSetMode(WORD pc, BYTE address, BYTE write, BYTE value);

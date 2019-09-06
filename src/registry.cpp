@@ -19,7 +19,7 @@ BOOL RegLoadString(const char * section, const char * key, char * buffer, DWORD 
     StrPrintf(
         fullkeyname,
         ARRSIZE(fullkeyname),
-        "Software\\AppleWin\\CurrentVersion\\%s",
+        "Software\\AppleWinX\\CurrentVersion\\%s",
         section
     );
 
@@ -61,7 +61,7 @@ void RegSaveString(const char * section, const char * key, const char * value) {
     StrPrintf(
         fullkeyname,
         ARRSIZE(fullkeyname),
-        "Software\\AppleWin\\CurrentVersion\\%s",
+        "Software\\AppleWinX\\CurrentVersion\\%s",
         section
     );
 

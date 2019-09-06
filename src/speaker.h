@@ -18,4 +18,4 @@ BOOL  SpkrNeedsFineGrainTiming();
 BOOL  SpkrSetEmulationType(HWND window, DWORD newtype);
 void  SpkrUpdate(DWORD totalcycles);
 
-BYTE SpkrToggle(WORD, BYTE, BYTE, BYTE);
+BYTE SpkrToggle(WORD pc, BYTE address, BYTE write, BYTE value);

@@ -30,13 +30,15 @@ static BOOL CheckComm() {
     if ((commhandle == INVALID_HANDLE_VALUE) && serialport) {
         char portname[8];
         StrPrintf(portname, ARRSIZE(portname), "COM%u", serialport);
-        commhandle = CreateFile(portname,
+        commhandle = CreateFile(
+            portname,
             GENERIC_READ | GENERIC_WRITE,
             0,
-            (LPSECURITY_ATTRIBUTES)NULL,
+            NULL,
             OPEN_EXISTING,
             0,
-            NULL);
+            NULL
+        );
         if (commhandle != INVALID_HANDLE_VALUE) {
             UpdateCommState();
             COMMTIMEOUTS ct;
@@ -52,7 +54,7 @@ static BOOL CheckComm() {
 static void CheckReceive() {
     if (recvbytes || (commhandle == INVALID_HANDLE_VALUE))
         return;
-    ReadFile(commhandle, recvbuffer, 8, &recvbytes, NULL);
+    (void)ReadFile(commhandle, recvbuffer, 8, &recvbytes, NULL);
 }
 
 //===========================================================================
@@ -73,7 +75,7 @@ static void UpdateCommState() {
     GetCommState(commhandle, &dcb);
     dcb.BaudRate = baudrate;
     dcb.ByteSize = bytesize;
-    dcb.Parity = parity;
+    dcb.Parity   = parity;
     dcb.StopBits = stopbits;
     SetCommState(commhandle, &dcb);
 }
@@ -159,10 +161,7 @@ BYTE CommControl(WORD, BYTE, BYTE write, BYTE value) {
 
 //===========================================================================
 void CommDestroy() {
-    if ((baudrate != CBR_19200) ||
-        (bytesize != 8) ||
-        (parity != NOPARITY) ||
-        (stopbits != ONESTOPBIT)) {
+    if (baudrate != CBR_19200 || bytesize != 8 || parity != NOPARITY || stopbits != ONESTOPBIT) {
         CommReset();
         CheckComm();
     }
@@ -170,7 +169,7 @@ void CommDestroy() {
 }
 
 //===========================================================================
-BYTE CommDipSw(WORD, BYTE, BYTE, BYTE) {
+BYTE CommDipSw(WORD pc, BYTE address, BYTE write, BYTE value) {
     // note: determine what values a real SSC returns
     return 0;
 }
@@ -179,12 +178,15 @@ BYTE CommDipSw(WORD, BYTE, BYTE, BYTE) {
 void CommSetSerialPort(HWND window, DWORD newserialport) {
     if (commhandle == INVALID_HANDLE_VALUE)
         serialport = newserialport;
-    else
-        MessageBox(window,
+    else {
+        MessageBox(
+            window,
             "You cannot change the serial port while it is "
             "in use.",
             "Configuration",
-            MB_ICONEXCLAMATION);
+            MB_ICONEXCLAMATION
+        );
+    }
 }
 
 //===========================================================================
@@ -205,7 +207,7 @@ void CommUpdate(DWORD totalcycles) {
 }
 
 //===========================================================================
-BYTE CommReceive(WORD, BYTE, BYTE, BYTE) {
+BYTE CommReceive(WORD pc, BYTE address, BYTE write, BYTE value) {
     if (!CheckComm())
         return 0;
     if (!recvbytes)
@@ -222,17 +224,17 @@ BYTE CommReceive(WORD, BYTE, BYTE, BYTE) {
 //===========================================================================
 void CommReset() {
     CloseComm();
-    baudrate = CBR_19200;
-    bytesize = 8;
+    baudrate    = CBR_19200;
+    bytesize    = 8;
     commandbyte = 0x00;
     controlbyte = 0x1F;
-    parity = NOPARITY;
-    recvbytes = 0;
-    stopbits = ONESTOPBIT;
+    parity      = NOPARITY;
+    recvbytes   = 0;
+    stopbits    = ONESTOPBIT;
 }
 
 //===========================================================================
-BYTE CommStatus(WORD, BYTE, BYTE, BYTE) {
+BYTE CommStatus(WORD pc, BYTE address, BYTE write, BYTE value) {
     if (!CheckComm())
         return 0x70;
     if (!recvbytes)

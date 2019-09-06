@@ -13,5 +13,5 @@ BYTE  KeybGetKeycode();
 DWORD KeybGetNumQueries();
 void  KeybQueueKeypress(int virtkey, BOOL extended);
 
-BYTE KeybReadData(WORD, BYTE, BYTE, BYTE);
-BYTE KeybReadFlag(WORD, BYTE, BYTE, BYTE);
+BYTE KeybReadData(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE KeybReadFlag(WORD pc, BYTE address, BYTE write, BYTE value);

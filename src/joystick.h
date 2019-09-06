@@ -19,6 +19,6 @@ void JoySetPosition(int xvalue, int xrange, int yvalue, int yrange);
 void JoyUpdatePosition(DWORD cycles);
 BOOL JoyUsingMouse();
 
-BYTE JoyReadButton(WORD, BYTE, BYTE, BYTE);
-BYTE JoyReadPosition(WORD, BYTE, BYTE, BYTE);
-BYTE JoyResetPosition(WORD, BYTE, BYTE, BYTE);
+BYTE JoyReadButton(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE JoyReadPosition(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE JoyResetPosition(WORD pc, BYTE address, BYTE write, BYTE value);

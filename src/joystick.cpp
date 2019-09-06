@@ -229,7 +229,7 @@ void JoyReset() {
 }
 
 //===========================================================================
-BYTE JoyResetPosition(WORD, BYTE, BYTE, BYTE) {
+BYTE JoyResetPosition(WORD pc, BYTE address, BYTE write, BYTE value) {
     needsprecision = cumulativecycles;
     if (joy[joytype].device == DEVICE_JOYSTICK)
         CheckJoystick();

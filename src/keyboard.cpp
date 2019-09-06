@@ -153,13 +153,13 @@ DWORD KeybGetNumQueries() {
 }
 
 //===========================================================================
-BYTE KeybReadData(WORD, BYTE, BYTE, BYTE) {
+BYTE KeybReadData(WORD pc, BYTE address, BYTE write, BYTE value) {
     keyboardqueries++;
     return keycode | (keywaiting ? 0x80 : 0);
 }
 
 //===========================================================================
-BYTE KeybReadFlag(WORD, BYTE, BYTE, BYTE) {
+BYTE KeybReadFlag(WORD pc, BYTE address, BYTE write, BYTE value) {
     keyboardqueries++;
     keywaiting = 0;
     return keycode | ((GetKeyState(lastvirtkey) < 0) ? 0x80 : 0);

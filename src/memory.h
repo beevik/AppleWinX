@@ -10,7 +10,7 @@
 
 constexpr int MAXIMAGES = 16;
 
-typedef BYTE (* iofunction)(WORD, BYTE, BYTE, BYTE);
+typedef BYTE (* iofunction)(WORD pc, BYTE address, BYTE write, BYTE value);
 
 
 extern iofunction ioread[0x100];
@@ -28,5 +28,5 @@ void   MemReset();
 void   MemResetPaging();
 BYTE   MemReturnRandomData(BOOL highbit);
 
-BYTE MemCheckPaging(WORD, BYTE, BYTE, BYTE);
-BYTE MemSetPaging(WORD, BYTE, BYTE, BYTE);
+BYTE MemCheckPaging(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE MemSetPaging(WORD pc, BYTE address, BYTE write, BYTE value);

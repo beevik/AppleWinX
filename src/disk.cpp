@@ -185,12 +185,10 @@ static void WriteTrack(int drive) {
 
 //===========================================================================
 void DiskBoot() {
-
-  // THIS FUNCTION RELOADS A PROGRAM IMAGE IF ONE IS LOADED IN DRIVE ONE.
-  // IF A DISK IMAGE OR NO IMAGE IS LOADED IN DRIVE ONE, IT DOES NOTHING.
+    // THIS FUNCTION RELOADS A PROGRAM IMAGE IF ONE IS LOADED IN DRIVE ONE.
+    // IF A DISK IMAGE OR NO IMAGE IS LOADED IN DRIVE ONE, IT DOES NOTHING.
     if (floppydrive[0].imagehandle && ImageBoot(floppydrive[0].imagehandle))
         floppymotoron = 0;
-
 }
 
 //===========================================================================
@@ -243,11 +241,15 @@ BYTE DiskEnable(WORD, BYTE address, BYTE, BYTE) {
 
 //===========================================================================
 void DiskGetLightStatus(int * drive1, int * drive2) {
-    *drive1 = floppydrive[0].spinning ? floppydrive[0].writelight ? 2
-        : 1
+    *drive1 = floppydrive[0].spinning
+        ? floppydrive[0].writelight
+            ? 2
+            : 1
         : 0;
-    *drive2 = floppydrive[1].spinning ? floppydrive[1].writelight ? 2
-        : 1
+    *drive2 = floppydrive[1].spinning
+        ? floppydrive[1].writelight
+            ? 2
+            : 1
         : 0;
 }
 
@@ -384,13 +386,13 @@ BYTE DiskSetLatchValue(WORD, BYTE, BYTE write, BYTE value) {
 }
 
 //===========================================================================
-BYTE DiskSetReadMode(WORD, BYTE, BYTE, BYTE) {
+BYTE DiskSetReadMode(WORD pc, BYTE address, BYTE write, BYTE value) {
     floppywritemode = 0;
     return MemReturnRandomData(floppydrive[currdrive].writeprotected);
 }
 
 //===========================================================================
-BYTE DiskSetWriteMode(WORD, BYTE, BYTE, BYTE) {
+BYTE DiskSetWriteMode(WORD pc, BYTE address, BYTE write, BYTE value) {
     floppywritemode = 1;
     BOOL modechange = !floppydrive[currdrive].writelight;
     floppydrive[currdrive].writelight = 20000;

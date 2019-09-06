@@ -1179,7 +1179,7 @@ void VideoCheckPage(BOOL force) {
 }
 
 //===========================================================================
-BYTE VideoCheckVbl(WORD, BYTE, BYTE, BYTE) {
+BYTE VideoCheckVbl(WORD pc, BYTE address, BYTE write, BYTE value) {
     return MemReturnRandomData(vblcounter < 22);
 }
 

@@ -269,11 +269,11 @@ static LRESULT CALLBACK DlgProc(
         RECT rect;
         GetWindowRect(window, &rect);
         SIZE size;
-        size.cx = rect.right - rect.left;
-        size.cy = rect.bottom - rect.top;
-        rect.left = (GetSystemMetrics(SM_CXSCREEN) - size.cx) >> 1;
-        rect.top = (GetSystemMetrics(SM_CYSCREEN) - size.cy) >> 1;
-        rect.right = rect.left + size.cx;
+        size.cx     = rect.right - rect.left;
+        size.cy     = rect.bottom - rect.top;
+        rect.left   = (GetSystemMetrics(SM_CXSCREEN) - size.cx) >> 1;
+        rect.top    = (GetSystemMetrics(SM_CYSCREEN) - size.cy) >> 1;
+        rect.right  = rect.left + size.cx;
         rect.bottom = rect.top + size.cy;
         MoveWindow(window,
             rect.left,
@@ -292,7 +292,7 @@ static void EnterMessageLoop() {
     while (GetMessage(&message, 0, 0, 0)) {
         TranslateMessage(&message);
         DispatchMessage(&message);
-        while ((mode == MODE_RUNNING) || (mode == MODE_STEPPING) || (calibrating > 0))
+        while ((mode == MODE_RUNNING) || (mode == MODE_STEPPING) || (calibrating > 0)) {
             if (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
                 if (message.message == WM_QUIT)
                     return;
@@ -306,6 +306,7 @@ static void EnterMessageLoop() {
                 if (fullspeed)
                     ContinueExecution();
             }
+        }
     }
 
     while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
@@ -327,7 +328,7 @@ static void GetProgramDirectory() {
 
 //===========================================================================
 static BOOL LoadCalibrationData() {
-#define LOAD(a,b,c) if (!RegLoadValue(a,b,c)) return 0;
+#define LOAD(a,b,c) if (!RegLoadValue(a,b,c)) return FALSE;
     DWORD buildnumber = 0;
     LOAD("", "CurrentBuildNumber", &buildnumber);
     LOAD("Calibration", "Clock Granularity", &clockgran);

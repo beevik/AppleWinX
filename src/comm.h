@@ -15,9 +15,9 @@ void CommReset();
 void CommSetSerialPort(HWND window, DWORD newserialport);
 void CommUpdate(DWORD totalcycles);
 
-BYTE CommCommand(WORD, BYTE, BYTE, BYTE);
-BYTE CommControl(WORD, BYTE, BYTE, BYTE);
-BYTE CommDipSw(WORD, BYTE, BYTE, BYTE);
-BYTE CommReceive(WORD, BYTE, BYTE, BYTE);
-BYTE CommStatus(WORD, BYTE, BYTE, BYTE);
-BYTE CommTransmit(WORD, BYTE, BYTE, BYTE);
+BYTE CommCommand(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE CommControl(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE CommDipSw(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE CommReceive(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE CommStatus(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE CommTransmit(WORD pc, BYTE address, BYTE write, BYTE value);
