@@ -34,12 +34,11 @@ constexpr DWORD VF_TEXT        = 0x00000040;
 #define  SW_TEXT()      (vidmode & VF_TEXT)
 
 typedef void (* fblt)(int destx, int desty, int xsize, int ysize, int sourcex, int sourcey);
-typedef BOOL (* fupdate)(int x, int y, int xpixel, int ypixel, int offset);
+typedef void (* fupdate)(int x, int y, int xpixel, int ypixel, int offset);
 
 BOOL graphicsmode = FALSE;
 
 static fblt          bltfunc;
-static BYTE          celldirty[40][32];
 static HBITMAP       devicebitmap;
 static HDC           devicedc;
 static LPBYTE        framebufferbits;
@@ -735,56 +734,37 @@ static void SetLastDrawnImage() {
 }
 
 //===========================================================================
-static BOOL Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
+static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
     BYTE ch = textmainptr[offset];
-    if ((ch != vidlastmem[offset + 0x400]) || redrawfull) {
-        bltfunc(
-            xpixel,
-            ypixel,
-            14,
-            16,
-            SRCOFFS_40COL + ((ch & 0x0F) << 4),
-            (ch & 0xF0) + charoffs
-        );
-        return TRUE;
-    }
-    return FALSE;
+    bltfunc(
+        xpixel, ypixel,
+        14, 16,
+        SRCOFFS_40COL + ((ch & 0x0F) << 4),
+        (ch & 0xF0) + charoffs
+    );
 }
 
 //===========================================================================
-static BOOL Update80ColCell(int x, int y, int xpixel, int ypixel, int offset) {
+static void Update80ColCell(int x, int y, int xpixel, int ypixel, int offset) {
     BYTE auxval  = textauxptr[offset];
     BYTE mainval = textmainptr[offset];
-    if ((auxval != vidlastmem[offset]) ||
-        (mainval != vidlastmem[offset + 0x400]) ||
-        redrawfull)
-    {
-        bltfunc(
-            xpixel,
-            ypixel,
-            7,
-            16,
-            SRCOFFS_80COL + ((auxval & 15) << 3),
-            ((auxval >> 4) << 4) + charoffs
-        );
-        bltfunc(
-            xpixel + 7,
-            ypixel,
-            7,
-            16,
-            SRCOFFS_80COL + ((mainval & 15) << 3),
-            ((mainval >> 4) << 4) + charoffs
-        );
-        return TRUE;
-    }
-    return FALSE;
+    bltfunc(
+        xpixel, ypixel,
+        7, 16,
+        SRCOFFS_80COL + ((auxval & 15) << 3),
+        ((auxval >> 4) << 4) + charoffs
+    );
+    bltfunc(
+        xpixel + 7, ypixel,
+        7, 16,
+        SRCOFFS_80COL + ((mainval & 15) << 3),
+        ((mainval >> 4) << 4) + charoffs
+    );
 }
 
 //===========================================================================
-static BOOL UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
-    BOOL dirty   = FALSE;
-    int  yoffset = 0;
-    while (yoffset < 0x2000) {
+static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
+    for (int yoffset = 0; yoffset < 0x2000; yoffset += 0x400) {
         BYTE auxval  = hiresauxptr[offset + yoffset];
         BYTE mainval = hiresmainptr[offset + yoffset];
         BOOL draw = (auxval != vidlastmem[offset + yoffset]) ||
@@ -792,113 +772,74 @@ static BOOL UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
             redrawfull;
         if (offset & 1) {
             BYTE thirdval = hiresmainptr[offset + yoffset - 1];
-            draw |= (thirdval != vidlastmem[offset + yoffset + 0x1FFF]);
-            if (draw) {
-                int value1 = ((auxval & 0x3F) << 2) | ((thirdval & 0x60) >> 5);
-                int value2 = ((mainval & 0x7F) << 1) | ((auxval & 0x40) >> 6);
-                bltfunc(
-                    xpixel - 2,
-                    ypixel + (yoffset >> 9),
-                    8,
-                    2,
-                    SRCOFFS_DHIRES,
-                    value1 << 1
-                );
-                bltfunc(
-                    xpixel + 6,
-                    ypixel + (yoffset >> 9),
-                    8,
-                    2,
-                    SRCOFFS_DHIRES,
-                    value2 << 1
-                );
-            }
+            int value1 = ((auxval & 0x3F) << 2) | ((thirdval & 0x60) >> 5);
+            int value2 = ((mainval & 0x7F) << 1) | ((auxval & 0x40) >> 6);
+            bltfunc(
+                xpixel - 2, ypixel + (yoffset >> 9),
+                8, 2,
+                SRCOFFS_DHIRES,
+                value1 << 1
+            );
+            bltfunc(
+                xpixel + 6, ypixel + (yoffset >> 9),
+                8, 2,
+                SRCOFFS_DHIRES,
+                value2 << 1
+            );
         }
         else {
             BYTE thirdval = hiresauxptr[offset + yoffset + 1];
-            draw |= (thirdval != vidlastmem[offset + yoffset + 1]);
-            if (draw) {
-                int value1 = (auxval & 0x7F) | ((mainval & 1) << 7);
-                int value2 = ((mainval & 0x7E) >> 1) | ((thirdval & 3) << 6);
-                bltfunc(
-                    xpixel,
-                    ypixel + (yoffset >> 9),
-                    8,
-                    2,
-                    SRCOFFS_DHIRES,
-                    value1 << 1
-                );
-                bltfunc(
-                    xpixel + 8,
-                    ypixel + (yoffset >> 9),
-                    8,
-                    2,
-                    SRCOFFS_DHIRES,
-                    value2 << 1
-                );
-            }
+            int value1 = (auxval & 0x7F) | ((mainval & 1) << 7);
+            int value2 = ((mainval & 0x7E) >> 1) | ((thirdval & 3) << 6);
+            bltfunc(
+                xpixel, ypixel + (yoffset >> 9),
+                8, 2,
+                SRCOFFS_DHIRES,
+                value1 << 1
+            );
+            bltfunc(
+                xpixel + 8, ypixel + (yoffset >> 9),
+                8, 2,
+                SRCOFFS_DHIRES,
+                value2 << 1
+            );
         }
-        if (draw)
-            dirty = TRUE;
-        yoffset += 0x400;
     }
-    return dirty;
 }
 
 //===========================================================================
-static BOOL UpdateLoResCell(int x, int y, int xpixel, int ypixel, int offset) {
+static void UpdateLoResCell(int x, int y, int xpixel, int ypixel, int offset) {
     BYTE val = textmainptr[offset];
-    if ((val != vidlastmem[offset + 0x400]) || redrawfull) {
-        bltfunc(
-            xpixel,
-            ypixel,
-            14,
-            8,
-            SRCOFFS_LORES,
-            (int)((val & 0xF) << 4)
-        );
-        bltfunc(
-            xpixel,
-            ypixel + 8,
-            14,
-            8,
-            SRCOFFS_LORES,
-            (int)(val & 0xF0)
-        );
-        return TRUE;
-    }
-    return FALSE;
+    bltfunc(
+        xpixel, ypixel,
+        14, 8,
+        SRCOFFS_LORES,
+        (int)((val & 0xF) << 4)
+    );
+    bltfunc(
+        xpixel, ypixel + 8,
+        14, 8,
+        SRCOFFS_LORES,
+        (int)(val & 0xF0)
+    );
 }
 
 //===========================================================================
-static BOOL UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
-    BOOL dirty   = FALSE;
-    int  yoffset = 0;
-    while (yoffset < 0x2000) {
+static void UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
+    for (int yoffset = 0; yoffset < 0x2000; yoffset += 0x400) {
         BYTE prev = (x > 0) ? hiresmainptr[offset + yoffset - 1] : 0;
         BYTE curr = hiresmainptr[offset + yoffset];
         BYTE next = (x < 39) ? hiresmainptr[offset + yoffset + 1] : 0;
-        if ((curr != vidlastmem[offset + yoffset + 0x2000]) ||
-            ((x > 0)  && ((prev & 64) != (vidlastmem[offset + yoffset + 0x1FFF] & 64))) ||
-            ((x < 39) && ((next & 1)  != (vidlastmem[offset + yoffset + 0x2001] & 1)))  ||
-            redrawfull)
-        {
-            const int c1 = (x > 0  && (prev & 64)) ? 1 : 0;
-            const int c2 = (x < 39 && (next & 1))  ? 1 : 0;
-            const int coloffs = c1 << 6 | c2 << 5;
-            bltfunc(
-                xpixel,
-                ypixel + (yoffset >> 9),
-                14,
-                2,
-                SRCOFFS_HIRES + coloffs + ((x & 1) << 4),
-                (int)curr << 1
-            );
-            dirty = TRUE;
-        }
-        yoffset += 0x400;
+        const int c1 = (x > 0  && (prev & 64)) ? 1 : 0;
+        const int c2 = (x < 39 && (next & 1))  ? 1 : 0;
+        const int coloroffs = c1 << 6 | c2 << 5;
+        bltfunc(
+            xpixel, ypixel + (yoffset >> 9),
+            14, 2,
+            SRCOFFS_HIRES + coloroffs + ((x & 1) << 4),
+            (int)curr << 1
+        );
     }
-    return dirty;
 }
 
 
@@ -1556,7 +1497,6 @@ void VideoRefreshScreen() {
     hiresmainptr = MemGetMainPtr(0x2000 << (displaypage2 ? 1 : 0));
     textauxptr   = MemGetAuxPtr(0x400 << (displaypage2 ? 1 : 0));
     textmainptr  = MemGetMainPtr(0x400 << (displaypage2 ? 1 : 0));
-    ZeroMemory(celldirty, 40 * 32);
     {
         fupdate updateupper =
             SW_TEXT()
@@ -1576,26 +1516,17 @@ void VideoRefreshScreen() {
                     : Update40ColCell
                 : updateupper;
 
-        BOOL anydirty = FALSE;
-        int  y        = 0;
-        int  ypixel   = 0;
+        int y      = 0;
+        int ypixel = 0;
         for (; y < 20; y++, ypixel += 16) {
             int offset = ((y & 7) << 7) + ((y >> 3) * 40);
-            for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14) {
-                celldirty[x][y] = updateupper(x, y, xpixel, ypixel, offset + x);
-                anydirty |= (celldirty[x][y] != 0);
-            }
+            for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14)
+                updateupper(x, y, xpixel, ypixel, offset + x);
         }
         for (; y < 24; y++, ypixel += 16) {
             int offset = ((y & 7) << 7) + ((y >> 3) * 40);
-            for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14) {
-                celldirty[x][y] = updatelower(x, y, xpixel, ypixel, offset + x);
-                anydirty |= (celldirty[x][y] != 0);
-            }
-        }
-        if (!anydirty) {
-            SetLastDrawnImage();
-            return;
+            for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14)
+                updatelower(x, y, xpixel, ypixel, offset + x);
         }
     }
 
@@ -1640,91 +1571,15 @@ void VideoRefreshScreen() {
         }
     }
 
-    // COPY DIRTY CELLS FROM THE DEVICE DEPENDENT BITMAP ONTO THE SCREEN
-    // IN LONG HORIZONTAL RECTANGLES
-    BOOL remainingdirty = FALSE;
-    for (int y = 0, ypixel = 0; y < 24; y++, ypixel += 16) {
-        int start  = -1;
-        int startx = 0;
-        for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14) {
-            if ((x == 39) && celldirty[x][y]) {
-                if (start >= 0) {
-                    xpixel += 14;
-                    celldirty[x][y] = 0;
-                }
-                else
-                    remainingdirty = TRUE;
-            }
-            if ((start >= 0) && !celldirty[x][y]) {
-                if ((x - startx > 1) || ((x == 39) && (xpixel == 560))) {
-                    int height = 1;
-                    while ((y + height < 24)
-                        && celldirty[startx][y + height]
-                        && celldirty[x - 1][y + height]
-                        && celldirty[(startx + x - 1) >> 1][y + height])
-                    {
-                        height++;
-                    }
-                    BitBlt(
-                        framedc,
-                        start,
-                        ypixel,
-                        xpixel - start,
-                        height << 4,
-                        devicedc,
-                        start,
-                        ypixel,
-                        SRCCOPY
-                    );
-                    while (height--) {
-                        int loop = startx;
-                        while (loop < x + (xpixel == 560))
-                            celldirty[loop++][y + height] = 0;
-                    }
-                    start = -1;
-                }
-                else
-                    remainingdirty = TRUE;
-                start = -1;
-            }
-            else if ((start == -1) && celldirty[x][y] && (x < 39)) {
-                start = xpixel;
-                startx = x;
-            }
-        }
-    }
-
-    // COPY ANY REMAINING DIRTY CELLS FROM THE DEVICE DEPENDENT BITMAP
-    // ONTO THE SCREEN IN VERTICAL RECTANGLES
-    if (remainingdirty) {
-        for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14) {
-            int start  = -1;
-            for (int y = 0, ypixel = 0; y < 24; y++, ypixel += 16) {
-                if ((y == 23) && celldirty[x][y]) {
-                    if (start == -1)
-                        start = ypixel;
-                    ypixel += 16;
-                    celldirty[x][y] = 0;
-                }
-                if ((start >= 0) && !celldirty[x][y]) {
-                    BitBlt(
-                        framedc,
-                        xpixel,
-                        start,
-                        14,
-                        ypixel - start,
-                        devicedc,
-                        xpixel,
-                        start,
-                        SRCCOPY
-                    );
-                    start = -1;
-                }
-                else if ((start == -1) && celldirty[x][y])
-                    start = ypixel;
-            }
-        }
-    }
+    // COPY CELLS FROM THE DEVICE DEPENDENT BITMAP ONTO THE SCREEN
+    BitBlt(
+        framedc,
+        0, 0,
+        560, 384,
+        devicedc,
+        0, 0,
+        SRCCOPY
+    );
 
     GdiFlush();
     SetLastDrawnImage();
@@ -1821,124 +1676,6 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
         return VideoCheckVbl(0, 0, 0, 0);
     else
         return MemReturnRandomData(TRUE);
-}
-
-//===========================================================================
-void VideoTestCompatibility() {
-    if (!mem)
-        return;
-
-    // PERFORM THE TEST ONLY ONCE EACH TIME THE EMULATOR IS RUN
-    static BOOL firsttime = TRUE;
-    if (!firsttime)
-        return;
-    firsttime = FALSE;
-
-    // DETERMINE THE NAME OF THIS VIDEO MODE
-    char modename[64];
-    StrPrintf(
-        modename,
-        ARRSIZE(modename),
-        "Video Mode %ux%u %ubpp",
-        (unsigned)GetSystemMetrics(SM_CXSCREEN),
-        (unsigned)GetSystemMetrics(SM_CYSCREEN),
-        (unsigned)bitsperpixel
-    );
-
-    // IF WE HAVE ALREADY TESTED THIS VIDEO MODE AND FOUND IT COMPATIBLE,
-    // JUST RETURN
-    BOOL samemode = TRUE;
-    if (!RegLoadValue("Compatibility", modename, &videocompatible)) {
-        samemode        = FALSE;
-        videocompatible = 1;
-    }
-    char savedmodename[64] = "";
-    RegLoadString("Compatibility", "Last Video Mode", savedmodename, 63);
-    if (StrCmp(modename, savedmodename) || rebuiltsource)
-        samemode = FALSE;
-    if (samemode && videocompatible)
-        return;
-    if (!samemode)
-        videocompatible = 1;
-
-      // ENTER HIRES GRAPHICS MODE AND DRAW TWO PIXELS ON THE SCREEN
-    DWORD oldvidmode = vidmode;
-    vidmode = VF_HIRES;
-    modeswitches = 0;
-    mem[0x2000] = 0x02;
-    mem[0x3FF7] = 0x20;
-
-    // EXAMINE THE SCREEN TO MAKE SURE THAT THE PIXELS WERE DRAWN CORRECTLY
-    char interference[64];
-    BOOL success;
-    do {
-        VideoRedrawScreen();
-        success = TRUE;
-        interference[0] = 0;
-        for (int loop = 1; loop <= 4; ++loop) {
-            CheckPixel(loop, 0, ((loop == 2) || (loop == 3)) ? 0x00FF00 : 0, &success, interference);
-            CheckPixel(loop, 1, ((loop == 2) || (loop == 3)) ? 0x00FF00 : 0, &success, interference);
-            CheckPixel(loop, 2, 0, &success, interference);
-        }
-        for (int loop = 555; loop <= 558; ++loop) {
-            CheckPixel(loop, 381, 0, &success, interference);
-            CheckPixel(loop, 382, ((loop == 556) || (loop == 557)) ? 0xFF00FF : 0, &success, interference);
-            CheckPixel(loop, 383, ((loop == 556) || (loop == 557)) ? 0xFF00FF : 0, &success, interference);
-        }
-        if (interference[0]) {
-            char buffer[256];
-            StrPrintf(
-                buffer,
-                ARRSIZE(buffer),
-                "AppleWin needs to perform a routine test on your "
-                "video driver.  Please move %s so that it does not "
-                "obscure the emulator window, then click OK.",
-                interference
-            );
-            MessageBox(framewindow, buffer, title, MB_ICONEXCLAMATION);
-        }
-    } while (interference[0]);
-
-    // RESTORE THE VIDEO MODE
-    vidmode = oldvidmode;
-    mem[0x2000] = 0;
-    mem[0x3FF7] = 0;
-
-    // IF THE RESULTS WERE UNEXPECTED, INFORM THE USER
-    if (videocompatible && !success) {
-        MessageBox(
-            framewindow,
-            "AppleWin has detected a compatibility problem with your "
-            "video driver.  You may want to use a different video "
-            "mode, or obtain an updated driver from your vendor.\n\n"
-            "In the meantime, AppleWin will attempt to work around "
-            "the problem by limiting its use of the driver.  This "
-            "may significantly reduce performance.",
-            title,
-            MB_ICONEXCLAMATION
-        );
-    }
-    else if (success && !videocompatible) {
-        MessageBox(
-            framewindow,
-            "AppleWin had previously reported a compatibility "
-            "problem in your video driver.  The problem seems "
-            "to have been resolved.",
-            title,
-            MB_ICONINFORMATION
-        );
-    }
-
-    // SAVE THE RESULTS
-    videocompatible = success ? 1 : 0;
-    RegSaveValue("Compatibility", modename, videocompatible);
-    RegSaveString("Compatibility", "Last Video Mode", modename);
-
-    // IF WE DISCOVERED A COMPATIBILITY PROBLEM, THEN REINITIALIZE VIDEO
-    if (!videocompatible) {
-        VideoDestroy();
-        VideoInitialize();
-    }
 }
 
 //===========================================================================

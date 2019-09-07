@@ -126,8 +126,7 @@ static void ContinueExecution() {
                 VideoCheckPage(TRUE);
                 static DWORD lasttime = 0;
                 DWORD currtime = GetTickCount();
-                if ((!fullspeed) ||
-                    (currtime - lasttime >= (DWORD)((graphicsmode || !systemidle) ? 100 : 25))) {
+                if (!fullspeed || (currtime - lasttime >= (DWORD)((graphicsmode || !systemidle) ? 100 : 25))) {
                     VideoRefreshScreen();
                     lasttime = currtime;
                 }
@@ -173,9 +172,8 @@ static void ContinueExecution() {
     // BEING UPDATED, OR THE SYSTEM IS IDLE
     finegrainlast = finegraintiming;
     finegraintiming = (calibrating > 0) ||
-        ((!systemidle) && (!diskspinning) && (!fullspeed) &&
-        (!pageflipping) && (!screenupdated) &&
-            SpkrNeedsFineGrainTiming() && !VideoApparentlyDirty());
+        (!systemidle && !diskspinning && !fullspeed &&
+            !pageflipping && !screenupdated && SpkrNeedsFineGrainTiming() && !VideoApparentlyDirty());
 
     // COMPARE THE EMULATOR'S CLOCK TO THE REAL TIME CLOCK
     {

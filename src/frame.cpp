@@ -658,8 +658,6 @@ static LRESULT CALLBACK FrameWndProc(
         break;
 
         case WM_PAINT:
-            if (mode == MODE_LOGO)
-                VideoTestCompatibility();
             if (GetUpdateRect(window, NULL, 0))
                 DrawFrameWindow(1);
             break;

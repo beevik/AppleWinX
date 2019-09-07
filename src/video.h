@@ -25,7 +25,6 @@ void VideoRefreshScreen();
 void VideoReinitialize();
 void VideoReleaseFrameDC();
 void VideoResetState();
-void VideoTestCompatibility();
 void VideoUpdateVbl(DWORD cycles, BOOL nearrefresh);
 
 BYTE VideoCheckMode(WORD pc, BYTE address, BYTE write, BYTE value);
