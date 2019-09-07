@@ -33,12 +33,10 @@ constexpr DWORD VF_TEXT        = 0x00000040;
 #define  SW_PAGE2()     (vidmode & VF_PAGE2)
 #define  SW_TEXT()      (vidmode & VF_TEXT)
 
-typedef void (* fblt)(int destx, int desty, int xsize, int ysize, int sourcex, int sourcey);
 typedef void (* fupdate)(int x, int y, int xpixel, int ypixel, int offset);
 
 BOOL graphicsmode = FALSE;
 
-static fblt          bltfunc;
 static HBITMAP       devicebitmap;
 static HDC           devicedc;
 static LPBYTE        framebufferbits;
@@ -51,28 +49,19 @@ static HANDLE        logofile;
 static HANDLE        logomap;
 static LPBITMAPINFO  logoptr;
 static LPBYTE        logoview;
-static HPALETTE      palette;
 static LPBYTE        sourcebits;
 static LPBYTE        sourceoffsettable[512];
 static LPBYTE        textauxptr;
 static LPBYTE        textmainptr;
 
-static int       bitsperpixel    = 0;
 static int       charoffs        = 0;
 static BOOL      displaypage2    = FALSE;
 static HDC       framedc         = (HDC)0;
 static BOOL      hasrefreshed    = FALSE;
 static DWORD     lastpageflip    = 0;
 static DWORD     modeswitches    = 0;
-static int       pixelbits       = 0;
-static int       pixelformat     = 0;
-static BOOL      rebuiltsource   = FALSE;
 static BOOL      redrawfull      = TRUE;
-static int       srcpixelbits    = 0;
-static int       srcpixelformat  = 0;
-static BOOL      usingdib        = FALSE;
 static DWORD     vblcounter      = 0;
-static DWORD     videocompatible = 1;
 static HFONT     videofont       = (HFONT)0;
 static LPBYTE    vidlastmem      = NULL;
 static DWORD     vidmode         = VF_TEXT;
@@ -86,196 +75,6 @@ static const COLORREF colorval16[16] = {
 
 static BOOL LoadSourceImages();
 static void SaveSourceImages();
-
-//===========================================================================
-static void BitBlt104(
-    int destx,
-    int desty,
-    int xsize,
-    int ysize,
-    int sourcex,
-    int sourcey
-) {
-    LPBYTE destptr   = frameoffsettable[desty] + (destx >> 1);
-    LPBYTE sourceptr = sourceoffsettable[sourcey] + (sourcex >> 1);
-    int bytesleft;
-    while (ysize--) {
-        bytesleft = xsize >> 1;
-        while (bytesleft--)
-            * (destptr + bytesleft) = *(sourceptr + bytesleft);
-        destptr += 280;
-        sourceptr += (SRCOFFS_TOTAL >> 1);
-    }
-}
-
-//===========================================================================
-static void BitBlt108(
-    int destx,
-    int desty,
-    int xsize,
-    int ysize,
-    int sourcex,
-    int sourcey
-) {
-    LPBYTE destptr   = frameoffsettable[desty] + destx;
-    LPBYTE sourceptr = sourceoffsettable[sourcey] + sourcex;
-    int bytesleft;
-    while (ysize--) {
-        bytesleft = xsize;
-        while (bytesleft & 3) {
-            --bytesleft;
-            *(destptr + bytesleft) = *(sourceptr + bytesleft);
-        }
-        while (bytesleft) {
-            bytesleft -= 4;
-            *(LPDWORD)(destptr + bytesleft) = *(LPDWORD)(sourceptr + bytesleft);
-        }
-        destptr += 560;
-        sourceptr += SRCOFFS_TOTAL;
-    }
-}
-
-//===========================================================================
-static void BitBlt108d(
-    int destx,
-    int desty,
-    int xsize,
-    int ysize,
-    int sourcex,
-    int sourcey
-) {
-    LPBYTE destptr   = frameoffsettable[desty] + destx;
-    LPBYTE sourceptr = sourceoffsettable[sourcey] + sourcex;
-    int bytesleft;
-    while (ysize--) {
-        bytesleft = xsize;
-        while (bytesleft & 3) {
-            --bytesleft;
-            *(destptr + bytesleft) = *(sourceptr + bytesleft);
-        }
-        while (bytesleft) {
-            bytesleft -= 4;
-            *(LPDWORD)(destptr + bytesleft) = *(LPDWORD)(sourceptr + bytesleft);
-        }
-        destptr -= 560;
-        sourceptr += SRCOFFS_TOTAL;
-    }
-}
-
-//===========================================================================
-static void BitBlt110(
-    int destx,
-    int desty,
-    int xsize,
-    int ysize,
-    int sourcex,
-    int sourcey
-) {
-    LPWORD destptr   = ((LPWORD)(frameoffsettable[desty])) + destx;
-    LPWORD sourceptr = ((LPWORD)(sourceoffsettable[sourcey])) + sourcex;
-    int pixelsleft;
-    while (ysize--) {
-        pixelsleft = xsize;
-        while (pixelsleft--)
-            * (destptr + pixelsleft) = *(sourceptr + pixelsleft);
-        destptr += 560;
-        sourceptr += SRCOFFS_TOTAL;
-    }
-}
-
-//===========================================================================
-static void BitBlt110d(
-    int destx,
-    int desty,
-    int xsize,
-    int ysize,
-    int sourcex,
-    int sourcey
-) {
-    LPWORD destptr   = ((LPWORD)(frameoffsettable[desty])) + destx;
-    LPWORD sourceptr = ((LPWORD)(sourceoffsettable[sourcey])) + sourcex;
-    int pixelsleft;
-    while (ysize--) {
-        pixelsleft = xsize;
-        while (pixelsleft--)
-            * (destptr + pixelsleft) = *(sourceptr + pixelsleft);
-        destptr -= 560;
-        sourceptr += SRCOFFS_TOTAL;
-    }
-}
-
-//===========================================================================
-static void BitBlt118(
-    int destx,
-    int desty,
-    int xsize,
-    int ysize,
-    int sourcex,
-    int sourcey
-) {
-    LPBYTE destptr   = frameoffsettable[desty] + (destx * 3);
-    LPBYTE sourceptr = sourceoffsettable[sourcey] + (sourcex * 3);
-    xsize *= 3;
-    int pixelsleft;
-    while (ysize--) {
-        pixelsleft = xsize;
-        while (pixelsleft >= 4) {
-            pixelsleft -= 4;
-            *(LPDWORD)(destptr + pixelsleft) = *(LPDWORD)(sourceptr + pixelsleft);
-        }
-        while (pixelsleft--)
-            *(destptr + pixelsleft) = *(sourceptr + pixelsleft);
-        destptr += 560 * 3;
-        sourceptr += SRCOFFS_TOTAL * 3;
-    }
-}
-
-//===========================================================================
-static void BitBlt118d(
-    int destx,
-    int desty,
-    int xsize,
-    int ysize,
-    int sourcex,
-    int sourcey
-) {
-    LPBYTE destptr   = frameoffsettable[desty] + (destx * 3);
-    LPBYTE sourceptr = sourceoffsettable[sourcey] + (sourcex * 3);
-    xsize *= 3;
-    int pixelsleft;
-    while (ysize--) {
-        pixelsleft = xsize;
-        while (pixelsleft >= 4) {
-            pixelsleft -= 4;
-            *(LPDWORD)(destptr + pixelsleft) = *(LPDWORD)(sourceptr + pixelsleft);
-        }
-        while (pixelsleft--)
-            * (destptr + pixelsleft) = *(sourceptr + pixelsleft);
-        destptr -= 560 * 3;
-        sourceptr += SRCOFFS_TOTAL * 3;
-    }
-}
-
-//===========================================================================
-static void BitBlt120(
-    int destx,
-    int desty,
-    int xsize,
-    int ysize,
-    int sourcex,
-    int sourcey
-) {
-    LPDWORD destptr   = ((LPDWORD)(frameoffsettable[desty])) + destx;
-    LPDWORD sourceptr = ((LPDWORD)(sourceoffsettable[sourcey])) + sourcex;
-    int pixelsleft;
-    while (ysize--) {
-        pixelsleft = xsize;
-        while (pixelsleft--)
-            destptr[pixelsleft] = sourceptr[pixelsleft];
-        destptr += 560;
-        sourceptr += SRCOFFS_TOTAL;
-    }
-}
 
 //===========================================================================
 static void BitBlt120d(
@@ -296,191 +95,6 @@ static void BitBlt120d(
         destptr -= 560;
         sourceptr += SRCOFFS_TOTAL;
     }
-}
-
-//===========================================================================
-static void BitBlt401(
-    int destx,
-    int desty,
-    int xsize,
-    int ysize,
-    int sourcex,
-    int sourcey
-) {
-    LPBYTE destptr   = (LPBYTE)(frameoffsettable[desty] + (destx >> 3));
-    LPBYTE sourceptr = (LPBYTE)(sourceoffsettable[sourcey] + (sourcex >> 3));
-    ysize <<= 2;
-    destx &= 7;
-    DWORD mask = 0xFFFFFFFF;
-    mask >>= (32 - xsize);
-    mask <<= (32 - xsize) - destx;
-    while (ysize--) {
-        BYTE source = 0;
-        BYTE bytemask = 0;
-        int  offset = 0;
-        while (offset <= ((xsize + destx - 1) >> 3)) {
-            bytemask = (BYTE)(mask >> ((3 - offset) << 3));
-            source |= *(sourceptr + offset) >> destx;
-            *(destptr + offset) = (source & bytemask)
-                | (*(destptr + offset) & ~bytemask);
-            source = *(sourceptr + offset++) << (8 - destx);
-        }
-        destptr += 70;
-        sourceptr += (SRCOFFS_TOTAL >> 3);
-    }
-}
-
-//===========================================================================
-static void CheckPixel(
-    int         x,
-    int         y,
-    COLORREF    expected,
-    BOOL *      success,
-    char *      interference
-) {
-    if (optmonochrome) {
-        if (y & 1)
-            expected = expected ? 0x00FF00 : 0;
-        else
-            expected = 0;
-    }
-    if (GetPixel(framedc, x, y) != expected)
-        *success = FALSE;
-    POINT pt = { x + VIEWPORTX,y + VIEWPORTY };
-    ClientToScreen(framewindow, &pt);
-    HWND window = WindowFromPoint(pt);
-    if (window != framewindow) {
-        GetWindowText(window, interference, 63);
-        interference[63] = 0;
-    }
-}
-
-//===========================================================================
-static void ConvertToBottomUp8() {
-    int     linesleft = 384;
-    LPDWORD sourceptr = (LPDWORD)framebufferbits;
-    LPDWORD destptr = (LPDWORD)(framebufferdibits + 383 * 560);
-    while (linesleft--) {
-        int loop = 140;
-        while (loop--)
-            *destptr++ = *sourceptr++;
-        destptr -= 280;
-    }
-}
-
-//===========================================================================
-static void CreateIdentityPalette(RGBQUAD * srctable, RGBQUAD * rgbtable) {
-    HWND window = GetDesktopWindow();
-    HDC  dc     = GetDC(window);
-    int  colors = GetDeviceCaps(dc, SIZEPALETTE);
-    int  system = GetDeviceCaps(dc, NUMCOLORS);
-
-    // IF WE ARE IN A PALETTIZED VIDEO MODE, CREATE AN IDENTITY PALETTE
-    if ((GetDeviceCaps(dc, RASTERCAPS) & RC_PALETTE) && (colors <= 256)) {
-        SetSystemPaletteUse(dc, SYSPAL_NOSTATIC);
-        SetSystemPaletteUse(dc, SYSPAL_STATIC);
-
-        // CREATE A PALETTE ENTRY ARRAY
-        int palsize = sizeof(LOGPALETTE) + 256 * sizeof(PALETTEENTRY);
-        LOGPALETTE * paldata = (LOGPALETTE *)new BYTE[palsize];
-        paldata->palVersion    = 0x300;
-        paldata->palNumEntries = colors;
-        GetSystemPaletteEntries(dc, 0, colors, paldata->palPalEntry);
-
-        // FILL IN THE PALETTE ENTRIES
-        {
-            int destindex     = 0;
-            int srcindex      = 0;
-            int halftoneindex = 0;
-
-            // COPY THE SYSTEM PALETTE ENTRIES AT THE BEGINNING OF THE PALETTE
-            for (; destindex < system / 2; destindex++)
-                paldata->palPalEntry[destindex].peFlags = 0;
-
-            // FILL IN THE MIDDLE PORTION OF THE PALETTE WITH OUR OWN COLORS
-            for (; destindex < colors - system / 2; destindex++) {
-                if (srctable) {
-
-                    // IF THIS PALETTE ENTRY IS NEEDED FOR THE LOGO, COPY IN THE LOGO
-                    // COLOR
-                    if ((srctable + srcindex)->rgbRed &&
-                        (srctable + srcindex)->rgbGreen &&
-                        (srctable + srcindex)->rgbBlue) {
-                        paldata->palPalEntry[destindex].peRed = (srctable + srcindex)->rgbRed;
-                        paldata->palPalEntry[destindex].peGreen = (srctable + srcindex)->rgbGreen;
-                        paldata->palPalEntry[destindex].peBlue = (srctable + srcindex)->rgbBlue;
-                    }
-
-                    // OTHERWISE, ADD A HALFTONING COLOR, SO THAT OTHER APPLICATIONS
-                    // RUNNING IN THE BACKGROUND WILL HAVE SOME REASONABLE COLORS TO
-                    // USE
-                    else {
-                        static BYTE halftonetable[6] = { 32,64,96,160,192,224 };
-                        paldata->palPalEntry[destindex].peRed = halftonetable[halftoneindex % 6];
-                        paldata->palPalEntry[destindex].peGreen = halftonetable[halftoneindex / 6 % 6];
-                        paldata->palPalEntry[destindex].peBlue = halftonetable[halftoneindex / 36 % 6];
-                        ++halftoneindex;
-                    }
-
-                    ++srcindex;
-                }
-                paldata->palPalEntry[destindex].peFlags = PC_NOCOLLAPSE;
-            }
-
-            // COPY THE SYSTEM PALETTE ENTRIES AT THE END OF THE PALETTE
-            for (; destindex < colors; destindex++)
-                paldata->palPalEntry[destindex].peFlags = 0;
-
-        }
-
-        // FILL THE RGB TABLE WITH COLORS FROM OUR PALETTE
-        if (rgbtable) {
-            for (int loop = 0; loop < colors; loop++) {
-                (rgbtable + loop)->rgbRed = paldata->palPalEntry[loop].peRed;
-                (rgbtable + loop)->rgbGreen = paldata->palPalEntry[loop].peGreen;
-                (rgbtable + loop)->rgbBlue = paldata->palPalEntry[loop].peBlue;
-            }
-        }
-
-        // CREATE THE PALETTE
-        palette = CreatePalette(paldata);
-
-        delete[] paldata;
-    }
-
-    // OTHERWISE, FILL THE RGB TABLE WITH THE STANDARD WINDOWS COLORS
-    else {
-#define SETRGBENTRY(a,b,c,d) (rgbtable+(a))->rgbRed   = (b); \
-                             (rgbtable+(a))->rgbGreen = (c); \
-                             (rgbtable+(a))->rgbBlue  = (d);
-        SETRGBENTRY(0x00, 0x00, 0x00, 0x00);
-        SETRGBENTRY(0x01, 0x80, 0x00, 0x00);
-        SETRGBENTRY(0x02, 0x00, 0x80, 0x00);
-        SETRGBENTRY(0x03, 0x80, 0x80, 0x00);
-        SETRGBENTRY(0x04, 0x00, 0x00, 0x80);
-        SETRGBENTRY(0x05, 0x80, 0x00, 0x80);
-        SETRGBENTRY(0x06, 0x00, 0x80, 0x80);
-        SETRGBENTRY(0x07, 0xC0, 0xC0, 0xC0);
-        SETRGBENTRY(0x08, 0x80, 0x80, 0x80);
-        SETRGBENTRY(0x09, 0xFF, 0x00, 0x00);
-        SETRGBENTRY(0x0A, 0x00, 0xFF, 0x00);
-        SETRGBENTRY(0x0B, 0xFF, 0xFF, 0x00);
-        SETRGBENTRY(0x0C, 0x00, 0x00, 0xFF);
-        SETRGBENTRY(0x0D, 0xFF, 0x00, 0xFF);
-        SETRGBENTRY(0x0E, 0x00, 0xFF, 0xFF);
-        SETRGBENTRY(0x0F, 0xFF, 0xFF, 0xFF);
-        SETRGBENTRY(0xF8, 0x80, 0x80, 0x80);
-        SETRGBENTRY(0xF9, 0xFF, 0x00, 0x00);
-        SETRGBENTRY(0xFA, 0x00, 0xFF, 0x00);
-        SETRGBENTRY(0xFB, 0xFF, 0xFF, 0x00);
-        SETRGBENTRY(0xFC, 0x00, 0x00, 0xFF);
-        SETRGBENTRY(0xFD, 0xFF, 0x00, 0xFF);
-        SETRGBENTRY(0xFE, 0x00, 0xFF, 0xFF);
-        SETRGBENTRY(0xFF, 0xFF, 0xFF, 0xFF);
-#undef SETRGBENTRY
-    }
-
-    ReleaseDC(window, dc);
 }
 
 //===========================================================================
@@ -610,8 +224,8 @@ static void InitializeSourceImages() {
         HBITMAP bitmap = CreateBitmap(
             SRCOFFS_TOTAL,
             512,
-            srcpixelformat >> 8,
-            srcpixelformat & 0xFF,
+            1,
+            32,
             NULL
         );
         SelectObject(memdc, bitmap);
@@ -624,8 +238,7 @@ static void InitializeSourceImages() {
             DrawMonoHiResSource(memdc);
             DrawMonoDHiResSource(memdc);
             SelectObject(memdc, GetStockObject(BLACK_PEN));
-            int loop = 512;
-            while ((loop -= 2) >= 0) {
+            for (int loop = 510; loop >= 0; loop -= 2) {
                 MoveToEx(memdc, 0, loop, NULL);
                 LineTo(memdc, SRCOFFS_TOTAL, loop);
             }
@@ -638,11 +251,10 @@ static void InitializeSourceImages() {
         }
         DeleteDC(memdc);
         ReleaseDC(window, dc);
-        GetBitmapBits(bitmap, SRCOFFS_TOTAL * 64 * srcpixelbits, sourcebits);
+        GetBitmapBits(bitmap, SRCOFFS_TOTAL * 64 * 32, sourcebits);
         DeleteObject(bitmap);
         DeleteObject(brush);
         SaveSourceImages();
-        rebuiltsource = TRUE;
     }
 }
 
@@ -657,7 +269,7 @@ static BOOL LoadSourceImages() {
         ARRSIZE(filename),
         "%sVid%03X%s.dat",
         progdir,
-        (unsigned)srcpixelformat & 0xFFF,
+        0x120,
         optmonochrome ? "m" : "c"
     );
 
@@ -672,7 +284,7 @@ static BOOL LoadSourceImages() {
     );
 
     if (file != INVALID_HANDLE_VALUE) {
-        DWORD bytestoread = SRCOFFS_TOTAL * 64 * srcpixelbits;
+        DWORD bytestoread = SRCOFFS_TOTAL * 64 * 32;
         DWORD bytesread = 0;
         (void)ReadFile(file, sourcebits, bytestoread, &bytesread, NULL);
         CloseHandle(file);
@@ -693,7 +305,7 @@ static void SaveSourceImages() {
         ARRSIZE(filename),
         "%sVid%03X%s.dat",
         progdir,
-        (unsigned)(srcpixelformat & 0xFFF),
+        0x120,
         optmonochrome ? "m" : "c"
     );
 
@@ -708,7 +320,7 @@ static void SaveSourceImages() {
     );
 
     if (file != INVALID_HANDLE_VALUE) {
-        DWORD bytestowrite = SRCOFFS_TOTAL * 64 * srcpixelbits;
+        DWORD bytestowrite = SRCOFFS_TOTAL * 64 * 32;
         DWORD byteswritten = 0;
         WriteFile(file, sourcebits, bytestowrite, &byteswritten, NULL);
         CloseHandle(file);
@@ -736,7 +348,7 @@ static void SetLastDrawnImage() {
 //===========================================================================
 static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
     BYTE ch = textmainptr[offset];
-    bltfunc(
+    BitBlt120d(
         xpixel, ypixel,
         14, 16,
         SRCOFFS_40COL + ((ch & 0x0F) << 4),
@@ -748,13 +360,13 @@ static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
 static void Update80ColCell(int x, int y, int xpixel, int ypixel, int offset) {
     BYTE auxval  = textauxptr[offset];
     BYTE mainval = textmainptr[offset];
-    bltfunc(
+    BitBlt120d(
         xpixel, ypixel,
         7, 16,
         SRCOFFS_80COL + ((auxval & 15) << 3),
         ((auxval >> 4) << 4) + charoffs
     );
-    bltfunc(
+    BitBlt120d(
         xpixel + 7, ypixel,
         7, 16,
         SRCOFFS_80COL + ((mainval & 15) << 3),
@@ -774,13 +386,13 @@ static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
             BYTE thirdval = hiresmainptr[offset + yoffset - 1];
             int value1 = ((auxval & 0x3F) << 2) | ((thirdval & 0x60) >> 5);
             int value2 = ((mainval & 0x7F) << 1) | ((auxval & 0x40) >> 6);
-            bltfunc(
+            BitBlt120d(
                 xpixel - 2, ypixel + (yoffset >> 9),
                 8, 2,
                 SRCOFFS_DHIRES,
                 value1 << 1
             );
-            bltfunc(
+            BitBlt120d(
                 xpixel + 6, ypixel + (yoffset >> 9),
                 8, 2,
                 SRCOFFS_DHIRES,
@@ -791,13 +403,13 @@ static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
             BYTE thirdval = hiresauxptr[offset + yoffset + 1];
             int value1 = (auxval & 0x7F) | ((mainval & 1) << 7);
             int value2 = ((mainval & 0x7E) >> 1) | ((thirdval & 3) << 6);
-            bltfunc(
+            BitBlt120d(
                 xpixel, ypixel + (yoffset >> 9),
                 8, 2,
                 SRCOFFS_DHIRES,
                 value1 << 1
             );
-            bltfunc(
+            BitBlt120d(
                 xpixel + 8, ypixel + (yoffset >> 9),
                 8, 2,
                 SRCOFFS_DHIRES,
@@ -810,13 +422,13 @@ static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
 //===========================================================================
 static void UpdateLoResCell(int x, int y, int xpixel, int ypixel, int offset) {
     BYTE val = textmainptr[offset];
-    bltfunc(
+    BitBlt120d(
         xpixel, ypixel,
         14, 8,
         SRCOFFS_LORES,
         (int)((val & 0xF) << 4)
     );
-    bltfunc(
+    BitBlt120d(
         xpixel, ypixel + 8,
         14, 8,
         SRCOFFS_LORES,
@@ -833,7 +445,7 @@ static void UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
         const int c1 = (x > 0  && (prev & 64)) ? 1 : 0;
         const int c2 = (x < 39 && (next & 1))  ? 1 : 0;
         const int coloroffs = c1 << 6 | c2 << 5;
-        bltfunc(
+        BitBlt120d(
             xpixel, ypixel + (yoffset >> 9),
             14, 2,
             SRCOFFS_HIRES + coloroffs + ((x & 1) << 4),
@@ -1047,7 +659,7 @@ void VideoBenchmark() {
             "Pure CPU MHz:\t%u.%u%s\n\n"
             "EXPECTED AVERAGE VIDEO GAME\n"
             "PERFORMANCE: %u FPS",
-            (unsigned)pixelformat,
+            (unsigned)0x120,
             (unsigned)totalhiresfps,
             (unsigned)totaltextfps,
             (unsigned)(totalmhz10 / 10),
@@ -1108,13 +720,6 @@ void VideoDestroy() {
     sourcebits = NULL;
     vidlastmem = NULL;
 
-    if (!usingdib) {
-        delete[] framebufferbits;
-        delete[] framebufferdibits;
-        framebufferbits = NULL;
-        framebufferdibits = NULL;
-    }
-
     DeleteDC(devicedc);
     DeleteObject(devicebitmap);
     DeleteObject(videofont);
@@ -1147,7 +752,7 @@ void VideoDisplayLogo() {
     // DRAW THE LOGO, USING SETDIBITSTODEVICE() IF IT IS AVAILABLE OR
     // BITBLT() IF IT IS NOT
     if (logoptr) {
-        int logosize = sizeof(BITMAPINFOHEADER) + ((bitsperpixel <= 4) ? 16 : 256) * sizeof(RGBQUAD);
+        int logosize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
         int result = SetDIBitsToDevice(
             framedc,
             0,
@@ -1160,7 +765,7 @@ void VideoDisplayLogo() {
             logoptr->bmiHeader.biHeight,
             (LPBYTE)logoptr + logosize,
             logoptr,
-            (pixelformat == 0x108) ? 2 /* DIB_PAL_INDICES */ : DIB_RGB_COLORS
+            DIB_RGB_COLORS
         );
         if (result == 0) {
             int bitmapsize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
@@ -1170,9 +775,9 @@ void VideoDisplayLogo() {
             info->bmiHeader.biWidth    = 560;
             info->bmiHeader.biHeight   = 384;
             info->bmiHeader.biPlanes   = 1;
-            info->bmiHeader.biBitCount = ((bitsperpixel <= 4) ? 4 : 8);
-            info->bmiHeader.biClrUsed  = ((bitsperpixel <= 4) ? 16 : 256);
-            int databytes = (bitsperpixel <= 4) ? 16 * sizeof(RGBQUAD) : 256 * sizeof(RGBQUAD);
+            info->bmiHeader.biBitCount = 8;
+            info->bmiHeader.biClrUsed  = 256;
+            int databytes = 256 * sizeof(RGBQUAD);
             CopyMemory(info->bmiColors, logoptr->bmiColors, databytes);
             SetDIBits(
                 devicedc,
@@ -1189,49 +794,39 @@ void VideoDisplayLogo() {
     }
 
     // DRAW THE VERSION NUMBER
-    if (bitsperpixel > 4) {
-        HFONT font = CreateFont(
-            -20,
-            0,
-            0,
-            0,
-            FW_NORMAL,
-            0,
-            0,
-            0,
-            ANSI_CHARSET,
-            OUT_DEFAULT_PRECIS,
-            CLIP_DEFAULT_PRECIS,
-            DEFAULT_QUALITY,
-            VARIABLE_PITCH | 4 | FF_SWISS,
-            "Arial"
-        );
-        HFONT oldfont = (HFONT)SelectObject(framedc, font);
-        SetTextAlign(framedc, TA_RIGHT | TA_TOP);
-        SetBkMode(framedc, TRANSPARENT);
-        char version[16];
-        StrPrintf(version, ARRSIZE(version), "Version %d.%d", VERSIONMAJOR, VERSIONMINOR);
+    HFONT font = CreateFont(
+        -20,
+        0,
+        0,
+        0,
+        FW_NORMAL,
+        0,
+        0,
+        0,
+        ANSI_CHARSET,
+        OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        DEFAULT_QUALITY,
+        VARIABLE_PITCH | 4 | FF_SWISS,
+        "Arial"
+    );
+    HFONT oldfont = (HFONT)SelectObject(framedc, font);
+    SetTextAlign(framedc, TA_RIGHT | TA_TOP);
+    SetBkMode(framedc, TRANSPARENT);
+    char version[16];
+    StrPrintf(version, ARRSIZE(version), "Version %d.%d", VERSIONMAJOR, VERSIONMINOR);
 #define  DRAWVERSION(x,y,c)  SetTextColor(framedc,c);   \
-                             TextOut(framedc,           \
-                                     540 + x, 358 + y,  \
-                                     version,           \
-                                     StrLen(version));
-        if (GetDeviceCaps(framedc, RASTERCAPS) & RC_PALETTE) {
-            int offset = GetDeviceCaps(framedc, NUMCOLORS) / 2;
-            DRAWVERSION( 1,  1, PALETTEINDEX(2 + offset));
-            DRAWVERSION(-1, -1, PALETTEINDEX(122 + offset));
-            DRAWVERSION( 0,  0, PALETTEINDEX(32 + offset));
-        }
-        else {
-            DRAWVERSION( 1,  1, 0x6A2136);
-            DRAWVERSION(-1, -1, 0xE76BBD);
-            DRAWVERSION( 0,  0, 0xD63963);
-        }
+                            TextOut(framedc,           \
+                                    540 + x, 358 + y,  \
+                                    version,           \
+                                    StrLen(version));
+    DRAWVERSION( 1,  1, 0x6A2136);
+    DRAWVERSION(-1, -1, 0xE76BBD);
+    DRAWVERSION( 0,  0, 0xD63963);
 #undef  DRAWVERSION
-        SetTextAlign(framedc, TA_RIGHT | TA_TOP);
-        SelectObject(framedc, oldfont);
-        DeleteObject(font);
-    }
+    SetTextAlign(framedc, TA_RIGHT | TA_TOP);
+    SelectObject(framedc, oldfont);
+    DeleteObject(font);
 
     FrameReleaseDC(framedc);
     framedc = (HDC)0;
@@ -1292,26 +887,14 @@ void VideoInitialize() {
     vidlastmem = new BYTE[0x10000];
     ZeroMemory(vidlastmem, 0x10000);
 
-    // DETERMINE THE NUMBER OF BITS PER PIXEL USED BY THE CURRENT DEVICE
-    if (videocompatible) {
-        HWND window = GetDesktopWindow();
-        HDC  dc = GetDC(window);
-        bitsperpixel = GetDeviceCaps(dc, PLANES) * GetDeviceCaps(dc, BITSPIXEL);
-        pixelformat  = (GetDeviceCaps(dc, PLANES) << 8) | GetDeviceCaps(dc, BITSPIXEL);
-        ReleaseDC(window, dc);
-    }
-    else {
-        pixelformat  = 0x801;
-        bitsperpixel = 8;
-    }
-    if ((pixelformat == 0x104) || (pixelformat == 0x401) ||
-        (pixelformat == 0x110) || (pixelformat == 0x118) ||
-        (pixelformat == 0x120))
-        srcpixelformat = pixelformat;
-    else
-        srcpixelformat = 0x108;
-    pixelbits = (pixelformat & 0xFF) * (pixelformat >> 8);
-    srcpixelbits = (srcpixelformat & 0xFF) * (srcpixelformat >> 8);
+    // THE DEVICE MUST BE 32 BPP AND A SINGLE PLANE
+    HWND window       = GetDesktopWindow();
+    HDC  dc           = GetDC(window);
+    int  planes       = GetDeviceCaps(dc, PLANES);
+    int  bitsperpixel = planes * GetDeviceCaps(dc, BITSPIXEL);
+    ReleaseDC(window, dc);
+    if (bitsperpixel != 32 && planes != 1)
+        return;
 
     // LOAD THE LOGO
     VideoLoadLogo();
@@ -1323,93 +906,39 @@ void VideoInitialize() {
     framebufferinfo->bmiHeader.biSize     = sizeof(BITMAPINFOHEADER);
     framebufferinfo->bmiHeader.biWidth    = 560;
     framebufferinfo->bmiHeader.biHeight   = 384;
-    framebufferinfo->bmiHeader.biPlanes   = srcpixelformat >> 8;
-    framebufferinfo->bmiHeader.biBitCount = srcpixelformat & 0xFF;
+    framebufferinfo->bmiHeader.biPlanes   = 1;
+    framebufferinfo->bmiHeader.biBitCount = 32;
     framebufferinfo->bmiHeader.biClrUsed  = 256;
 
-    // CREATE AN IDENTITY PALETTE AND FILL IN THE CORRESPONDING COLORS IN
-    // THE BITMAPINFO STRUCTURE
-    CreateIdentityPalette(
-        logoptr ? logoptr->bmiColors : NULL,
-        framebufferinfo->bmiColors
-    );
-
     // CREATE A BIT BUFFER FOR THE SOURCE IMAGES
-    int sourcebitssize = SRCOFFS_TOTAL * 64 * srcpixelbits + 4;
+    int sourcebitssize = SRCOFFS_TOTAL * 64 * 32 + 4;
     sourcebits = new BYTE[sourcebitssize];
     ZeroMemory(sourcebits, sourcebitssize);
-
-    // DETERMINE WHETHER TO USE THE CREATEDIBSECTION() OR SETBITS() METHOD
-    // OF BITMAP DATA UPDATING
-    if ((pixelformat == 0x108) || (pixelformat == 0x110) || (pixelformat == 0x118) || (pixelformat == 0x120)) {
-        usingdib = TRUE;
-    }
 
     // CREATE THE DEVICE DEPENDENT BITMAP AND DEVICE CONTEXT
     {
         HWND window = GetDesktopWindow();
         HDC  dc = GetDC(window);
-        if (usingdib) {
-            framebufferbits = NULL;
-            devicebitmap = CreateDIBSection(
-                dc,
-                framebufferinfo,
-                DIB_RGB_COLORS,
-                (LPVOID *)&framebufferbits,
-                0,
-                0
-            );
-            usingdib = (devicebitmap && framebufferinfo);
-        }
+        framebufferbits = NULL;
+        devicebitmap = CreateDIBSection(
+            dc,
+            framebufferinfo,
+            DIB_RGB_COLORS,
+            (LPVOID *)&framebufferbits,
+            0,
+            0
+        );
         devicedc = CreateCompatibleDC(dc);
-        if (!usingdib)
-            devicebitmap = CreateCompatibleBitmap(dc, 560, 384);
         ReleaseDC(window, dc);
-        SelectPalette(devicedc, palette, 0);
-        RealizePalette(devicedc);
         SelectObject(devicedc, devicebitmap);
-    }
-
-    // IF WE ARE NOT USING CREATEDIBSECTION() THEN CREATE BIT BUFFERS FOR THE
-    // FRAME BUFFER AND DIB FRAME BUFFER
-    if (!usingdib) {
-        int buffersize    = 70 * 384 * pixelbits + 4;
-        framebufferbits   = new BYTE[buffersize];
-        framebufferdibits = new BYTE[buffersize];
-        ZeroMemory(framebufferbits, buffersize);
-        ZeroMemory(framebufferdibits, buffersize);
     }
 
     // CREATE OFFSET TABLES FOR EACH SCAN LINE IN THE SOURCE IMAGES AND
     // FRAME BUFFER
-    if ((srcpixelformat <= 0x108) || (srcpixelformat >= 0x200)) {
-        for (int loop = 0; loop < 512; ++loop) {
-            if (loop < 384) {
-                frameoffsettable[loop] = framebufferbits
-                    + (bitsperpixel == 4 ? 280 : 560)
-                    * (usingdib ? (383 - loop) : loop);
-            }
-            sourceoffsettable[loop] = sourcebits + ((SRCOFFS_TOTAL * loop) >> ((bitsperpixel == 4) ? 1 : 0));
-        }
-    }
-    else {
-        const int bytespixel = srcpixelbits >> 3;
-        for (int loop = 0; loop < 512; ++loop) {
-            if (loop < 384)
-                frameoffsettable[loop] = framebufferbits + (560 * bytespixel) * (usingdib ? (383 - loop) : loop);
-            sourceoffsettable[loop] = sourcebits + SRCOFFS_TOTAL * bytespixel * loop;
-        }
-    }
-
-    // DETERMINE WHICH BITBLT FUNCTION TO USE
-    switch (srcpixelformat) {
-        case 0x104: bltfunc = BitBlt104;                          break;
-        case 0x108: bltfunc = usingdib ? BitBlt108d : BitBlt108;  break;
-        case 0x110: bltfunc = usingdib ? BitBlt110d : BitBlt110;  break;
-        case 0x118: bltfunc = usingdib ? BitBlt118d : BitBlt118;  break;
-        case 0x120: bltfunc = usingdib ? BitBlt120d : BitBlt120;  break;
-        case 0x401: bltfunc = BitBlt401;                          break;
-        default:    bltfunc = NULL;                               break;
+    for (int loop = 0; loop < 512; ++loop) {
+        if (loop < 384)
+            frameoffsettable[loop] = framebufferbits + 560 * 4 * (383 - loop);
+        sourceoffsettable[loop] = sourcebits + SRCOFFS_TOTAL * 4 * loop;
     }
 
     // LOAD THE SOURCE IMAGES FROM DISK, OR DRAW THEM AND TRANSFER THEM
@@ -1418,12 +947,11 @@ void VideoInitialize() {
 
     // RESET THE VIDEO MODE SWITCHES AND THE CHARACTER SET OFFSET
     VideoResetState();
-
 }
 
 //===========================================================================
 void VideoLoadLogo() {
-    if (logoptr || bitsperpixel <= 4)
+    if (logoptr)
         return;
 
     char filename[MAX_PATH];
@@ -1454,17 +982,6 @@ void VideoLoadLogo() {
         logoptr = (LPBITMAPINFO)(logoview + 0x200 + sizeof(BITMAPFILEHEADER));
     else
         logoptr = NULL;
-}
-
-//===========================================================================
-void VideoRealizePalette(HDC dc) {
-    if (!dc) {
-        if (!framedc)
-            framedc = FrameGetDC();
-        dc = framedc;
-    }
-    SelectPalette(dc, palette, 0);
-    RealizePalette(dc);
 }
 
 //===========================================================================
@@ -1527,47 +1044,6 @@ void VideoRefreshScreen() {
             int offset = ((y & 7) << 7) + ((y >> 3) * 40);
             for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14)
                 updatelower(x, y, xpixel, ypixel, offset + x);
-        }
-    }
-
-    // CONVERT THE FRAME BUFFER BITS INTO A DEVICE DEPENDENT BITMAP
-    if (!usingdib) {
-        switch (pixelformat) {
-
-            case 0x104:
-            case 0x401:
-                SetBitmapBits(devicebitmap, 280 * 384, framebufferbits);
-                break;
-
-            case 0x108:
-                SetBitmapBits(devicebitmap, 560 * 384, framebufferbits);
-                break;
-
-            case 0x110:
-                SetBitmapBits(devicebitmap, 560 * 384 * 2, framebufferbits);
-                break;
-
-            case 0x118:
-                SetBitmapBits(devicebitmap, 560 * 384 * 3, framebufferbits);
-                break;
-
-            case 0x120:
-                SetBitmapBits(devicebitmap, 560 * 384 * 4, framebufferbits);
-                break;
-
-            default:
-                ConvertToBottomUp8();
-                SetDIBits(
-                    devicedc,
-                    devicebitmap,
-                    0,
-                    384,
-                    framebufferdibits,
-                    framebufferinfo,
-                    DIB_RGB_COLORS
-                );
-                break;
-
         }
     }
 

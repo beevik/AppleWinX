@@ -403,9 +403,7 @@ static void DrawCrosshairs(int x, int y) {
 static void DrawFrameWindow(BOOL paint) {
     VideoReleaseFrameDC();
     PAINTSTRUCT ps;
-    HDC         dc = (paint ? BeginPaint(framewindow, &ps)
-        : GetDC(framewindow));
-    VideoRealizePalette(dc);
+    HDC dc = (paint ? BeginPaint(framewindow, &ps) : GetDC(framewindow));
 
     // DRAW THE 3D BORDER AROUND THE EMULATED SCREEN
     Draw3dRect(dc,
@@ -663,7 +661,6 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_QUERYNEWPALETTE:
-            VideoRealizePalette((HDC)0);
             return 1;
 
         case WM_RBUTTONDOWN:

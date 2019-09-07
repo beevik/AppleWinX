@@ -19,7 +19,6 @@ void VideoDisplayMode(BOOL flashon);
 BOOL VideoHasRefreshed();
 void VideoInitialize();
 void VideoLoadLogo();
-void VideoRealizePalette(HDC dc);
 void VideoRedrawScreen();
 void VideoRefreshScreen();
 void VideoReinitialize();
