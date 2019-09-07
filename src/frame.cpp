@@ -544,6 +544,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_DESTROY:
+            mode = MODE_SHUTDOWN;
             DebugDestroy();
             if (!restart) {
                 DiskDestroy();
@@ -994,15 +995,15 @@ void FrameRefreshStatus() {
 void FrameRegisterClass() {
     WNDCLASSEX wndclass;
     ZeroMemory(&wndclass, sizeof(WNDCLASSEX));
-    wndclass.cbSize = sizeof(WNDCLASSEX);
-    wndclass.style = CS_OWNDC | CS_BYTEALIGNCLIENT;
-    wndclass.lpfnWndProc = FrameWndProc;
-    wndclass.hInstance = instance;
-    wndclass.hIcon = LoadIcon(instance, "APPLEWIN_ICON");
-    wndclass.hCursor = LoadCursor(0, IDC_ARROW);
+    wndclass.cbSize        = sizeof(WNDCLASSEX);
+    wndclass.style         = CS_OWNDC | CS_BYTEALIGNCLIENT;
+    wndclass.lpfnWndProc   = FrameWndProc;
+    wndclass.hInstance     = instance;
+    wndclass.hIcon         = LoadIcon(instance, "APPLEWIN_ICON");
+    wndclass.hCursor       = LoadCursor(0, IDC_ARROW);
     wndclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
     wndclass.lpszClassName = "APPLE2FRAME";
-    wndclass.hIconSm = (HICON)LoadImageA(instance, "APPLEWIN_ICON", 1, 16, 16, 0);
+    wndclass.hIconSm       = (HICON)LoadImageA(instance, "APPLEWIN_ICON", 1, 16, 16, 0);
     RegisterClassExA(&wndclass);
 }
 

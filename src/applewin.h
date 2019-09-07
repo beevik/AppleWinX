@@ -18,6 +18,7 @@ constexpr int MODE_PAUSED   = 1;
 constexpr int MODE_RUNNING  = 2;
 constexpr int MODE_DEBUG    = 3;
 constexpr int MODE_STEPPING = 4;
+constexpr int MODE_SHUTDOWN = 5;
 
 constexpr int SPEED_NORMAL  = 10;
 constexpr int SPEED_MAX     = 40;

@@ -35,3 +35,4 @@
 #include "speaker.h"
 #include "strings.h"
 #include "video.h"
+#include "window.h"

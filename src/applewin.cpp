@@ -287,33 +287,6 @@ static LRESULT CALLBACK DlgProc(
 }
 
 //===========================================================================
-static void EnterMessageLoop() {
-    MSG message;
-    while (GetMessage(&message, 0, 0, 0)) {
-        TranslateMessage(&message);
-        DispatchMessage(&message);
-        while ((mode == MODE_RUNNING) || (mode == MODE_STEPPING) || (calibrating > 0)) {
-            if (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
-                if (message.message == WM_QUIT)
-                    return;
-                TranslateMessage(&message);
-                DispatchMessage(&message);
-            }
-            else if (mode == MODE_STEPPING)
-                DebugContinueStepping();
-            else {
-                ContinueExecution();
-                if (fullspeed)
-                    ContinueExecution();
-            }
-        }
-    }
-
-    while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
-        /* do nothing */;
-}
-
-//===========================================================================
 static void GetProgramDirectory() {
     GetModuleFileName((HINSTANCE)0, progdir, MAX_PATH);
     progdir[MAX_PATH - 1] = '\0';
@@ -349,6 +322,22 @@ static void LoadConfiguration() {
     LOAD("Enhance Disk Speed", (DWORD *)&optenhancedisk);
     LOAD("Monochrome Video", (DWORD *)&optmonochrome);
 #undef LOAD
+}
+
+//===========================================================================
+static void MessageLoop() {
+    for (;;) {
+        WindowUpdate();
+
+        if (mode == MODE_RUNNING)
+            ContinueExecution();
+        else if (mode == MODE_STEPPING)
+            DebugContinueStepping();
+        else if (mode == MODE_SHUTDOWN)
+            break;
+        else
+            Sleep(1);
+    }
 }
 
 //===========================================================================
@@ -436,6 +425,8 @@ int APIENTRY WinMain(HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
     RegisterExtensions();
     FrameRegisterClass();
     ImageInitialize();
+    if (!WindowInitialize())
+        return 1;
     if (!DiskInitialize())
         return 1;
 
@@ -458,8 +449,10 @@ int APIENTRY WinMain(HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
         FrameCreateWindow();
 
         // ENTER THE MAIN MESSAGE LOOP
-        EnterMessageLoop();
+        MessageLoop();
 
     } while (restart);
+
+    WindowDestroy();
     return 0;
 }
