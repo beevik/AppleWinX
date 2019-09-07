@@ -78,6 +78,13 @@ static HFONT     videofont       = (HFONT)0;
 static LPBYTE    vidlastmem      = NULL;
 static DWORD     vidmode         = VF_TEXT;
 
+static const COLORREF colorval16[16] = {
+    0x000000, 0x0000FF, 0x800000, 0xFF00FF,
+    0x008000, 0x808080, 0xFF0000, 0xFFFF00,
+    0x008080, 0x0080FF, 0xC0C0C0, 0x8000FF,
+    0x00FF00, 0x00FFFF, 0x80FF00, 0xFFFFFF,
+};
+
 static BOOL LoadSourceImages();
 static void SaveSourceImages();
 
@@ -479,27 +486,11 @@ static void CreateIdentityPalette(RGBQUAD * srctable, RGBQUAD * rgbtable) {
 
 //===========================================================================
 static void DrawDHiResSource(HDC dc) {
-    static const COLORREF colorval[32] = {
-        0x000000, 0x800000, 0x008000, 0xFF0000,
-        0x008080, 0xC0C0C0, 0x00FF00, 0x00FF00,
-        0x0000FF, 0xFF00FF, 0x808080, 0xFFFF00,
-        0x0000FF, 0x0000FF, 0x00FFFF, 0xFFFFFF,
-        0x000000, 0x800000, 0x008000, 0xFF0000,
-        0x008000, 0xC0C0C0, 0x00FF00, 0xFFFF00,
-        0x0000FF, 0xFF00FF, 0x808080, 0xFFFF00,
-        0x00FFFF, 0xFF00FF, 0x00FFFF, 0xFFFFFF,
-    };
-
     for (int value = 0; value < 256; value++) {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 2; y++) {
                 int color = (x < 4) ? (value & 0xF) : (value >> 4);
-                SetPixel(
-                    dc,
-                    SRCOFFS_DHIRES + x,
-                    (value << 1) + y,
-                    colorval[color + (((x & 1) ^ (y & 1)) << 4)]
-                );
+                SetPixel(dc, SRCOFFS_DHIRES + x, (value << 1) + y, colorval16[color]);
             }
         }
     }
@@ -507,36 +498,18 @@ static void DrawDHiResSource(HDC dc) {
 
 //===========================================================================
 static void DrawLoResSource(HDC dc) {
-    static const COLORREF colorval[32] = {
-        0x000000, 0x0000FF, 0x800000, 0xFF00FF,
-        0x008000, 0x808080, 0xFF0000, 0xFFFF00,
-        0x008080, 0x0000FF, 0xC0C0C0, 0x0000FF,
-        0x00FF00, 0x00FFFF, 0x00FF00, 0xFFFFFF,
-        0x000000, 0x0000FF, 0x800000, 0xFF00FF,
-        0x008000, 0x808080, 0xFF0000, 0xFFFF00,
-        0x808080, 0x00FFFF, 0xC0C0C0, 0xFF00FF,
-        0x00FF00, 0x00FFFF, 0xFFFF00, 0xFFFFFF,
-    };
-
     for (int color = 0; color < 16; color++) {
         for (int x = 0; x < 16; x++) {
-            for (int y = 0; y < 16; y++) {
-                SetPixelV(
-                    dc,
-                    SRCOFFS_LORES + x,
-                    (color << 4) + y,
-                    colorval[color + (((x & 1) ^ (y & 1)) << 4)]
-                );
-            }
+            for (int y = 0; y < 16; y++)
+                SetPixelV(dc, SRCOFFS_LORES + x, (color << 4) + y, colorval16[color]);
         }
     }
 }
 
 //===========================================================================
 static void DrawHiResSource(HDC dc) {
-    static const COLORREF colorval[12] = {
-        0xFF00FF, 0xFF0000, 0x00FF00, 0x0000F0, 0x000000, 0xFFFFFF,
-        0xFF00FF, 0xFF0000, 0x00FF00, 0x00FFFF, 0x000000, 0xFFFFFF,
+    static const COLORREF colorval[6] = {
+        0xFF00FF, 0xFF0000, 0x00FF00, 0x0080FF, 0x000000, 0xFFFFFF,
     };
 
     for (int column = 0; column < 4; ++column) {
@@ -567,8 +540,8 @@ static void DrawHiResSource(HDC dc) {
                     }
 
                     SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 0, y + 0, colorval[color]);
-                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 1, y + 0, colorval[color + 6]);
-                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 0, y + 1, colorval[color + 6]);
+                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 1, y + 0, colorval[color]);
+                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 0, y + 1, colorval[color]);
                     SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 1, y + 1, colorval[color]);
                 }
             }
