@@ -788,11 +788,12 @@ void MemInitialize() {
     //
     // THE MEMIMAGE BUFFER CAN CONTAIN EITHER MULTIPLE MEMORY IMAGES OR
     // ONE MEMORY IMAGE WITH COMPILER DATA
-    memaux   = (LPBYTE)new BYTE[0x10000];
-    memdirty = (LPBYTE)new BYTE[0x100];
-    memmain  = (LPBYTE)new BYTE[0x10000];
-    memrom   = (LPBYTE)new BYTE[0x5000];
-    memimage = (LPBYTE)new BYTE[MAX(0x30000, MAXIMAGES * 0x10000)];
+    int imagebytes = MAX(0x30000, MAXIMAGES * 0x10000);
+    memaux   = new BYTE[0x10000];
+    memdirty = new BYTE[0x100];
+    memmain  = new BYTE[0x10000];
+    memrom   = new BYTE[0x5000];
+    memimage = new BYTE[imagebytes];
     if (!memaux || !memdirty || !memimage || !memmain || !memrom) {
         MessageBox(
             GetDesktopWindow(),
@@ -803,6 +804,8 @@ void MemInitialize() {
         );
         ExitProcess(1);
     }
+    ZeroMemory(memdirty, 0x100);
+    ZeroMemory(memimage, imagebytes);
 
     // READ THE APPLE FIRMWARE ROMS INTO THE ROM IMAGE
     char filename[MAX_PATH];
@@ -826,9 +829,19 @@ void MemInitialize() {
         );
         ExitProcess(1);
     }
-    DWORD bytesread;
+
+    DWORD bytesread = 0;
     (void)ReadFile(file, memrom, 0x5000, &bytesread, NULL);
     CloseHandle(file);
+    if (bytesread != 0x5000) {
+        MessageBox(
+            GetDesktopWindow(),
+            "Firmware ROM file was not the correct size.",
+            title,
+            MB_ICONSTOP | MB_SETFOREGROUND
+        );
+        ExitProcess(1);
+    }
 
     // REMOVE A WAIT ROUTINE FROM THE DISK CONTROLLER'S FIRMWARE
     memrom[0x064C] = 0xA9;
