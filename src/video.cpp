@@ -45,7 +45,7 @@ static LPBYTE        hiresmainptr;
 static HANDLE        logofile;
 static HANDLE        logomap;
 static LPBITMAPINFO  logoptr;
-static LPBYTE        logoview;
+static LPVOID        logoview;
 static uint32_t *    sourcelookup;
 static LPBYTE        textauxptr;
 static LPBYTE        textmainptr;
@@ -765,11 +765,8 @@ void VideoDisplayLogo() {
     if (!framedc)
         framedc = FrameGetDC();
 
-    // DRAW THE LOGO, USING SETDIBITSTODEVICE() IF IT IS AVAILABLE OR
-    // BITBLT() IF IT IS NOT
     if (logoptr) {
-        int logosize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
-        int result = SetDIBitsToDevice(
+        SetDIBitsToDevice(
             framedc,
             0,
             0,
@@ -779,34 +776,10 @@ void VideoDisplayLogo() {
             0,
             0,
             logoptr->bmiHeader.biHeight,
-            (LPBYTE)logoptr + logosize,
+            (LPBYTE)logoptr + sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD),
             logoptr,
             DIB_RGB_COLORS
         );
-        if (result == 0) {
-            int bitmapsize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
-            BITMAPINFO * info = (BITMAPINFO *)new BYTE[bitmapsize];
-            ZeroMemory(info, sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD));
-            info->bmiHeader.biSize     = sizeof(BITMAPINFOHEADER);
-            info->bmiHeader.biWidth    = 560;
-            info->bmiHeader.biHeight   = 384;
-            info->bmiHeader.biPlanes   = 1;
-            info->bmiHeader.biBitCount = 8;
-            info->bmiHeader.biClrUsed  = 256;
-            int databytes = 256 * sizeof(RGBQUAD);
-            CopyMemory(info->bmiColors, logoptr->bmiColors, databytes);
-            SetDIBits(
-                devicedc,
-                devicebitmap,
-                0,
-                384,
-                (LPBYTE)logoptr + sizeof(BITMAPINFOHEADER) + databytes,
-                info,
-                DIB_RGB_COLORS
-            );
-            BitBlt(framedc, 0, 0, 560, 384, devicedc, 0, 0, SRCCOPY);
-            delete[] info;
-        }
     }
 
     // DRAW THE VERSION NUMBER
@@ -831,11 +804,7 @@ void VideoDisplayLogo() {
     SetBkMode(framedc, TRANSPARENT);
     char version[16];
     StrPrintf(version, ARRSIZE(version), "Version %d.%d", VERSIONMAJOR, VERSIONMINOR);
-#define  DRAWVERSION(x,y,c)  SetTextColor(framedc,c);   \
-                            TextOut(framedc,           \
-                                    540 + x, 358 + y,  \
-                                    version,           \
-                                    StrLen(version));
+#define DRAWVERSION(x,y,c) SetTextColor(framedc, c); TextOut(framedc, 540 + x, 358 + y, version, StrLen(version));
     DRAWVERSION( 1,  1, 0x6A2136);
     DRAWVERSION(-1, -1, 0xE76BBD);
     DRAWVERSION( 0,  0, 0xD63963);
@@ -984,7 +953,7 @@ void VideoLoadLogo() {
 
     logoview = (LPBYTE)MapViewOfFile(logomap, FILE_MAP_READ, 0, 0, 0);
     if (logoview)
-        logoptr = (LPBITMAPINFO)(logoview + 0x200 + sizeof(BITMAPFILEHEADER));
+        logoptr = (LPBITMAPINFO)((LPBYTE)logoview + 0x200 + sizeof(BITMAPFILEHEADER));
     else
         logoptr = NULL;
 }
