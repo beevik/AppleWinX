@@ -371,9 +371,9 @@ static void PerformCalibration() {
 
     // SET UP MEMORY FOR THE CALIBRATION
     FillMemory(mem, 0x102, 0x3E);
-    *(mem + 0x102) = 0x4C;
-    *(mem + 0x103) = 0x00;
-    *(mem + 0x104) = 0x00;
+    mem[0x102] = 0x4C;
+    mem[0x103] = 0x00;
+    mem[0x104] = 0x00;
     regs.pc = 0;
 
     // PERFORM THE CALIBRATION

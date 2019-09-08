@@ -49,25 +49,25 @@ static const BYTE benchopcode[BENCHOPCODES] = {
                               | (flagv ? AF_OVERFLOW : 0)                   \
                               | (flagz ? AF_ZERO     : 0)
 #define CMOS     if (!apple2e) { ++cycles; break; }
-#define CYC(a)   cycles += a
-#define POP()    (*(mem+((regs.sp >= 0x1FF) ? (regs.sp = 0x100) : ++regs.sp)))
-#define PUSH(a)  *(mem+regs.sp--) = (a);                                    \
+#define CYC(a)   cycles += (a)
+#define POP()    (mem[regs.sp >= 0x1FF ? (regs.sp = 0x100) : ++regs.sp])
+#define PUSH(a)  mem[regs.sp--] = (a);                                      \
                  if (regs.sp < 0x100) { regs.sp = 0x1FF; }
-#define READ()   (((addr & 0xFF00) == 0xC000)                               \
+#define READ()   ((addr & 0xFF00) == 0xC000                                 \
                     ? ioread[addr & 0xFF](regs.pc,(BYTE)addr,0,0)           \
-                    : *(mem+addr))
+                    : mem[addr])
 #define SETNZ(a) {                                                          \
                    flagn = ((a) & 0x80);                                    \
-                   flagz = !(a & 0xFF);                                     \
+                   flagz = !((a) & 0xFF);                                   \
                  }
-#define SETZ(a)  flagz = !(a & 0xFF)
-#define TOBCD(a) (((((a)/10) % 10) << 4) | ((a) % 10))
-#define TOBIN(a) (((a) >> 4)*10 + ((a) & 0x0F))
+#define SETZ(a)  flagz = !((a) & 0xFF)
+#define TOBCD(a) (((((a) / 10) % 10) << 4) | ((a) % 10))
+#define TOBIN(a) (((a) >> 4) * 10 + ((a) & 0x0F))
 #define WRITE(a) {                                                          \
                    memdirty[addr >> 8] = 0xFF;                              \
                    LPBYTE page = memwrite[0][addr >> 8];                    \
                    if (page)                                                \
-                     *(page+(addr & 0xFF)) = (BYTE)(a);                     \
+                     page[addr & 0xFF] = (BYTE)(a);                         \
                    else if ((addr & 0xFF00) == 0xC000)                      \
                      iowrite[addr & 0xFF](regs.pc,(BYTE)addr,1,(BYTE)(a));  \
                  }
@@ -637,15 +637,14 @@ void CpuSetupBenchmark() {
     int addr = 0x300;
     int opcode = 0;
     do {
-        *(mem + addr++) = benchopcode[opcode];
-        *(mem + addr++) = benchopcode[opcode];
+        mem[addr++] = benchopcode[opcode];
+        mem[addr++] = benchopcode[opcode];
         if (opcode >= SHORTOPCODES)
-            * (mem + addr++) = 0;
+            mem[addr++] = 0;
         if ((++opcode >= BENCHOPCODES) || ((addr & 0x0F) >= 0x0B)) {
-            *(mem + addr++) = 0x4C;
-            *(mem + addr++) = (opcode >= BENCHOPCODES) ? 0x00
-                : ((addr >> 4) + 1) << 4;
-            *(mem + addr++) = 0x03;
+            mem[addr++] = 0x4C;
+            mem[addr++] = (opcode >= BENCHOPCODES) ? 0x00 : ((addr >> 4) + 1) << 4;
+            mem[addr++] = 0x03;
             while (addr & 0x0F)
                 ++addr;
         }

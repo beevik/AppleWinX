@@ -804,7 +804,7 @@ static BOOL CmdInternalMemoryDump(int argc) {
 
 //===========================================================================
 static BOOL CmdLineDown(int argc) {
-    topoffset += addressmode[instruction[*(mem + topoffset)].addrmode].bytes;
+    topoffset += addressmode[instruction[mem[topoffset]].addrmode].bytes;
     return 1;
 }
 
@@ -815,7 +815,7 @@ static BOOL CmdLineUp(int argc) {
     WORD newoffset = topoffset;
     while (newoffset < savedoffset) {
         topoffset = newoffset;
-        newoffset += addressmode[instruction[*(mem + newoffset)].addrmode].bytes;
+        newoffset += addressmode[instruction[mem[newoffset]].addrmode].bytes;
     }
     topoffset = MIN(topoffset, savedoffset - 1);
     return 1;
@@ -1046,7 +1046,7 @@ static BOOL CmdWatchClear(int argc) {
 
 //===========================================================================
 static BOOL CmdZap(int argc) {
-    int loop = addressmode[instruction[*(mem + regs.pc)].addrmode].bytes;
+    int loop = addressmode[instruction[mem[regs.pc]].addrmode].bytes;
     while (loop--)
         * (mem + regs.pc + loop) = 0xEA;
     return 1;
@@ -1062,7 +1062,7 @@ static void ComputeTopOffset(WORD centeroffset) {
         WORD currofs = topoffset;
         int  currnum = 0;
         do {
-            int addrmode = instruction[*(mem + currofs)].addrmode;
+            int addrmode = instruction[mem[currofs]].addrmode;
             if ((addrmode >= 1) && (addrmode <= 3))
                 invalid = 1;
             else {
@@ -1156,7 +1156,7 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, char * text, size_t t
     char addresstext[40] = "";
     char bytestext[10]   = "";
     char fulltext[50]    = "";
-    BYTE inst            = *(mem + offset);
+    BYTE inst            = mem[offset];
     int  addrmode        = instruction[inst].addrmode;
     WORD bytes           = addressmode[addrmode].bytes;
 
@@ -1616,7 +1616,7 @@ static const char * GetSymbol(WORD address, int bytes) {
 static void GetTargets(int * intermediate, int * final) {
     *intermediate = -1;
     *final        = -1;
-    int  addrmode   = instruction[*(mem + regs.pc)].addrmode;
+    int  addrmode   = instruction[mem[regs.pc]].addrmode;
     BYTE argument8  = *(LPBYTE)(mem + regs.pc + 1);
     WORD argument16 = *(LPWORD)(mem + regs.pc + 1);
     switch (addrmode) {
@@ -1673,12 +1673,13 @@ static void GetTargets(int * intermediate, int * final) {
         case ADDR_ZPGY:
             *final = argument8 + regs.y;
             break;
-
     }
-    if ((*final >= 0) &&
-        ((!StrCmp(instruction[*(mem + regs.pc)].mnemonic, "JMP")) ||
-        (!StrCmp(instruction[*(mem + regs.pc)].mnemonic, "JSR"))))
-        * final = -1;
+
+    if (*final >= 0 && (!StrCmp(instruction[mem[regs.pc]].mnemonic, "JMP") ||
+        !StrCmp(instruction[mem[regs.pc]].mnemonic, "JSR")))
+    {
+        *final = -1;
+    }
 }
 
 //===========================================================================
@@ -1818,7 +1819,7 @@ void DebugContinueStepping() {
     else {
         mode = MODE_DEBUG;
         if ((stepstart < regs.pc) && (stepstart + 3 >= regs.pc))
-            topoffset += addressmode[instruction[*(mem + topoffset)].addrmode].bytes;
+            topoffset += addressmode[instruction[mem[topoffset]].addrmode].bytes;
         else
             ComputeTopOffset(regs.pc);
         DebugDisplay(stepstaken >= 0x10000);
