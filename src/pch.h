@@ -14,6 +14,8 @@
 #include <cstring>
 #include <ctime>
 
+#include <vector>
+
 #include "platform.h"
 
 #ifdef COMPILER_MSVC

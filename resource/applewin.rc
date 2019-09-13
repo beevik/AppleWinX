@@ -166,6 +166,15 @@ APPLE2_ROM          ROM                     "apple2.rom"
 APPLE2E_ROM         ROM                     "apple2e.rom"
 
 
+/////////////////////////////////////////////////////////////////////////////
+//
+// SYMBOLS
+//
+
+APPLE2E_SYM         SYMBOLS                 "apple2e.sym"
+
+
+
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 

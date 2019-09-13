@@ -17,8 +17,8 @@ constexpr int SOURCELINES     = 19;
 constexpr int STACKLINES      = 9;
 constexpr int WATCHES         = 5;
 
-constexpr LONG SCREENSPLIT1    = 356;
-constexpr LONG SCREENSPLIT2    = 456;
+constexpr LONG SCREENSPLIT1   = 356;
+constexpr LONG SCREENSPLIT2   = 456;
 
 constexpr int INVALID1        = 1;
 constexpr int INVALID2        = 2;
@@ -504,8 +504,7 @@ static int         stepcount     = 0;
 static BOOL        stepline      = FALSE;
 static int         stepstart     = 0;
 static int         stepuntil     = -1;
-static symbol * symboltable   = NULL;
-static int         symbolnum     = 0;
+static std::vector<symbol> symboltable;
 static WORD        topoffset     = 0;
 static FILE *      tracefile     = NULL;
 static BOOL        usingbp       = FALSE;
@@ -1522,15 +1521,12 @@ static BOOL ExecuteCommand(int argc) {
 
 //===========================================================================
 static void FreeSymbolTable() {
-    if (symboltable)
-        delete[] symboltable;
-    symbolnum = 0;
-    symboltable = NULL;
+    symboltable.clear();
 }
 
 //===========================================================================
 static WORD GetAddress(const char * symbol) {
-    int loop = symbolnum;
+    int loop = (int)symboltable.size();
     while (loop--)
         if (!StrCmpI(symboltable[loop].name, symbol))
             return symboltable[loop].value;
@@ -1543,8 +1539,8 @@ static const char * GetSymbol(WORD address, int bytes) {
     // MATCHING THIS ADDRESS
     {
         int lowlimit = -1;
-        int highlimit = symbolnum;
-        int curr = symbolnum >> 1;
+        int highlimit = (int)symboltable.size();
+        int curr = highlimit >> 1;
         do {
             int diff = ((int)address) - ((int)symboltable[curr].value);
             if (diff < 0) {
@@ -1662,6 +1658,11 @@ static BOOL InternalSingleStep() {
 }
 
 //===========================================================================
+static inline bool IsWhitespace(BYTE ch) {
+    return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
+}
+
+//===========================================================================
 static void OutputTraceLine() {
     char disassembly[50];
     char flags[9];
@@ -1714,6 +1715,56 @@ static int ParseCommandString() {
         argv[loop].val2 = 0;
     }
     return argc;
+}
+
+//===========================================================================
+static void ParseSymbolData(LPBYTE data, DWORD bytes) {
+    LPBYTE term = data + bytes;
+    while (data < term) {
+        while (data < term && IsWhitespace(*data))
+            ++data;
+
+        char addr[16];
+        char * addrptr  = addr;
+        char * addrterm = addr + ARRSIZE(addr) - 1;
+        while (data < term && !IsWhitespace(*data)) {
+            if (addrptr < addrterm)
+                *addrptr++ = *data;
+            ++data;
+        }
+        *addrptr = '\0';
+
+        while (data < term && IsWhitespace(*data))
+            ++data;
+
+        symbol sym;
+        char *symptr = sym.name;
+        char *symterm = sym.name + ARRSIZE(sym.name) - 1;
+        while (data < term && !IsWhitespace(*data)) {
+            if (symptr < symterm)
+                *symptr++ = *data;
+            ++data;
+        }
+        *symptr = '\0';
+
+        bool error = false;
+        sym.value = 0;
+        for (char * addrptr = addr; *addrptr; ++addrptr) {
+            sym.value = sym.value << 4;
+            if (*addrptr >= '0' && *addrptr <= '9')
+                sym.value += *addrptr - '0';
+            else if (*addrptr >= 'A' && *addrptr <= 'F')
+                sym.value += *addrptr - 'A' + 10;
+            else if (*addrptr >= 'a' && *addrptr <= 'f')
+                sym.value += *addrptr - 'a' + 10;
+            else
+                error = true;
+        }
+        if (error)
+            continue;
+
+        symboltable.push_back(sym);
+    }
 }
 
 //===========================================================================
@@ -1870,81 +1921,17 @@ void DebugEnd() {
 void DebugInitialize() {
     // CLEAR THE BREAKPOINT AND WATCH TABLES
     ZeroMemory(breakpoint, BREAKPOINTS * sizeof(bp));
-    {
-        int loop = 0;
-        while (loop < WATCHES)
-            watch[loop++] = -1;
-    }
+    for (int loop = 0; loop < WATCHES; ++loop)
+        watch[loop] = -1;
 
     // READ IN THE SYMBOL TABLE
-    {
-        char filename[MAX_PATH];
-        StrCopy(filename, progdir, ARRSIZE(filename));
-        StrCat(filename, "apple2e.sym", ARRSIZE(filename));
-        int    symbolalloc = 0;
-        FILE * infile      = fopen(filename, "rt");
-        WORD   lastvalue   = 0;
-        if (infile) {
-            while (!feof(infile)) {
-
-                // READ IN THE NEXT LINE, AND MAKE SURE IT IS SORTED CORRECTLY IN
-                // VALUE ORDER
-                DWORD value = 0;
-                char  name[80] = "";
-                char  line[256];
-                if (fscanf(infile, "%x %13s", &value, name) != 2)
-                    name[0] = '\0';
-                fgets(line, 255, infile);
-                if (name[0] != '\0') {
-                    if (value < lastvalue) {
-                        MessageBox(
-                            GetDesktopWindow(),
-                            "The symbol file is not sorted correctly. "
-                            "Symbols will not be loaded.",
-                            title,
-                            MB_ICONEXCLAMATION | MB_SETFOREGROUND
-                        );
-                        FreeSymbolTable();
-                        return;
-                    }
-                    else {
-                        // IF OUR CURRENT SYMBOL TABLE IS NOT BIG ENOUGH TO HOLD THIS
-                        // ADDITIONAL SYMBOL, THEN ALLOCATE A BIGGER TABLE AND COPY THE
-                        // CURRENT DATA ACROSS
-                        if (!symboltable || (symbolalloc <= symbolnum)) {
-                            symbolalloc += 8192 / sizeof(symbol);
-                            symbol * newtable = (symbol *)new BYTE[symbolalloc * sizeof(symbol)];
-                            if (newtable) {
-                                if (symboltable) {
-                                    CopyMemory(newtable, symboltable, symbolnum * sizeof(symbol));
-                                    delete[] symboltable;
-                                }
-                                symboltable = newtable;
-                            }
-                            else {
-                                MessageBox(
-                                    GetDesktopWindow(),
-                                    "There is not enough memory available to load "
-                                    "the symbol file.",
-                                    title,
-                                    MB_ICONEXCLAMATION | MB_SETFOREGROUND
-                                );
-                                FreeSymbolTable();
-                            }
-                        }
-
-                        // SAVE THE NEW SYMBOL IN THE SYMBOL TABLE
-                        if (symboltable) {
-                            symboltable[symbolnum].value = (WORD)(value & 0xFFFF);
-                            StrCopy(symboltable[symbolnum].name, name, ARRSIZE(symboltable[symbolnum].name));
-                            symbolnum++;
-                        }
-
-                        lastvalue = (WORD)value;
-                    }
-                }
-            }
-            fclose(infile);
+    HRSRC handle = FindResourceA(instance, "APPLE2E_SYM", "SYMBOLS");
+    if (handle) {
+        HGLOBAL resource = LoadResource(NULL, handle);
+        if (resource) {
+            LPBYTE data = (LPBYTE)LockResource(resource);
+            DWORD  size = SizeofResource(NULL, handle);
+            ParseSymbolData(data, size);
         }
     }
 
