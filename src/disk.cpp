@@ -64,11 +64,12 @@ static void GetImageTitle(const char * imagefilename, char * imagename, size_t i
     }
     BOOL found = 0;
     int  loop = 0;
-    while (imagetitle[loop] && !found)
+    while (imagetitle[loop] && !found) {
         if (IsCharLower(imagetitle[loop]))
             found = 1;
         else
             loop++;
+    }
     if ((!found) && (loop > 2))
         CharLowerBuff(imagetitle + 1, StrLen(imagetitle + 1));
     StrCopy(imagename, imagetitle, imagenamechars);
@@ -81,10 +82,12 @@ static BOOL InsertDisk(int drive, const char * imagefilename, BOOL createifneces
     if (fptr->imagehandle)
         RemoveDisk(drive);
     ZeroMemory(fptr, sizeof(floppy));
-    BOOL result = ImageOpen(imagefilename,
+    BOOL result = ImageOpen(
+        imagefilename,
         &fptr->imagehandle,
         &fptr->writeprotected,
-        createifnecessary);
+        createifnecessary
+    );
     if (result)
         GetImageTitle(imagefilename, fptr->imagename, ARRSIZE(fptr->imagename));
     return result;
@@ -100,31 +103,25 @@ static void ReadTrack(int drive) {
     if (!fptr->trackimage)
         fptr->trackimage = (LPBYTE)new BYTE[0x1A00];
     if (fptr->trackimage && fptr->imagehandle) {
-        ImageReadTrack(fptr->imagehandle,
+        ImageReadTrack(
+            fptr->imagehandle,
             fptr->track,
             fptr->phase,
             fptr->trackimage,
-            &fptr->nibbles);
+            &fptr->nibbles
+        );
         fptr->trackimagedata = (fptr->nibbles != 0);
     }
 }
 
 //===========================================================================
 static void NotifyInvalidImage(const char * imagefilename) {
-    HANDLE file = CreateFile(
-        imagefilename,
-        GENERIC_READ,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        (LPSECURITY_ATTRIBUTES)NULL,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        NULL
-    );
+    FILE * file = fopen(imagefilename, "rb");
     char buffer[MAX_PATH + 128];
-    if (file == INVALID_HANDLE_VALUE)
+    if (!file)
         StrPrintf(buffer, ARRSIZE(buffer), "Unable to open the file %s.", imagefilename);
     else {
-        CloseHandle(file);
+        fclose(file);
         StrPrintf(
             buffer,
             ARRSIZE(buffer),
@@ -170,12 +167,15 @@ static void WriteTrack(int drive) {
     floppy *fptr = &floppydrive[drive];
     if (fptr->track >= TRACKS)
         return;
-    if (fptr->trackimage && fptr->imagehandle)
-        ImageWriteTrack(fptr->imagehandle,
+    if (fptr->trackimage && fptr->imagehandle) {
+        ImageWriteTrack(
+            fptr->imagehandle,
             fptr->track,
             fptr->phase,
             fptr->trackimage,
-            fptr->nibbles);
+            fptr->nibbles
+        );
+    }
     fptr->trackimagedirty = 0;
 }
 
@@ -335,9 +335,10 @@ BYTE DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
                 (mem[programcounter + 4] != 0xD0 || mem[programcounter + 5] == 0xF7 || mem[programcounter + 5] == 0xF0))
             {
                 int loop = fptr->nibbles;
-                while ((*(fptr->trackimage + fptr->byte) != 0xD5) && loop--)
+                while ((*(fptr->trackimage + fptr->byte) != 0xD5) && loop--) {
                     if (++fptr->byte >= fptr->nibbles)
                         fptr->byte = 0;
+                }
             }
             result = *(fptr->trackimage + fptr->byte);
         }

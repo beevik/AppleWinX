@@ -17,7 +17,7 @@
 
 struct imageinfo {
     DWORD      format;
-    HANDLE     file;
+    FILE *     file;
     DWORD      offset;
     BOOL       writeprotected;
     DWORD      headersize;
@@ -395,22 +395,27 @@ static void SkewTrack(int track, int nibbles, LPBYTE trackimagebuffer) {
 
 //===========================================================================
 static BOOL AplBoot(imageinfo * ptr) {
-    SetFilePointer(ptr->file, 0, NULL, FILE_BEGIN);
+    fseek(ptr->file, 0, SEEK_SET);
+
     WORD address = 0;
+    if (fread(&address, sizeof(WORD), 1, ptr->file) != 1)
+        return FALSE;
+
     WORD length = 0;
-    DWORD bytesread;
-    (void)ReadFile(ptr->file, &address, sizeof(WORD), &bytesread, NULL);
-    (void)ReadFile(ptr->file, &length, sizeof(WORD), &bytesread, NULL);
-    if ((((WORD)(address + length)) <= address) ||
-        (address >= 0xC000) ||
-        (address + length - 1 >= 0xC000))
-        return 0;
-    (void)ReadFile(ptr->file, mem + address, length, &bytesread, NULL);
-    int loop = 192;
-    while (loop--)
+    if (fread(&length, sizeof(WORD), 1, ptr->file) != 1)
+        return FALSE;
+
+    if (address + length <= address || address >= 0xC000 || address + length - 1 >= 0xC000)
+        return FALSE;
+
+    if (fread(mem + address, length, 1, ptr->file) != 1)
+        return FALSE;
+
+    for (int loop = 0; loop < 192; ++loop)
         memdirty[loop] = 0xFF;
+
     regs.pc = address;
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -460,10 +465,12 @@ static DWORD DoDetect(LPBYTE imageptr, DWORD imagesize) {
 
 //===========================================================================
 static void DoRead(imageinfo * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
-    SetFilePointer(ptr->file, ptr->offset + (track << 12), NULL, FILE_BEGIN);
+    fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
+
     ZeroMemory(workbuffer, 4096);
-    DWORD bytesread;
-    (void)ReadFile(ptr->file, workbuffer, 4096, &bytesread, NULL);
+    if (fread(workbuffer, 4096, 1, ptr->file) != 1)
+        return;
+
     *nibbles = NibblizeTrack(trackimagebuffer, 1, track);
     if (!optenhancedisk)
         SkewTrack(track, *nibbles, trackimagebuffer);
@@ -473,9 +480,9 @@ static void DoRead(imageinfo * ptr, int track, int quartertrack, LPBYTE trackima
 static void DoWrite(imageinfo * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
     ZeroMemory(workbuffer, 4096);
     DenibblizeTrack(trackimage, 1, nibbles);
-    SetFilePointer(ptr->file, ptr->offset + (track << 12), NULL, FILE_BEGIN);
-    DWORD byteswritten;
-    WriteFile(ptr->file, workbuffer, 4096, &byteswritten, NULL);
+
+    fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
+    fwrite(workbuffer, 4096, 1, ptr->file);
 }
 
 
@@ -517,18 +524,18 @@ static void IieRead(imageinfo * ptr, int track, int quartertrack, LPBYTE trackim
         if (!ptr->header)
             return;
         ZeroMemory(ptr->header, 88);
-        DWORD bytesread;
-        SetFilePointer(ptr->file, 0, NULL, FILE_BEGIN);
-        (void)ReadFile(ptr->file, ptr->header, 88, &bytesread, NULL);
+        fseek(ptr->file, 0, SEEK_SET);
+        if (fread(ptr->header, ARRSIZE(ptr->header), 1, ptr->file) != 1)
+            return;
     }
 
     // IF THIS IMAGE CONTAINS USER DATA, READ THE TRACK AND NIBBLIZE IT
     if (ptr->header[13] <= 2) {
         IieConvertSectorOrder(ptr->header + 14);
-        SetFilePointer(ptr->file, (track << 12) + 30, NULL, FILE_BEGIN);
+        fseek(ptr->file, (track << 12) + 30, SEEK_SET);
         ZeroMemory(workbuffer, 4096);
-        DWORD bytesread;
-        (void)ReadFile(ptr->file, workbuffer, 4096, &bytesread, NULL);
+        if (fread(workbuffer, 4096, 1, ptr->file) != 1)
+            return;
         *nibbles = NibblizeTrack(trackimagebuffer, 2, track);
     }
 
@@ -539,10 +546,10 @@ static void IieRead(imageinfo * ptr, int track, int quartertrack, LPBYTE trackim
         DWORD offset = 88;
         while (track--)
             offset += *(LPWORD)(ptr->header + (track << 1) + 14);
-        SetFilePointer(ptr->file, offset, NULL, FILE_BEGIN);
+        fseek(ptr->file, offset, SEEK_SET);
         ZeroMemory(trackimagebuffer, *nibbles);
-        DWORD bytesread;
-        (void)ReadFile(ptr->file, trackimagebuffer, *nibbles, &bytesread, NULL);
+        if (fread(trackimagebuffer, *nibbles, 1, ptr->file) != 1)
+            return;
     }
 
 }
@@ -566,15 +573,14 @@ static DWORD Nib1Detect(LPBYTE imageptr, DWORD imagesize) {
 
 //===========================================================================
 static void Nib1Read(imageinfo * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
-    SetFilePointer(ptr->file, ptr->offset + track * 6656, NULL, FILE_BEGIN);
-    (void)ReadFile(ptr->file, trackimagebuffer, 6656, (DWORD *)nibbles, NULL);
+    fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
+    *nibbles = (int)fread(trackimagebuffer, 1, 6656, ptr->file);
 }
 
 //===========================================================================
 static void Nib1Write(imageinfo * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
-    SetFilePointer(ptr->file, ptr->offset + track * 6656, NULL, FILE_BEGIN);
-    DWORD byteswritten;
-    WriteFile(ptr->file, trackimage, nibbles, &byteswritten, NULL);
+    fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
+    fwrite(trackimage, nibbles, 1, ptr->file);
 }
 
 
@@ -591,15 +597,14 @@ static DWORD Nib2Detect(LPBYTE imageptr, DWORD imagesize) {
 
 //===========================================================================
 static void Nib2Read(imageinfo * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
-    SetFilePointer(ptr->file, ptr->offset + track * 6384, NULL, FILE_BEGIN);
-    (void)ReadFile(ptr->file, trackimagebuffer, 6384, (DWORD *)nibbles, NULL);
+    fseek(ptr->file, ptr->offset + track * 6384, SEEK_SET);
+    *nibbles = (int)fread(trackimagebuffer, 1, 6384, NULL);
 }
 
 //===========================================================================
 static void Nib2Write(imageinfo * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
-    SetFilePointer(ptr->file, ptr->offset + track * 6384, NULL, FILE_BEGIN);
-    DWORD byteswritten;
-    WriteFile(ptr->file, trackimage, nibbles, &byteswritten, NULL);
+    fseek(ptr->file, ptr->offset + track * 6384, SEEK_SET);
+    fwrite(trackimage, nibbles, 1, ptr->file);
 }
 
 
@@ -643,10 +648,10 @@ static DWORD PoDetect(LPBYTE imageptr, DWORD imagesize) {
 
 //===========================================================================
 static void PoRead(imageinfo * ptr, int track, int quartertrack, LPBYTE trackimagebuffer, int * nibbles) {
-    SetFilePointer(ptr->file, ptr->offset + (track << 12), NULL, FILE_BEGIN);
+    fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
     ZeroMemory(workbuffer, 4096);
-    DWORD bytesread;
-    (void)ReadFile(ptr->file, workbuffer, 4096, &bytesread, NULL);
+    if (fread(workbuffer, 4096, 1, ptr->file) != 1)
+        return;
     *nibbles = NibblizeTrack(trackimagebuffer, 0, track);
     if (!optenhancedisk)
         SkewTrack(track, *nibbles, trackimagebuffer);
@@ -656,9 +661,8 @@ static void PoRead(imageinfo * ptr, int track, int quartertrack, LPBYTE trackima
 static void PoWrite(imageinfo * ptr, int track, int quartertrack, LPBYTE trackimage, int nibbles) {
     ZeroMemory(workbuffer, 4096);
     DenibblizeTrack(trackimage, 0, nibbles);
-    SetFilePointer(ptr->file, ptr->offset + (track << 12), NULL, FILE_BEGIN);
-    DWORD byteswritten;
-    WriteFile(ptr->file, workbuffer, 4096, &byteswritten, NULL);
+    fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
+    fwrite(workbuffer, 4096, 1, ptr->file);
 }
 
 
@@ -670,24 +674,29 @@ static void PoWrite(imageinfo * ptr, int track, int quartertrack, LPBYTE trackim
 
 //===========================================================================
 static BOOL PrgBoot(imageinfo * ptr) {
-    SetFilePointer(ptr->file, 5, NULL, FILE_BEGIN);
+    fseek(ptr->file, 5, SEEK_SET);
+
     WORD address = 0;
+    if (fread(&address, sizeof(WORD), 1, ptr->file) != 1)
+        return FALSE;
+
     WORD length = 0;
-    DWORD bytesread;
-    (void)ReadFile(ptr->file, &address, sizeof(WORD), &bytesread, NULL);
-    (void)ReadFile(ptr->file, &length, sizeof(WORD), &bytesread, NULL);
+    if (fread(&length, sizeof(WORD), 1, ptr->file) != 1)
+        return FALSE;
+
     length <<= 1;
-    if ((((WORD)(address + length)) <= address) ||
-        (address >= 0xC000) ||
-        (address + length - 1 >= 0xC000))
-        return 0;
-    SetFilePointer(ptr->file, 128, NULL, FILE_BEGIN);
-    (void)ReadFile(ptr->file, mem + address, length, &bytesread, NULL);
-    int loop = 192;
-    while (loop--)
+    if (address + length <= address || address >= 0xC000 || address + length - 1 >= 0xC000)
+        return FALSE;
+
+    fseek(ptr->file, 128, SEEK_SET);
+    if (fread(mem + address, length, 1, ptr->file) != 1)
+        return FALSE;
+
+    for (int loop = 0; loop < 192; ++loop)
         memdirty[loop] = 0xFF;
+
     regs.pc = address;
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -714,8 +723,8 @@ BOOL ImageBoot(HIMAGE imagehandle) {
 //===========================================================================
 void ImageClose(HIMAGE imagehandle) {
     imageinfo * ptr = (imageinfo *)imagehandle;
-    if (ptr->file != INVALID_HANDLE_VALUE)
-        CloseHandle(ptr->file);
+    if (ptr->file)
+        fclose(ptr->file);
     if (ptr->header)
         delete[] ptr->header;
     delete ptr;
@@ -748,48 +757,32 @@ BOOL ImageOpen (
         return FALSE;
 
     // TRY TO OPEN THE IMAGE FILE
-    BOOL   readonly = FALSE;
-    HANDLE file = CreateFile(
-        imagefilename,
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        NULL,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        NULL
-    );
-    if (file == INVALID_HANDLE_VALUE) {
+    BOOL readonly = FALSE;
+    FILE * file = fopen(imagefilename, "rb+");
+    if (!file) {
         readonly = TRUE;
-        file = CreateFile(
-            imagefilename,
-            GENERIC_READ,
-            FILE_SHARE_READ,
-            NULL,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            NULL
-        );
+        file = fopen(imagefilename, "rb");
     }
 
     // IF WE ARE ABLE TO OPEN THE FILE, MAP IT INTO MEMORY FOR USE BY THE
     // DETECTION FUNCTIONS
-    if (file != INVALID_HANDLE_VALUE) {
-        DWORD size = GetFileSize(file, NULL);
-        HANDLE mapping = CreateFileMapping(
-            file,
-            NULL,
-            PAGE_READONLY,
-            0,
-            0,
-            NULL
-        );
-        if (mapping == NULL) {
-            CloseHandle(file);
+    if (file) {
+        fseek(file, 0, SEEK_END);
+        fpos_t pos;
+        if (fgetpos(file, &pos) != 0) {
+            fclose(file);
             return FALSE;
         }
 
-        LPBYTE view = (LPBYTE)MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
-        LPBYTE imageptr = view;
+        fseek(file, 0, SEEK_SET);
+        int size = (int)pos;
+        LPBYTE buf = new BYTE[size];
+        if (fread(buf, size, 1, file) != 1) {
+            fclose(file);
+            return FALSE;
+        }
+
+        LPBYTE imageptr = buf;
         DWORD  format = 0xFFFFFFFF;
         if (imageptr) {
 
@@ -842,15 +835,13 @@ BOOL ImageOpen (
             }
             if (format == 0xFFFFFFFF)
                 format = possibleformat;
-
-            // CLOSE THE MEMORY MAPPING
-            UnmapViewOfFile(view);
         }
-        CloseHandle(mapping);
+        DWORD offset = (DWORD)(imageptr - buf);
+        delete[] buf;
 
         // IF THE FILE DOES NOT MATCH ANY KNOWN FORMAT, CLOSE IT AND RETURN
         if (format == 0xFFFFFFFF) {
-            CloseHandle(file);
+            fclose(file);
             return FALSE;
         }
 
@@ -861,7 +852,7 @@ BOOL ImageOpen (
                 ZeroMemory(ptr, sizeof(imageinfo));
                 ptr->format         = format;
                 ptr->file           = file;
-                ptr->offset         = (DWORD)(imageptr - view);
+                ptr->offset         = offset;
                 ptr->writeprotected = readonly;
                 if (imagehandle)
                     *imagehandle = (HIMAGE)ptr;
@@ -870,7 +861,7 @@ BOOL ImageOpen (
                 return TRUE;
             }
             else {
-                CloseHandle(file);
+                fclose(file);
                 return FALSE;
             }
         }
