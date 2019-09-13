@@ -574,8 +574,7 @@ static void UpdatePaging(BOOL initialize, BOOL updatewriteonly);
 
 //===========================================================================
 static void BackMainImage() {
-    int loop = 0;
-    for (loop = 0; loop < 256; loop++) {
+    for (int loop = 0; loop < 256; loop++) {
         if (memshadow[0][loop] && ((memdirty[loop] & 1) || (loop <= 1)))
             CopyMemory(memshadow[0][loop], memimage + (loop << 8), 256);
         memdirty[loop] &= ~1;
@@ -808,32 +807,35 @@ void MemInitialize() {
     ZeroMemory(memimage, imagebytes);
 
     // READ THE APPLE FIRMWARE ROMS INTO THE ROM IMAGE
-    char filename[MAX_PATH];
-    StrCopy(filename, progdir, ARRSIZE(filename));
-    StrCat(filename, apple2e ? "apple2e.rom" : "apple2.rom", ARRSIZE(filename));
-    HANDLE file = CreateFile(
-        filename,
-        GENERIC_READ,
-        FILE_SHARE_READ,
-        NULL,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
-        NULL
-    );
-    if (file == INVALID_HANDLE_VALUE) {
+    LPCSTR resourcename = apple2e ? "APPLE2E_ROM" : "APPLE2_ROM";
+    HRSRC handle = FindResourceA(instance, resourcename, "ROM");
+    if (!handle) {
         MessageBox(
             GetDesktopWindow(),
-            "Unable to open the required firmware ROM data file.",
+            "The emulator was unable to load the ROM firmware"
+            "into memory.  Further execution is not possible.",
             title,
             MB_ICONSTOP | MB_SETFOREGROUND
         );
         ExitProcess(1);
     }
 
-    DWORD bytesread = 0;
-    (void)ReadFile(file, memrom, 0x5000, &bytesread, NULL);
-    CloseHandle(file);
-    if (bytesread != 0x5000) {
+    HGLOBAL resource = LoadResource(NULL, handle);
+    if (!resource) {
+        MessageBox(
+            GetDesktopWindow(),
+            "The emulator was unable to load the ROM firmware"
+            "into memory.  Further execution is not possible.",
+            title,
+            MB_ICONSTOP | MB_SETFOREGROUND
+        );
+        ExitProcess(1);
+    }
+
+    LPBYTE data = (LPBYTE)LockResource(resource);
+    DWORD  size = SizeofResource(NULL, handle);
+
+    if (size != 0x5000) {
         MessageBox(
             GetDesktopWindow(),
             "Firmware ROM file was not the correct size.",
@@ -842,6 +844,8 @@ void MemInitialize() {
         );
         ExitProcess(1);
     }
+
+    memcpy(memrom, data, size);
 
     // REMOVE A WAIT ROUTINE FROM THE DISK CONTROLLER'S FIRMWARE
     memrom[0x064C] = 0xA9;

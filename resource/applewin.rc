@@ -153,6 +153,17 @@ SOURCE_COLOR        IMAGE                   "sourcecolor.png"
 
 SOURCE_MONO         IMAGE                   "sourcemono.png"
 
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// ROM
+//
+
+APPLE2_ROM          ROM                     "apple2.rom"
+
+APPLE2E_ROM         ROM                     "apple2e.rom"
+
+
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
