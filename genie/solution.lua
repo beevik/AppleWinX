@@ -134,7 +134,6 @@ project("AppleWinX")
     set_output_dirs("AppleWinX")
 
     flags {
-        "StaticRuntime",
         "WinMain",
     }
 

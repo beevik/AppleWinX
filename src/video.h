@@ -16,6 +16,7 @@ void VideoDestroy();
 void VideoDestroyLogo();
 void VideoDisplayLogo();
 void VideoDisplayMode(BOOL flashon);
+void VideoGenerateSourceFiles();
 BOOL VideoHasRefreshed();
 void VideoInitialize();
 void VideoLoadLogo();

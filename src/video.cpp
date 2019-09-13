@@ -8,22 +8,27 @@
 
 #include "pch.h"
 #pragma  hdrstop
+#include "resource.h"
 
-constexpr int SRCOFFS_40COL    = 0;
-constexpr int SRCOFFS_80COL    = 256;
-constexpr int SRCOFFS_LORES    = 384;
-constexpr int SRCOFFS_HIRES    = 400;
-constexpr int SRCOFFS_DHIRES   = 528;
-constexpr int SRCOFFS_UNUSED   = 536;
-constexpr int SRCOFFS_TOTAL    = 544;
+#define PNG_SETJMP_NOT_SUPPORTED
+#include <png.h>
 
-constexpr DWORD VF_80COL       = 0x00000001;
-constexpr DWORD VF_DHIRES      = 0x00000002;
-constexpr DWORD VF_HIRES       = 0x00000004;
-constexpr DWORD VF_MASK2       = 0x00000008;
-constexpr DWORD VF_MIXED       = 0x00000010;
-constexpr DWORD VF_PAGE2       = 0x00000020;
-constexpr DWORD VF_TEXT        = 0x00000040;
+constexpr int SRCX_40COL    = 0;
+constexpr int SRCX_80COL    = 256;
+constexpr int SRCX_LORES    = 384;
+constexpr int SRCX_HIRES    = 400;
+constexpr int SRCX_DHIRES   = 528;
+constexpr int SRCX_UNUSED   = 536;
+constexpr int SRC_CX        = 544;
+constexpr int SRC_CY        = 512;
+
+constexpr DWORD VF_80COL    = 0x00000001;
+constexpr DWORD VF_DHIRES   = 0x00000002;
+constexpr DWORD VF_HIRES    = 0x00000004;
+constexpr DWORD VF_MASK2    = 0x00000008;
+constexpr DWORD VF_MIXED    = 0x00000010;
+constexpr DWORD VF_PAGE2    = 0x00000020;
+constexpr DWORD VF_TEXT     = 0x00000040;
 
 #define  SW_80COL()     (vidmode & VF_80COL)
 #define  SW_DHIRES()    (vidmode & VF_DHIRES)
@@ -76,8 +81,11 @@ static const COLORREF hicolor[6] = {
     0x1D56F9, 0x000000, 0xFFFFFF,   // orange, black, white
 };
 
-static BOOL LoadSourceLookup();
-static void SaveSourceLookup();
+struct pngreadstate {
+    const uint8_t * data;
+    size_t          bytestotal;
+    size_t          bytesread;
+};
 
 //===========================================================================
 static void BitBltCell(
@@ -89,12 +97,12 @@ static void BitBltCell(
     int srcy
 ) {
     uint32_t * dstptr = framebuffer + 560 * (383 - dsty) + dstx;
-    uint32_t * srcptr = sourcelookup + SRCOFFS_TOTAL * srcy + srcx;
+    uint32_t * srcptr = sourcelookup + SRC_CX * srcy + srcx;
     while (ysize--) {
         for (int x = xsize - 1; x >= 0; x--)
             dstptr[x] = srcptr[x];
         dstptr -= 560;
-        srcptr += SRCOFFS_TOTAL;
+        srcptr += SRC_CX;
     }
 }
 
@@ -114,7 +122,7 @@ static void DrawDHiResSource(HDC dc) {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 2; y++) {
                 int color = (x < 4) ? (value & 0xF) : (value >> 4);
-                SetPixel(dc, SRCOFFS_DHIRES + x, (value << 1) + y, locolor[color]);
+                SetPixel(dc, SRCX_DHIRES + x, (value << 1) + y, locolor[color]);
             }
         }
     }
@@ -125,7 +133,7 @@ static void DrawLoResSource(HDC dc) {
     for (int color = 0; color < 16; color++) {
         for (int x = 0; x < 16; x++) {
             for (int y = 0; y < 16; y++)
-                SetPixelV(dc, SRCOFFS_LORES + x, (color << 4) + y, locolor[color]);
+                SetPixelV(dc, SRCX_LORES + x, (color << 4) + y, locolor[color]);
         }
     }
 }
@@ -159,10 +167,10 @@ static void DrawHiResSource(HDC dc) {
                         color = ((odd ^ (pixel & 1)) << 1) | hibit;
                     }
 
-                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 0, y + 0, hicolor[color]);
-                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 1, y + 0, hicolor[color]);
-                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 0, y + 1, hicolor[color]);
-                    SetPixelV(dc, SRCOFFS_HIRES + coloffs + x + adj + 1, y + 1, hicolor[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 0, hicolor[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 0, hicolor[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 1, hicolor[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 1, hicolor[color]);
                 }
             }
         }
@@ -176,7 +184,7 @@ static void DrawMonoDHiResSource(HDC dc) {
         for (int x = 0; x < 8; x++) {
             COLORREF color = (val & 1) ? 0x00FF00 : 0;
             val >>= 1;
-            SetPixel(dc, SRCOFFS_DHIRES + x, (value << 1) + 1, color);
+            SetPixel(dc, SRCX_DHIRES + x, (value << 1) + 1, color);
         }
     }
 }
@@ -192,10 +200,10 @@ static void DrawMonoHiResSource(HDC dc) {
             do {
                 COLORREF colorval = (val & 1) ? 0x00FF00 : 0;
                 val >>= 1;
-                SetPixelV(dc, SRCOFFS_HIRES + column + x, y + 1, colorval);
-                SetPixelV(dc, SRCOFFS_HIRES + column + x + 1, y + 1, colorval);
+                SetPixelV(dc, SRCX_HIRES + column + x, y + 1, colorval);
+                SetPixelV(dc, SRCX_HIRES + column + x + 1, y + 1, colorval);
             } while ((x += 2) < 16);
-        } while ((y += 2) < 512);
+        } while ((y += 2) < SRC_CY);
     } while ((column += 16) < 128);
 }
 
@@ -204,8 +212,8 @@ static void DrawMonoTextSource(HDC dc) {
     HDC     memdc = CreateCompatibleDC(dc);
     HBITMAP bitmap = LoadBitmap(instance, "CHARSET40");
     SelectObject(memdc, bitmap);
-    BitBlt(dc, SRCOFFS_40COL, 0, 256, 512, memdc, 0, 0, MERGECOPY);
-    StretchBlt(dc, SRCOFFS_80COL, 0, 128, 512, memdc, 0, 0, 256, 512, MERGECOPY);
+    BitBlt(dc, SRCX_40COL, 0, 256, 512, memdc, 0, 0, MERGECOPY);
+    StretchBlt(dc, SRCX_80COL, 0, 128, 512, memdc, 0, 0, 256, 512, MERGECOPY);
     DeleteDC(memdc);
     DeleteObject(bitmap);
 }
@@ -215,48 +223,17 @@ static void DrawTextSource(HDC dc) {
     HDC     memdc = CreateCompatibleDC(dc);
     HBITMAP bitmap = LoadBitmap(instance, "CHARSET40");
     SelectObject(memdc, bitmap);
-    BitBlt(dc, SRCOFFS_40COL, 0, 256, 512, memdc, 0, 0, SRCCOPY);
-    StretchBlt(dc, SRCOFFS_80COL, 0, 128, 512, memdc, 0, 0, 256, 512, SRCCOPY);
+    BitBlt(dc, SRCX_40COL, 0, 256, 512, memdc, 0, 0, SRCCOPY);
+    StretchBlt(dc, SRCX_80COL, 0, 128, 512, memdc, 0, 0, 256, 512, SRCCOPY);
     DeleteDC(memdc);
     DeleteObject(bitmap);
 }
 
 //===========================================================================
-static void InitializeSourceLookup() {
-    if (!LoadSourceLookup()) {
-        HWND    window = GetDesktopWindow();
-        HDC     dc     = GetDC(window);
-        HDC     memdc  = CreateCompatibleDC(dc);
-        HBRUSH  brush  = CreateSolidBrush(0x00FF00);
-        HBITMAP bitmap = CreateBitmap(SRCOFFS_TOTAL, 512, 1, 32, NULL);
-        SelectObject(memdc, bitmap);
-        SelectObject(memdc, GetStockObject(BLACK_BRUSH));
-        SelectObject(memdc, GetStockObject(NULL_PEN));
-        Rectangle(memdc, 0, 0, SRCOFFS_TOTAL, 512);
-        SelectObject(memdc, brush);
-        if (optmonochrome) {
-            DrawMonoTextSource(memdc);
-            DrawMonoHiResSource(memdc);
-            DrawMonoDHiResSource(memdc);
-            SelectObject(memdc, GetStockObject(BLACK_PEN));
-            for (int loop = 510; loop >= 0; loop -= 2) {
-                MoveToEx(memdc, 0, loop, NULL);
-                LineTo(memdc, SRCOFFS_TOTAL, loop);
-            }
-        }
-        else {
-            DrawTextSource(memdc);
-            DrawLoResSource(memdc);
-            DrawHiResSource(memdc);
-            DrawDHiResSource(memdc);
-        }
-        DeleteDC(memdc);
-        ReleaseDC(window, dc);
-        GetBitmapBits(bitmap, SRCOFFS_TOTAL * 512 * sizeof(uint32_t), sourcelookup);
-        DeleteObject(bitmap);
-        DeleteObject(brush);
-        SaveSourceLookup();
-    }
+static void LoadImageData(png_structp read, png_bytep buf, size_t bytes) {
+    pngreadstate * state = (pngreadstate *)png_get_io_ptr(read);
+    memcpy(buf, state->data + state->bytesread, bytes);
+    state->bytesread += bytes;
 }
 
 //===========================================================================
@@ -264,70 +241,53 @@ static BOOL LoadSourceLookup() {
     if (!sourcelookup)
         return FALSE;
 
-    char filename[MAX_PATH];
-    StrPrintf(
-        filename,
-        ARRSIZE(filename),
-        "%sVid%03X%s.dat",
-        progdir,
-        0x120,
-        optmonochrome ? "m" : "c"
-    );
+    LPCSTR resourcename = optmonochrome ? "SOURCE_MONO" : "SOURCE_COLOR";
+    HRSRC handle = FindResourceA(instance, resourcename, "IMAGE");
+    if (!handle)
+        return FALSE;
 
-    HANDLE file = CreateFile(
-        filename,
-        GENERIC_READ,
-        FILE_SHARE_READ,
+    HGLOBAL resource = LoadResource(NULL, handle);
+    if (!resource)
+        return FALSE;
+
+    pngreadstate state;
+    state.data       = (const uint8_t *)LockResource(resource);
+    state.bytestotal = SizeofResource(NULL, handle);
+    state.bytesread  = 0;
+
+    png_structp read = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    png_infop info = png_create_info_struct(read);
+    png_set_read_fn(read, &state, LoadImageData);
+    png_read_info(read, info);
+
+    png_uint_32 width, height;
+    int bitdepth, colortype, interlacetype;
+    png_get_IHDR(
+        read,
+        info,
+        &width,
+        &height,
+        &bitdepth,
+        &colortype,
+        &interlacetype,
         NULL,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
         NULL
     );
 
-    if (file != INVALID_HANDLE_VALUE) {
-        DWORD bytestoread = SRCOFFS_TOTAL * 512 * sizeof(uint32_t);
-        DWORD bytesread   = 0;
-        (void)ReadFile(file, sourcelookup, bytestoread, &bytesread, NULL);
-        CloseHandle(file);
-        return bytesread == bytestoread;
+    if (width != SRC_CX || height != SRC_CY || bitdepth != 8 || colortype != PNG_COLOR_TYPE_RGBA) {
+        png_destroy_read_struct(&read, &info, NULL);
+        return FALSE;
     }
 
-    return FALSE;
-}
+    png_bytep rows[SRC_CY];
+    for (int y = 0; y < SRC_CY; y++)
+        rows[y] = (png_bytep)(sourcelookup + SRC_CX * y);
 
-//===========================================================================
-static void SaveSourceLookup() {
-    if (!sourcelookup)
-        return;
+    png_read_image(read, rows);
+    png_read_end(read, info);
+    png_destroy_read_struct(&read, &info, NULL);
 
-    char filename[MAX_PATH];
-    StrPrintf(
-        filename,
-        ARRSIZE(filename),
-        "%sVid%03X%s.dat",
-        progdir,
-        0x120,
-        optmonochrome ? "m" : "c"
-    );
-
-    HANDLE file = CreateFile(
-        filename,
-        GENERIC_WRITE,
-        0,
-        NULL,
-        CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
-        NULL
-    );
-
-    if (file != INVALID_HANDLE_VALUE) {
-        DWORD bytestowrite = SRCOFFS_TOTAL * 512 * sizeof(uint32_t);
-        DWORD byteswritten = 0;
-        WriteFile(file, sourcelookup, bytestowrite, &byteswritten, NULL);
-        CloseHandle(file);
-        if (byteswritten != bytestowrite)
-            DeleteFile(filename);
-    }
+    return TRUE;
 }
 
 //===========================================================================
@@ -352,7 +312,7 @@ static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
     BitBltCell(
         xpixel, ypixel,
         14, 16,
-        SRCOFFS_40COL + ((ch & 0x0F) << 4),
+        SRCX_40COL + ((ch & 0x0F) << 4),
         (ch & 0xF0) + charoffs
     );
 }
@@ -364,13 +324,13 @@ static void Update80ColCell(int x, int y, int xpixel, int ypixel, int offset) {
     BitBltCell(
         xpixel, ypixel,
         7, 16,
-        SRCOFFS_80COL + ((auxval & 15) << 3),
+        SRCX_80COL + ((auxval & 15) << 3),
         ((auxval >> 4) << 4) + charoffs
     );
     BitBltCell(
         xpixel + 7, ypixel,
         7, 16,
-        SRCOFFS_80COL + ((mainval & 15) << 3),
+        SRCX_80COL + ((mainval & 15) << 3),
         ((mainval >> 4) << 4) + charoffs
     );
 }
@@ -390,13 +350,13 @@ static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
             BitBltCell(
                 xpixel - 2, ypixel + (yoffset >> 9),
                 8, 2,
-                SRCOFFS_DHIRES,
+                SRCX_DHIRES,
                 value1 << 1
             );
             BitBltCell(
                 xpixel + 6, ypixel + (yoffset >> 9),
                 8, 2,
-                SRCOFFS_DHIRES,
+                SRCX_DHIRES,
                 value2 << 1
             );
         }
@@ -407,13 +367,13 @@ static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
             BitBltCell(
                 xpixel, ypixel + (yoffset >> 9),
                 8, 2,
-                SRCOFFS_DHIRES,
+                SRCX_DHIRES,
                 value1 << 1
             );
             BitBltCell(
                 xpixel + 8, ypixel + (yoffset >> 9),
                 8, 2,
-                SRCOFFS_DHIRES,
+                SRCX_DHIRES,
                 value2 << 1
             );
         }
@@ -426,13 +386,13 @@ static void UpdateLoResCell(int x, int y, int xpixel, int ypixel, int offset) {
     BitBltCell(
         xpixel, ypixel,
         14, 8,
-        SRCOFFS_LORES,
+        SRCX_LORES,
         (int)((val & 0xF) << 4)
     );
     BitBltCell(
         xpixel, ypixel + 8,
         14, 8,
-        SRCOFFS_LORES,
+        SRCX_LORES,
         (int)(val & 0xF0)
     );
 }
@@ -449,7 +409,7 @@ static void UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
         BitBltCell(
             xpixel, ypixel + (yoffset >> 9),
             14, 2,
-            SRCOFFS_HIRES + coloroffs + ((x & 1) << 4),
+            SRCX_HIRES + coloroffs + ((x & 1) << 4),
             (int)curr << 1
         );
     }
@@ -853,6 +813,77 @@ void VideoDisplayMode(BOOL flashon) {
 }
 
 //===========================================================================
+void VideoGenerateSourceFiles() {
+    bool mono = false;
+    for (int i = 0; i < 2; i++, mono = !mono) {
+        HWND    window = GetDesktopWindow();
+        HDC     dc     = GetDC(window);
+        HDC     memdc  = CreateCompatibleDC(dc);
+        HBRUSH  brush  = CreateSolidBrush(0x00FF00);
+        HBITMAP bitmap = CreateBitmap(SRC_CX, SRC_CY, 1, 32, NULL);
+        SelectObject(memdc, bitmap);
+        SelectObject(memdc, GetStockObject(BLACK_BRUSH));
+        SelectObject(memdc, GetStockObject(NULL_PEN));
+        Rectangle(memdc, 0, 0, SRC_CX, SRC_CY);
+        SelectObject(memdc, brush);
+        if (mono) {
+            DrawMonoTextSource(memdc);
+            DrawMonoHiResSource(memdc);
+            DrawMonoDHiResSource(memdc);
+            SelectObject(memdc, GetStockObject(BLACK_PEN));
+            for (int loop = 510; loop >= 0; loop -= 2) {
+                MoveToEx(memdc, 0, loop, NULL);
+                LineTo(memdc, SRC_CX, loop);
+            }
+        }
+        else {
+            DrawTextSource(memdc);
+            DrawLoResSource(memdc);
+            DrawHiResSource(memdc);
+            DrawDHiResSource(memdc);
+        }
+        DeleteDC(memdc);
+        ReleaseDC(window, dc);
+        GetBitmapBits(bitmap, SRC_CX * SRC_CY * sizeof(uint32_t), sourcelookup);
+        DeleteObject(bitmap);
+        DeleteObject(brush);
+
+        char filename[MAX_PATH];
+        StrPrintf(filename, ARRSIZE(filename), "%ssource%s.png", progdir, mono ? "mono" : "color");
+
+        FILE * fp = fopen(filename, "wb");
+        if (!fp)
+            continue;
+
+        png_structp write = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+        png_infop info = png_create_info_struct(write);
+        png_init_io(write, fp);
+
+        png_set_IHDR(
+            write,
+            info,
+            SRC_CX,
+            SRC_CY,
+            8,
+            PNG_COLOR_TYPE_RGBA,
+            PNG_INTERLACE_NONE,
+            PNG_COMPRESSION_TYPE_BASE,
+            PNG_FILTER_TYPE_BASE
+        );
+
+        png_write_info(write, info);
+
+        const uint32_t * row = sourcelookup;
+        for (int y = 0; y < SRC_CY; y++, row += SRC_CX)
+            png_write_row(write, (png_bytep)row);
+
+        png_write_end(write, info);
+        png_destroy_write_struct(&write, &info);
+        fclose(fp);
+    }
+}
+
+//===========================================================================
 BOOL VideoHasRefreshed() {
     BOOL result = hasrefreshed;
     hasrefreshed = FALSE;
@@ -907,7 +938,7 @@ void VideoInitialize() {
     framebufferinfo->bmiHeader.biClrUsed  = 256;
 
     // CREATE A BIT BUFFER FOR THE SOURCE LOOKUP
-    int sourcedwords = SRCOFFS_TOTAL * 512;
+    int sourcedwords = SRC_CX * SRC_CY;
     sourcelookup = new uint32_t[sourcedwords];
     ZeroMemory(sourcelookup, sourcedwords * sizeof(uint32_t));
 
@@ -930,7 +961,7 @@ void VideoInitialize() {
     }
     delete[] framebufferinfo;
 
-    InitializeSourceLookup();
+    LoadSourceLookup();
     VideoResetState();
 }
 
@@ -1029,7 +1060,7 @@ void VideoRefreshScreen() {
 
 //===========================================================================
 void VideoReinitialize() {
-    InitializeSourceLookup();
+    LoadSourceLookup();
 }
 
 //===========================================================================
