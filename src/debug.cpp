@@ -61,7 +61,6 @@ static BOOL CmdFeedKey(int argc);
 static BOOL CmdFlagSet(int argc);
 static BOOL CmdGo(int argc);
 static BOOL CmdInput(int argc);
-static BOOL CmdInternalCodeDump(int argc);
 static BOOL CmdInternalMemoryDump(int argc);
 static BOOL CmdLineDown(int argc);
 static BOOL CmdLineUp(int argc);
@@ -147,7 +146,6 @@ static const cmd command[COMMANDS] = {
     { "EXTBENCH",     CmdExtBenchmark         },
     { "GOTO",         CmdGo                   },
     { "I",            CmdInput                },
-    { "ICD",          CmdInternalCodeDump     },
     { "IMD",          CmdInternalMemoryDump   },
     { "INPUT",        CmdInput                },
     { "KEY",          CmdFeedKey              },
@@ -537,11 +535,11 @@ static BOOL CheckBreakpoint(WORD address, BOOL memory) {
                 if (breakpoint[slot].length && breakpoint[slot].enabled &&
                     (breakpoint[slot].address <= targetaddr) &&
                     (breakpoint[slot].address + breakpoint[slot].length > targetaddr))
-                    return 1;
+                    return TRUE;
                 slot++;
             }
         }
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -557,7 +555,7 @@ static BOOL CheckJump(WORD targetaddress) {
 static BOOL CmdBlackWhite(int argc) {
     colorscheme = 1;
     DebugDisplay(1);
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -593,7 +591,7 @@ static BOOL CmdBreakpointAdd(int argc) {
         }
     if (!addedone)
         return DisplayHelp(CmdBreakpointAdd);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -650,7 +648,7 @@ static BOOL CmdBreakpointDisable(int argc) {
         argc--;
     }
 
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -674,7 +672,7 @@ static BOOL CmdBreakpointEnable(int argc) {
         argc--;
     }
 
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -685,14 +683,14 @@ static BOOL CmdCodeDump(int argc) {
     topoffset = argv[1].val1;
     if (!topoffset)
         topoffset = GetAddress(argv[1].str);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
 static BOOL CmdColor(int argc) {
     colorscheme = 0;
     DebugDisplay(TRUE);
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -704,7 +702,7 @@ static BOOL CmdExtBenchmark(int argc) {
     while ((extbench = GetTickCount()) != currtime);
     KeybQueueKeypress(VK_SPACE, 0);
     resettiming = 1;
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -713,7 +711,7 @@ static BOOL CmdFeedKey(int argc) {
         : argv[1].str[0]
         : VK_SPACE,
         0);
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -730,7 +728,7 @@ static BOOL CmdFlagSet(int argc) {
             regs.ps &= ~(1 << loop);
         else
             regs.ps |= (1 << loop);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -742,7 +740,7 @@ static BOOL CmdGo(int argc) {
     if (!stepuntil)
         stepuntil = GetAddress(argv[1].str);
     mode = MODE_STEPPING;
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -753,59 +751,26 @@ static BOOL CmdInput(int argc) {
     if (!argv[1].val1)
         argv[1].val1 = GetAddress(argv[1].str);
     ioread[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 0, 0);
-    return 1;
-}
-
-//===========================================================================
-static BOOL CmdInternalCodeDump(int argc) {
-    if ((!argc) ||
-        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
-        return DisplayHelp(CmdInternalCodeDump);
-    if (!argv[1].val1)
-        argv[1].val1 = GetAddress(argv[1].str);
-    char filename[MAX_PATH];
-    StrCopy(filename, progdir, ARRSIZE(filename));
-    StrCat(filename, "output.bin", ARRSIZE(filename));
-    HANDLE file = CreateFile(filename,
-        GENERIC_WRITE,
-        0,
-        (LPSECURITY_ATTRIBUTES)NULL,
-        CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
-        NULL);
-    if (file != INVALID_HANDLE_VALUE)
-        CloseHandle(file);
-    return 0;
+    return TRUE;
 }
 
 //===========================================================================
 static BOOL CmdInternalMemoryDump(int argc) {
     char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
-    StrCat(filename, "output.bin", ARRSIZE(filename));
-    HANDLE file = CreateFile(filename,
-        GENERIC_WRITE,
-        0,
-        (LPSECURITY_ATTRIBUTES)NULL,
-        CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
-        NULL);
-    if (file != INVALID_HANDLE_VALUE) {
-        DWORD byteswritten;
-        WriteFile(file,
-            mem,
-            0x30000,
-            &byteswritten,
-            NULL);
-        CloseHandle(file);
+    StrCat(filename, "memory.bin", ARRSIZE(filename));
+    FILE * fp = fopen(filename, "wb");
+    if (fp) {
+        fwrite(mem, 0x30000, 1, fp);
+        fclose(fp);
     }
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
 static BOOL CmdLineDown(int argc) {
     topoffset += addressmode[instruction[mem[topoffset]].addrmode].bytes;
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -818,7 +783,7 @@ static BOOL CmdLineUp(int argc) {
         newoffset += addressmode[instruction[mem[newoffset]].addrmode].bytes;
     }
     topoffset = MIN(topoffset, savedoffset - 1);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -830,7 +795,7 @@ static BOOL CmdMemoryDump(int argc) {
     if (!memorydump)
         memorydump = GetAddress(argv[1].str);
     usingmemdump = 1;
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -847,7 +812,7 @@ static BOOL CmdMemoryEnter(int argc) {
         memdirty[address >> 8] = 1;
         argc--;
     }
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -862,7 +827,7 @@ static BOOL CmdMemoryFill(int argc) {
             * (membank + address) = (BYTE)(argv[2].val1 & 0xFF);
         address++;
     }
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -873,7 +838,7 @@ static BOOL CmdOutput(int argc) {
     if (!argv[1].val1)
         argv[1].val1 = GetAddress(argv[1].str);
     iowrite[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 1, argv[2].val1 & 0xFF);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -881,7 +846,7 @@ static BOOL CmdPageDown(int argc) {
     int loop = 0;
     while (loop++ < SOURCELINES)
         CmdLineDown(argc);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -889,21 +854,21 @@ static BOOL CmdPageUp(int argc) {
     int loop = 0;
     while (loop++ < SOURCELINES)
         CmdLineUp(argc);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
 static BOOL CmdProfile(int argc) {
     ZeroMemory(profiledata, 256 * sizeof(DWORD));
     profiling = 1;
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
 static BOOL CmdSetupBenchmark(int argc) {
     CpuSetupBenchmark();
     ComputeTopOffset(regs.pc);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -933,7 +898,7 @@ static BOOL CmdRegisterSet(int argc) {
             return DisplayHelp(CmdMemoryEnter);
     }
     ComputeTopOffset(regs.pc);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -944,7 +909,7 @@ static BOOL CmdTrace(int argc) {
     stepuntil = -1;
     mode      = MODE_STEPPING;
     DebugContinueStepping();
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -955,7 +920,7 @@ static BOOL CmdTraceFile(int argc) {
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, (argc && argv[1].str[0]) ? argv[1].str : "trace.txt", ARRSIZE(filename));
     tracefile = fopen(filename, "wt");
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -966,14 +931,14 @@ static BOOL CmdTraceLine(int argc) {
     stepuntil = -1;
     mode = MODE_STEPPING;
     DebugContinueStepping();
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
 static BOOL CmdViewOutput(int argc) {
     VideoRedrawScreen();
     viewingoutput = 1;
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -1009,7 +974,7 @@ static BOOL CmdWatchAdd(int argc) {
         }
     if (!addedone)
         return DisplayHelp(CmdWatchAdd);
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -1049,7 +1014,7 @@ static BOOL CmdZap(int argc) {
     int loop = addressmode[instruction[mem[regs.pc]].addrmode].bytes;
     while (loop--)
         * (mem + regs.pc + loop) = 0xEA;
-    return 1;
+    return TRUE;
 }
 
 //===========================================================================
@@ -1079,12 +1044,12 @@ static void ComputeTopOffset(WORD centeroffset) {
 
 //===========================================================================
 static BOOL DisplayError(const char * errortext) {
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
 static BOOL DisplayHelp(fcmd function) {
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -1569,7 +1534,7 @@ static WORD GetAddress(const char * symbol) {
     while (loop--)
         if (!StrCmpI(symboltable[loop].name, symbol))
             return symboltable[loop].value;
-    return 0;
+    return FALSE;
 }
 
 //===========================================================================
@@ -1932,11 +1897,13 @@ void DebugInitialize() {
                 fgets(line, 255, infile);
                 if (name[0] != '\0') {
                     if (value < lastvalue) {
-                        MessageBox(GetDesktopWindow(),
-                            "The symbol file is not sorted correctly.  "
+                        MessageBox(
+                            GetDesktopWindow(),
+                            "The symbol file is not sorted correctly. "
                             "Symbols will not be loaded.",
                             title,
-                            MB_ICONEXCLAMATION | MB_SETFOREGROUND);
+                            MB_ICONEXCLAMATION | MB_SETFOREGROUND
+                        );
                         FreeSymbolTable();
                         return;
                     }

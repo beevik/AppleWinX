@@ -153,6 +153,8 @@ SOURCE_COLOR        IMAGE                   "sourcecolor.png"
 
 SOURCE_MONO         IMAGE                   "sourcemono.png"
 
+LOGO                IMAGE                   "applewinx.png"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //

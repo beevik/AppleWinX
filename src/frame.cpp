@@ -714,10 +714,7 @@ static LRESULT CALLBACK FrameWndProc(
                     break;
             UpdateWindow(window);
             ResetMachineState();
-            if (mode != MODE_LOGO) {
-                VideoLoadLogo();
-                mode = MODE_LOGO;
-            }
+            mode = MODE_LOGO;
             {
                 HCURSOR oldcursor = SetCursor(LoadCursor(0, IDC_WAIT));
                 VideoBenchmark();
@@ -832,7 +829,6 @@ static void ProcessButtonClick(int button) {
                 DebugEnd();
             mode = MODE_RUNNING;
             VideoRedrawScreen();
-            VideoDestroyLogo();
             resettiming = 1;
             break;
 
@@ -869,7 +865,6 @@ static void ProcessButtonClick(int button) {
                 ProcessButtonClick(BTN_RUN);
             else {
                 DebugBegin();
-                VideoDestroyLogo();
             }
             break;
 

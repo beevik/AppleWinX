@@ -13,6 +13,9 @@
 #define PNG_SETJMP_NOT_SUPPORTED
 #include <png.h>
 
+constexpr int SCREEN_CX     = 560;
+constexpr int SCREEN_CY     = 384;
+
 constexpr int SRCX_40COL    = 0;
 constexpr int SRCX_80COL    = 256;
 constexpr int SRCX_LORES    = 384;
@@ -47,10 +50,6 @@ static HDC           devicedc;
 static uint32_t *    framebuffer;
 static LPBYTE        hiresauxptr;
 static LPBYTE        hiresmainptr;
-static HANDLE        logofile;
-static HANDLE        logomap;
-static LPBITMAPINFO  logoptr;
-static LPVOID        logoview;
 static uint32_t *    sourcelookup;
 static LPBYTE        textauxptr;
 static LPBYTE        textmainptr;
@@ -96,23 +95,13 @@ static void BitBltCell(
     int srcx,
     int srcy
 ) {
-    uint32_t * dstptr = framebuffer + 560 * (383 - dsty) + dstx;
-    uint32_t * srcptr = sourcelookup + SRC_CX * srcy + srcx;
+    const uint32_t * srcptr = sourcelookup + SRC_CX * srcy + srcx;
+    uint32_t *       dstptr = framebuffer + SCREEN_CX * (SCREEN_CY - 1 - dsty) + dstx;
     while (ysize--) {
         for (int x = xsize - 1; x >= 0; x--)
             dstptr[x] = srcptr[x];
-        dstptr -= 560;
+        dstptr -= SCREEN_CX;
         srcptr += SRC_CX;
-    }
-}
-
-//===========================================================================
-static void BitBlitHiResRow(int y) {
-    const int       yoffset = (y & 7) << 10 | (y & 0x38) << 4 | (y & 0xc0) >> 1 | (y & 0xc0) >> 3;
-    const uint8_t * srcptr  = hiresmainptr + yoffset;
-    uint32_t *      dstptr  = framebuffer + 560 * (383 - y);
-    for (int x = 0; x < 40; x += 2) {
-        srcptr[x];
     }
 }
 
@@ -212,8 +201,23 @@ static void DrawMonoTextSource(HDC dc) {
     HDC     memdc = CreateCompatibleDC(dc);
     HBITMAP bitmap = LoadBitmap(instance, "CHARSET40");
     SelectObject(memdc, bitmap);
-    BitBlt(dc, SRCX_40COL, 0, 256, 512, memdc, 0, 0, MERGECOPY);
-    StretchBlt(dc, SRCX_80COL, 0, 128, 512, memdc, 0, 0, 256, 512, MERGECOPY);
+    BitBlt(
+        dc,
+        SRCX_40COL, 0,
+        SRCX_80COL - SRCX_40COL, SRC_CY,
+        memdc,
+        0, 0,
+        MERGECOPY
+    );
+    StretchBlt(
+        dc,
+        SRCX_80COL, 0,
+        SRCX_LORES - SRCX_80COL, SRC_CY,
+        memdc,
+        0, 0,
+        256, 512,
+        MERGECOPY
+    );
     DeleteDC(memdc);
     DeleteObject(bitmap);
 }
@@ -223,8 +227,23 @@ static void DrawTextSource(HDC dc) {
     HDC     memdc = CreateCompatibleDC(dc);
     HBITMAP bitmap = LoadBitmap(instance, "CHARSET40");
     SelectObject(memdc, bitmap);
-    BitBlt(dc, SRCX_40COL, 0, 256, 512, memdc, 0, 0, SRCCOPY);
-    StretchBlt(dc, SRCX_80COL, 0, 128, 512, memdc, 0, 0, 256, 512, SRCCOPY);
+    BitBlt(
+        dc,
+        SRCX_40COL, 0,
+        SRCX_80COL - SRCX_40COL, SRC_CY,
+        memdc,
+        0, 0,
+        SRCCOPY
+    );
+    StretchBlt(
+        dc,
+        SRCX_80COL, 0,
+        SRCX_LORES - SRCX_80COL, SRC_CY,
+        memdc,
+        0, 0,
+        256, 512,
+        SRCCOPY
+    );
     DeleteDC(memdc);
     DeleteObject(bitmap);
 }
@@ -237,12 +256,8 @@ static void LoadImageData(png_structp read, png_bytep buf, size_t bytes) {
 }
 
 //===========================================================================
-static BOOL LoadSourceLookup() {
-    if (!sourcelookup)
-        return FALSE;
-
-    LPCSTR resourcename = optmonochrome ? "SOURCE_MONO" : "SOURCE_COLOR";
-    HRSRC handle = FindResourceA(instance, resourcename, "IMAGE");
+static BOOL LoadPngImage(LPCSTR name, DWORD width, DWORD height, LPVOID buf, BOOL bmpconvert) {
+    HRSRC handle = FindResourceA(instance, name, "IMAGE");
     if (!handle)
         return FALSE;
 
@@ -260,13 +275,13 @@ static BOOL LoadSourceLookup() {
     png_set_read_fn(read, &state, LoadImageData);
     png_read_info(read, info);
 
-    png_uint_32 width, height;
+    png_uint_32 iwidth, iheight;
     int bitdepth, colortype, interlacetype;
     png_get_IHDR(
         read,
         info,
-        &width,
-        &height,
+        &iwidth,
+        &iheight,
         &bitdepth,
         &colortype,
         &interlacetype,
@@ -274,20 +289,46 @@ static BOOL LoadSourceLookup() {
         NULL
     );
 
-    if (width != SRC_CX || height != SRC_CY || bitdepth != 8 || colortype != PNG_COLOR_TYPE_RGBA) {
+    if (iwidth != width || iheight != height || bitdepth != 8) {
         png_destroy_read_struct(&read, &info, NULL);
         return FALSE;
     }
 
-    png_bytep rows[SRC_CY];
-    for (int y = 0; y < SRC_CY; y++)
-        rows[y] = (png_bytep)(sourcelookup + SRC_CX * y);
+    if (colortype == PNG_COLOR_TYPE_RGB)
+        png_set_add_alpha(read, 0xff, PNG_FILLER_AFTER);
+    if (bmpconvert)
+        png_set_bgr(read);
+
+    LPBYTE *rows = new LPBYTE[height];
+    if (bmpconvert) {
+        for (DWORD y = 0; y < height; y++)
+            rows[y] = (png_bytep)((LPDWORD)buf + (height - y - 1) * width);
+    }
+    else {
+        for (DWORD y = 0, offset = 0; y < height; y++, offset += width)
+            rows[y] = (png_bytep)((LPDWORD)buf + offset);
+    }
 
     png_read_image(read, rows);
     png_read_end(read, info);
-    png_destroy_read_struct(&read, &info, NULL);
+    delete[] rows;
 
+    png_destroy_read_struct(&read, &info, NULL);
     return TRUE;
+}
+
+//===========================================================================
+static BOOL LoadSourceLookup() {
+    if (!sourcelookup)
+        return FALSE;
+
+    return LoadPngImage(
+        optmonochrome ? "SOURCE_MONO" : "SOURCE_COLOR",
+        SRC_CX,
+        SRC_CY,
+        sourcelookup,
+        false // bmpconvert
+    );
 }
 
 //===========================================================================
@@ -713,22 +754,6 @@ void VideoDestroy() {
     devicedc = (HDC)0;
     devicebitmap = (HBITMAP)0;
     videofont = (HFONT)0;
-
-    if (logoptr)
-        VideoDestroyLogo();
-}
-
-//===========================================================================
-void VideoDestroyLogo() {
-    if (logoptr) {
-        UnmapViewOfFile(logoview);
-        CloseHandle(logomap);
-        CloseHandle(logofile);
-        logofile = INVALID_HANDLE_VALUE;
-        logomap = INVALID_HANDLE_VALUE;
-        logoptr = NULL;
-        logoview = NULL;
-    }
 }
 
 //===========================================================================
@@ -736,21 +761,16 @@ void VideoDisplayLogo() {
     if (!framedc)
         framedc = FrameGetDC();
 
-    if (logoptr) {
-        SetDIBitsToDevice(
+    if (LoadPngImage("LOGO", SCREEN_CX, SCREEN_CY, framebuffer, true)) {
+        BitBlt(
             framedc,
-            0,
-            0,
-            logoptr->bmiHeader.biWidth,
-            logoptr->bmiHeader.biHeight,
-            0,
-            0,
-            0,
-            logoptr->bmiHeader.biHeight,
-            (LPBYTE)logoptr + sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD),
-            logoptr,
-            DIB_RGB_COLORS
+            0, 0,
+            SCREEN_CX, SCREEN_CY,
+            devicedc,
+            0, 0,
+            SRCCOPY
         );
+        GdiFlush();
     }
 
     // DRAW THE VERSION NUMBER
@@ -775,11 +795,8 @@ void VideoDisplayLogo() {
     SetBkMode(framedc, TRANSPARENT);
     char version[16];
     StrPrintf(version, ARRSIZE(version), "Version %d.%d", VERSIONMAJOR, VERSIONMINOR);
-#define DRAWVERSION(x,y,c) SetTextColor(framedc, c); TextOut(framedc, 540 + x, 358 + y, version, StrLen(version));
-    DRAWVERSION( 1,  1, 0x6A2136);
-    DRAWVERSION(-1, -1, 0xE76BBD);
-    DRAWVERSION( 0,  0, 0xD63963);
-#undef  DRAWVERSION
+    SetTextColor(framedc, 0x2727D2);
+    TextOut(framedc, 540, 358, version, StrLen(version));
     SetTextAlign(framedc, TA_RIGHT | TA_TOP);
     SelectObject(framedc, oldfont);
     DeleteObject(font);
@@ -808,8 +825,8 @@ void VideoDisplayMode(BOOL flashon) {
 
     SelectObject(framedc, videofont);
     SetTextAlign(framedc, TA_LEFT | TA_TOP);
-    RECT rect { 492, 0, 560, 16 };
-    ExtTextOut(framedc, 495, 0, ETO_CLIPPED | ETO_OPAQUE, &rect, text, 8, NULL);
+    RECT rect { SCREEN_CX - 68, 0, SCREEN_CX, 16 };
+    ExtTextOut(framedc, SCREEN_CX - 65, 0, ETO_CLIPPED | ETO_OPAQUE, &rect, text, 8, NULL);
 }
 
 //===========================================================================
@@ -923,16 +940,13 @@ void VideoInitialize() {
     if (bitsperpixel != 32 && planes != 1)
         return;
 
-    // LOAD THE LOGO
-    VideoLoadLogo();
-
     // CREATE A BITMAPINFO STRUCTURE FOR THE FRAME BUFFER
     int framebuffersize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
     BITMAPINFO * framebufferinfo = (BITMAPINFO *)new BYTE[framebuffersize];
     ZeroMemory(framebufferinfo, framebuffersize);
     framebufferinfo->bmiHeader.biSize     = sizeof(BITMAPINFOHEADER);
-    framebufferinfo->bmiHeader.biWidth    = 560;
-    framebufferinfo->bmiHeader.biHeight   = 384;
+    framebufferinfo->bmiHeader.biWidth    = SCREEN_CX;
+    framebufferinfo->bmiHeader.biHeight   = SCREEN_CY;
     framebufferinfo->bmiHeader.biPlanes   = 1;
     framebufferinfo->bmiHeader.biBitCount = 32;
     framebufferinfo->bmiHeader.biClrUsed  = 256;
@@ -966,41 +980,6 @@ void VideoInitialize() {
 }
 
 //===========================================================================
-void VideoLoadLogo() {
-    if (logoptr)
-        return;
-
-    char filename[MAX_PATH];
-    StrCopy(filename, progdir, ARRSIZE(filename));
-    StrCat(filename, "applewin.lgo", ARRSIZE(filename));
-
-    logofile = CreateFile(
-        filename,
-        GENERIC_READ,
-        FILE_SHARE_READ,
-        NULL,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
-        NULL
-    );
-
-    logomap = CreateFileMapping(
-        logofile,
-        NULL,
-        PAGE_READONLY,
-        0,
-        0,
-        NULL
-    );
-
-    logoview = (LPBYTE)MapViewOfFile(logomap, FILE_MAP_READ, 0, 0, 0);
-    if (logoview)
-        logoptr = (LPBITMAPINFO)((LPBYTE)logoview + 0x200 + sizeof(BITMAPFILEHEADER));
-    else
-        logoptr = NULL;
-}
-
-//===========================================================================
 void VideoRedrawScreen() {
     redrawfull = TRUE;
     VideoRefreshScreen();
@@ -1018,7 +997,7 @@ void VideoRefreshScreen() {
         modeswitches = 0;
         SelectObject(framedc, GetStockObject(WHITE_BRUSH));
         SelectObject(framedc, GetStockObject(WHITE_PEN));
-        Rectangle(framedc, 0, 0, 560, 384);
+        Rectangle(framedc, 0, 0, SCREEN_CX, SCREEN_CY);
         return;
     }
     modeswitches = 0;
@@ -1044,7 +1023,7 @@ void VideoRefreshScreen() {
     BitBlt(
         framedc,
         0, 0,
-        560, 384,
+        SCREEN_CX, SCREEN_CY,
         devicedc,
         0, 0,
         SRCCOPY
