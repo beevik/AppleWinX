@@ -32,7 +32,7 @@ constexpr int ADDR_ZPGX       = 9;
 constexpr int ADDR_ZPGY       = 10;
 constexpr int ADDR_REL        = 11;
 constexpr int ADDR_INDX       = 12;
-constexpr int ADDR_ABSIINDX   = 13;
+constexpr int ADDR_IABSX      = 13;
 constexpr int ADDR_INDY       = 14;
 constexpr int ADDR_IZPG       = 15;
 constexpr int ADDR_IABS       = 16;
@@ -106,11 +106,6 @@ struct cmd {
 struct inst {
     char  mnemonic[4];
     int   addrmode;
-};
-
-struct symbol {
-    WORD  value;
-    char  name[14];
 };
 
 static addr addressmode[17] = {
@@ -197,284 +192,272 @@ static const cmd command[COMMANDS] = {
 };
 
 static const inst instruction[256] = {
-    { "BRK", 0                },  // 00h
-    { "ORA", ADDR_INDX        },  // 01h
-    { "NOP", INVALID2         },  // 02h
-    { "NOP", INVALID1         },  // 03h
-    { "TSB", ADDR_ZPG         },  // 04h
-    { "ORA", ADDR_ZPG         },  // 05h
-    { "ASL", ADDR_ZPG         },  // 06h
-    { "NOP", INVALID1         },  // 07h
-    { "PHP", 0                },  // 08h
-    { "ORA", ADDR_IMM         },  // 09h
-    { "ASL", 0                },  // 0Ah
-    { "NOP", INVALID1         },  // 0Bh
-    { "TSB", ADDR_ABS         },  // 0Ch
-    { "ORA", ADDR_ABS         },  // 0Dh
-    { "ASL", ADDR_ABS         },  // 0Eh
-    { "NOP", INVALID1         },  // 0Fh
-    { "BPL", ADDR_REL         },  // 10h
-    { "ORA", ADDR_INDY        },  // 11h
-    { "ORA", ADDR_IZPG        },  // 12h
-    { "NOP", INVALID1         },  // 13h
-    { "TRB", ADDR_ZPG         },  // 14h
-    { "ORA", ADDR_ZPGX        },  // 15h
-    { "ASL", ADDR_ZPGX        },  // 16h
-    { "NOP", INVALID1         },  // 17h
-    { "CLC", 0                },  // 18h
-    { "ORA", ADDR_ABSY        },  // 19h
-    { "INA", 0                },  // 1Ah
-    { "NOP", INVALID1         },  // 1Bh
-    { "TRB", ADDR_ABS         },  // 1Ch
-    { "ORA", ADDR_ABSX        },  // 1Dh
-    { "ASL", ADDR_ABSX        },  // 1Eh
-    { "NOP", INVALID1         },  // 1Fh
-    { "JSR", ADDR_ABS         },  // 20h
-    { "AND", ADDR_INDX        },  // 21h
-    { "NOP", INVALID2         },  // 22h
-    { "NOP", INVALID1         },  // 23h
-    { "BIT", ADDR_ZPG         },  // 24h
-    { "AND", ADDR_ZPG         },  // 25h
-    { "ROL", ADDR_ZPG         },  // 26h
-    { "NOP", INVALID1         },  // 27h
-    { "PLP", 0                },  // 28h
-    { "AND", ADDR_IMM         },  // 29h
-    { "ROL", 0                },  // 2Ah
-    { "NOP", INVALID1         },  // 2Bh
-    { "BIT", ADDR_ABS         },  // 2Ch
-    { "AND", ADDR_ABS         },  // 2Dh
-    { "ROL", ADDR_ABS         },  // 2Eh
-    { "NOP", INVALID1         },  // 2Fh
-    { "BMI", ADDR_REL         },  // 30h
-    { "AND", ADDR_INDY        },  // 31h
-    { "AND", ADDR_IZPG        },  // 32h
-    { "NOP", INVALID1         },  // 33h
-    { "BIT", ADDR_ZPGX        },  // 34h
-    { "AND", ADDR_ZPGX        },  // 35h
-    { "ROL", ADDR_ZPGX        },  // 36h
-    { "NOP", INVALID1         },  // 37h
-    { "SEC", 0                },  // 38h
-    { "AND", ADDR_ABSY        },  // 39h
-    { "DEA", 0                },  // 3Ah
-    { "NOP", INVALID1         },  // 3Bh
-    { "BIT", ADDR_ABSX        },  // 3Ch
-    { "AND", ADDR_ABSX        },  // 3Dh
-    { "ROL", ADDR_ABSX        },  // 3Eh
-    { "NOP", INVALID1         },  // 3Fh
-    { "RTI", 0                },  // 40h
-    { "EOR", ADDR_INDX        },  // 41h
-    { "NOP", INVALID2         },  // 42h
-    { "NOP", INVALID1         },  // 43h
-    { "NOP", INVALID2         },  // 44h
-    { "EOR", ADDR_ZPG         },  // 45h
-    { "LSR", ADDR_ZPG         },  // 46h
-    { "NOP", INVALID1         },  // 47h
-    { "PHA", 0                },  // 48h
-    { "EOR", ADDR_IMM         },  // 49h
-    { "LSR", 0                },  // 4Ah
-    { "NOP", INVALID1         },  // 4Bh
-    { "JMP", ADDR_ABS         },  // 4Ch
-    { "EOR", ADDR_ABS         },  // 4Dh
-    { "LSR", ADDR_ABS         },  // 4Eh
-    { "NOP", INVALID1         },  // 4Fh
-    { "BVC", ADDR_REL         },  // 50h
-    { "EOR", ADDR_INDY        },  // 51h
-    { "EOR", ADDR_IZPG        },  // 52h
-    { "NOP", INVALID1         },  // 53h
-    { "NOP", INVALID2         },  // 54h
-    { "EOR", ADDR_ZPGX        },  // 55h
-    { "LSR", ADDR_ZPGX        },  // 56h
-    { "NOP", INVALID1         },  // 57h
-    { "CLI", 0                },  // 58h
-    { "EOR", ADDR_ABSY        },  // 59h
-    { "PHY", 0                },  // 5Ah
-    { "NOP", INVALID1         },  // 5Bh
-    { "NOP", INVALID3         },  // 5Ch
-    { "EOR", ADDR_ABSX        },  // 5Dh
-    { "LSR", ADDR_ABSX        },  // 5Eh
-    { "NOP", INVALID1         },  // 5Fh
-    { "RTS", 0                },  // 60h
-    { "ADC", ADDR_INDX        },  // 61h
-    { "NOP", INVALID2         },  // 62h
-    { "NOP", INVALID1         },  // 63h
-    { "STZ", ADDR_ZPG         },  // 64h
-    { "ADC", ADDR_ZPG         },  // 65h
-    { "ROR", ADDR_ZPG         },  // 66h
-    { "NOP", INVALID1         },  // 67h
-    { "PLA", 0                },  // 68h
-    { "ADC", ADDR_IMM         },  // 69h
-    { "ROR", 0                },  // 6Ah
-    { "NOP", INVALID1         },  // 6Bh
-    { "JMP", ADDR_IABS        },  // 6Ch
-    { "ADC", ADDR_ABS         },  // 6Dh
-    { "ROR", ADDR_ABS         },  // 6Eh
-    { "NOP", INVALID1         },  // 6Fh
-    { "BVS", ADDR_REL         },  // 70h
-    { "ADC", ADDR_INDY        },  // 71h
-    { "ADC", ADDR_IZPG        },  // 72h
-    { "NOP", INVALID1         },  // 73h
-    { "STZ", ADDR_ZPGX        },  // 74h
-    { "ADC", ADDR_ZPGX        },  // 75h
-    { "ROR", ADDR_ZPGX        },  // 76h
-    { "NOP", INVALID1         },  // 77h
-    { "SEI", 0                },  // 78h
-    { "ADC", ADDR_ABSY        },  // 79h
-    { "PLY", 0                },  // 7Ah
-    { "NOP", INVALID1         },  // 7Bh
-    { "JMP", ADDR_ABSIINDX    },  // 7Ch
-    { "ADC", ADDR_ABSX        },  // 7Dh
-    { "ROR", ADDR_ABSX        },  // 7Eh
-    { "NOP", INVALID1         },  // 7Fh
-    { "BRA", ADDR_REL         },  // 80h
-    { "STA", ADDR_INDX        },  // 81h
-    { "NOP", INVALID2         },  // 82h
-    { "NOP", INVALID1         },  // 83h
-    { "STY", ADDR_ZPG         },  // 84h
-    { "STA", ADDR_ZPG         },  // 85h
-    { "STX", ADDR_ZPG         },  // 86h
-    { "NOP", INVALID1         },  // 87h
-    { "DEY", 0                },  // 88h
-    { "BIT", ADDR_IMM         },  // 89h
-    { "TXA", 0                },  // 8Ah
-    { "NOP", INVALID1         },  // 8Bh
-    { "STY", ADDR_ABS         },  // 8Ch
-    { "STA", ADDR_ABS         },  // 8Dh
-    { "STX", ADDR_ABS         },  // 8Eh
-    { "NOP", INVALID1         },  // 8Fh
-    { "BCC", ADDR_REL         },  // 90h
-    { "STA", ADDR_INDY        },  // 91h
-    { "STA", ADDR_IZPG        },  // 92h
-    { "NOP", INVALID1         },  // 93h
-    { "STY", ADDR_ZPGX        },  // 94h
-    { "STA", ADDR_ZPGX        },  // 95h
-    { "STX", ADDR_ZPGY        },  // 96h
-    { "NOP", INVALID1         },  // 97h
-    { "TYA", 0                },  // 98h
-    { "STA", ADDR_ABSY        },  // 99h
-    { "TXS", 0                },  // 9Ah
-    { "NOP", INVALID1         },  // 9Bh
-    { "STZ", ADDR_ABS         },  // 9Ch
-    { "STA", ADDR_ABSX        },  // 9Dh
-    { "STZ", ADDR_ABSX        },  // 9Eh
-    { "NOP", INVALID1         },  // 9Fh
-    { "LDY", ADDR_IMM         },  // A0h
-    { "LDA", ADDR_INDX        },  // A1h
-    { "LDX", ADDR_IMM         },  // A2h
-    { "NOP", INVALID1         },  // A3h
-    { "LDY", ADDR_ZPG         },  // A4h
-    { "LDA", ADDR_ZPG         },  // A5h
-    { "LDX", ADDR_ZPG         },  // A6h
-    { "NOP", INVALID1         },  // A7h
-    { "TAY", 0                },  // A8h
-    { "LDA", ADDR_IMM         },  // A9h
-    { "TAX", 0                },  // AAh
-    { "NOP", INVALID1         },  // ABh
-    { "LDY", ADDR_ABS         },  // ACh
-    { "LDA", ADDR_ABS         },  // ADh
-    { "LDX", ADDR_ABS         },  // AEh
-    { "NOP", INVALID1         },  // AFh
-    { "BCS", ADDR_REL         },  // B0h
-    { "LDA", ADDR_INDY        },  // B1h
-    { "LDA", ADDR_IZPG        },  // B2h
-    { "NOP", INVALID1         },  // B3h
-    { "LDY", ADDR_ZPGX        },  // B4h
-    { "LDA", ADDR_ZPGX        },  // B5h
-    { "LDX", ADDR_ZPGY        },  // B6h
-    { "NOP", INVALID1         },  // B7h
-    { "CLV", 0                },  // B8h
-    { "LDA", ADDR_ABSY        },  // B9h
-    { "TSX", 0                },  // BAh
-    { "NOP", INVALID1         },  // BBh
-    { "LDY", ADDR_ABSX        },  // BCh
-    { "LDA", ADDR_ABSX        },  // BDh
-    { "LDX", ADDR_ABSY        },  // BEh
-    { "NOP", INVALID1         },  // BFh
-    { "CPY", ADDR_IMM         },  // C0h
-    { "CMP", ADDR_INDX        },  // C1h
-    { "NOP", INVALID2         },  // C2h
-    { "NOP", INVALID1         },  // C3h
-    { "CPY", ADDR_ZPG         },  // C4h
-    { "CMP", ADDR_ZPG         },  // C5h
-    { "DEC", ADDR_ZPG         },  // C6h
-    { "NOP", INVALID1         },  // C7h
-    { "INY", 0                },  // C8h
-    { "CMP", ADDR_IMM         },  // C9h
-    { "DEX", 0                },  // CAh
-    { "NOP", INVALID1         },  // CBh
-    { "CPY", ADDR_ABS         },  // CCh
-    { "CMP", ADDR_ABS         },  // CDh
-    { "DEC", ADDR_ABS         },  // CEh
-    { "NOP", INVALID1         },  // CFh
-    { "BNE", ADDR_REL         },  // D0h
-    { "CMP", ADDR_INDY        },  // D1h
-    { "CMP", ADDR_IZPG        },  // D2h
-    { "NOP", INVALID1         },  // D3h
-    { "NOP", INVALID2         },  // D4h
-    { "CMP", ADDR_ZPGX        },  // D5h
-    { "DEC", ADDR_ZPGX        },  // D6h
-    { "NOP", INVALID1         },  // D7h
-    { "CLD", 0                },  // D8h
-    { "CMP", ADDR_ABSY        },  // D9h
-    { "PHX", 0                },  // DAh
-    { "NOP", INVALID1         },  // DBh
-    { "NOP", INVALID3         },  // DCh
-    { "CMP", ADDR_ABSX        },  // DDh
-    { "DEC", ADDR_ABSX        },  // DEh
-    { "NOP", INVALID1         },  // DFh
-    { "CPX", ADDR_IMM         },  // E0h
-    { "SBC", ADDR_INDX        },  // E1h
-    { "NOP", INVALID2         },  // E2h
-    { "NOP", INVALID1         },  // E3h
-    { "CPX", ADDR_ZPG         },  // E4h
-    { "SBC", ADDR_ZPG         },  // E5h
-    { "INC", ADDR_ZPG         },  // E6h
-    { "NOP", INVALID1         },  // E7h
-    { "INX", 0                },  // E8h
-    { "SBC", ADDR_IMM         },  // E9h
-    { "NOP", 0                },  // EAh
-    { "NOP", INVALID1         },  // EBh
-    { "CPX", ADDR_ABS         },  // ECh
-    { "SBC", ADDR_ABS         },  // EDh
-    { "INC", ADDR_ABS         },  // EEh
-    { "NOP", INVALID1         },  // EFh
-    { "BEQ", ADDR_REL         },  // F0h
-    { "SBC", ADDR_INDY        },  // F1h
-    { "SBC", ADDR_IZPG        },  // F2h
-    { "NOP", INVALID1         },  // F3h
-    { "NOP", INVALID2         },  // F4h
-    { "SBC", ADDR_ZPGX        },  // F5h
-    { "INC", ADDR_ZPGX        },  // F6h
-    { "NOP", INVALID1         },  // F7h
-    { "SED", 0                },  // F8h
-    { "SBC", ADDR_ABSY        },  // F9h
-    { "PLX", 0                },  // FAh
-    { "NOP", INVALID1         },  // FBh
-    { "NOP", INVALID3         },  // FCh
-    { "SBC", ADDR_ABSX        },  // FDh
-    { "INC", ADDR_ABSX        },  // FEh
-    { "NOP", INVALID1         },  // FFh
+    { "BRK", 0          },  // 00h
+    { "ORA", ADDR_INDX  },  // 01h
+    { "NOP", INVALID2   },  // 02h
+    { "NOP", INVALID1   },  // 03h
+    { "TSB", ADDR_ZPG   },  // 04h
+    { "ORA", ADDR_ZPG   },  // 05h
+    { "ASL", ADDR_ZPG   },  // 06h
+    { "NOP", INVALID1   },  // 07h
+    { "PHP", 0          },  // 08h
+    { "ORA", ADDR_IMM   },  // 09h
+    { "ASL", 0          },  // 0Ah
+    { "NOP", INVALID1   },  // 0Bh
+    { "TSB", ADDR_ABS   },  // 0Ch
+    { "ORA", ADDR_ABS   },  // 0Dh
+    { "ASL", ADDR_ABS   },  // 0Eh
+    { "NOP", INVALID1   },  // 0Fh
+    { "BPL", ADDR_REL   },  // 10h
+    { "ORA", ADDR_INDY  },  // 11h
+    { "ORA", ADDR_IZPG  },  // 12h
+    { "NOP", INVALID1   },  // 13h
+    { "TRB", ADDR_ZPG   },  // 14h
+    { "ORA", ADDR_ZPGX  },  // 15h
+    { "ASL", ADDR_ZPGX  },  // 16h
+    { "NOP", INVALID1   },  // 17h
+    { "CLC", 0          },  // 18h
+    { "ORA", ADDR_ABSY  },  // 19h
+    { "INA", 0          },  // 1Ah
+    { "NOP", INVALID1   },  // 1Bh
+    { "TRB", ADDR_ABS   },  // 1Ch
+    { "ORA", ADDR_ABSX  },  // 1Dh
+    { "ASL", ADDR_ABSX  },  // 1Eh
+    { "NOP", INVALID1   },  // 1Fh
+    { "JSR", ADDR_ABS   },  // 20h
+    { "AND", ADDR_INDX  },  // 21h
+    { "NOP", INVALID2   },  // 22h
+    { "NOP", INVALID1   },  // 23h
+    { "BIT", ADDR_ZPG   },  // 24h
+    { "AND", ADDR_ZPG   },  // 25h
+    { "ROL", ADDR_ZPG   },  // 26h
+    { "NOP", INVALID1   },  // 27h
+    { "PLP", 0          },  // 28h
+    { "AND", ADDR_IMM   },  // 29h
+    { "ROL", 0          },  // 2Ah
+    { "NOP", INVALID1   },  // 2Bh
+    { "BIT", ADDR_ABS   },  // 2Ch
+    { "AND", ADDR_ABS   },  // 2Dh
+    { "ROL", ADDR_ABS   },  // 2Eh
+    { "NOP", INVALID1   },  // 2Fh
+    { "BMI", ADDR_REL   },  // 30h
+    { "AND", ADDR_INDY  },  // 31h
+    { "AND", ADDR_IZPG  },  // 32h
+    { "NOP", INVALID1   },  // 33h
+    { "BIT", ADDR_ZPGX  },  // 34h
+    { "AND", ADDR_ZPGX  },  // 35h
+    { "ROL", ADDR_ZPGX  },  // 36h
+    { "NOP", INVALID1   },  // 37h
+    { "SEC", 0          },  // 38h
+    { "AND", ADDR_ABSY  },  // 39h
+    { "DEA", 0          },  // 3Ah
+    { "NOP", INVALID1   },  // 3Bh
+    { "BIT", ADDR_ABSX  },  // 3Ch
+    { "AND", ADDR_ABSX  },  // 3Dh
+    { "ROL", ADDR_ABSX  },  // 3Eh
+    { "NOP", INVALID1   },  // 3Fh
+    { "RTI", 0          },  // 40h
+    { "EOR", ADDR_INDX  },  // 41h
+    { "NOP", INVALID2   },  // 42h
+    { "NOP", INVALID1   },  // 43h
+    { "NOP", INVALID2   },  // 44h
+    { "EOR", ADDR_ZPG   },  // 45h
+    { "LSR", ADDR_ZPG   },  // 46h
+    { "NOP", INVALID1   },  // 47h
+    { "PHA", 0          },  // 48h
+    { "EOR", ADDR_IMM   },  // 49h
+    { "LSR", 0          },  // 4Ah
+    { "NOP", INVALID1   },  // 4Bh
+    { "JMP", ADDR_ABS   },  // 4Ch
+    { "EOR", ADDR_ABS   },  // 4Dh
+    { "LSR", ADDR_ABS   },  // 4Eh
+    { "NOP", INVALID1   },  // 4Fh
+    { "BVC", ADDR_REL   },  // 50h
+    { "EOR", ADDR_INDY  },  // 51h
+    { "EOR", ADDR_IZPG  },  // 52h
+    { "NOP", INVALID1   },  // 53h
+    { "NOP", INVALID2   },  // 54h
+    { "EOR", ADDR_ZPGX  },  // 55h
+    { "LSR", ADDR_ZPGX  },  // 56h
+    { "NOP", INVALID1   },  // 57h
+    { "CLI", 0          },  // 58h
+    { "EOR", ADDR_ABSY  },  // 59h
+    { "PHY", 0          },  // 5Ah
+    { "NOP", INVALID1   },  // 5Bh
+    { "NOP", INVALID3   },  // 5Ch
+    { "EOR", ADDR_ABSX  },  // 5Dh
+    { "LSR", ADDR_ABSX  },  // 5Eh
+    { "NOP", INVALID1   },  // 5Fh
+    { "RTS", 0          },  // 60h
+    { "ADC", ADDR_INDX  },  // 61h
+    { "NOP", INVALID2   },  // 62h
+    { "NOP", INVALID1   },  // 63h
+    { "STZ", ADDR_ZPG   },  // 64h
+    { "ADC", ADDR_ZPG   },  // 65h
+    { "ROR", ADDR_ZPG   },  // 66h
+    { "NOP", INVALID1   },  // 67h
+    { "PLA", 0          },  // 68h
+    { "ADC", ADDR_IMM   },  // 69h
+    { "ROR", 0          },  // 6Ah
+    { "NOP", INVALID1   },  // 6Bh
+    { "JMP", ADDR_IABS  },  // 6Ch
+    { "ADC", ADDR_ABS   },  // 6Dh
+    { "ROR", ADDR_ABS   },  // 6Eh
+    { "NOP", INVALID1   },  // 6Fh
+    { "BVS", ADDR_REL   },  // 70h
+    { "ADC", ADDR_INDY  },  // 71h
+    { "ADC", ADDR_IZPG  },  // 72h
+    { "NOP", INVALID1   },  // 73h
+    { "STZ", ADDR_ZPGX  },  // 74h
+    { "ADC", ADDR_ZPGX  },  // 75h
+    { "ROR", ADDR_ZPGX  },  // 76h
+    { "NOP", INVALID1   },  // 77h
+    { "SEI", 0          },  // 78h
+    { "ADC", ADDR_ABSY  },  // 79h
+    { "PLY", 0          },  // 7Ah
+    { "NOP", INVALID1   },  // 7Bh
+    { "JMP", ADDR_IABSX },  // 7Ch
+    { "ADC", ADDR_ABSX  },  // 7Dh
+    { "ROR", ADDR_ABSX  },  // 7Eh
+    { "NOP", INVALID1   },  // 7Fh
+    { "BRA", ADDR_REL   },  // 80h
+    { "STA", ADDR_INDX  },  // 81h
+    { "NOP", INVALID2   },  // 82h
+    { "NOP", INVALID1   },  // 83h
+    { "STY", ADDR_ZPG   },  // 84h
+    { "STA", ADDR_ZPG   },  // 85h
+    { "STX", ADDR_ZPG   },  // 86h
+    { "NOP", INVALID1   },  // 87h
+    { "DEY", 0          },  // 88h
+    { "BIT", ADDR_IMM   },  // 89h
+    { "TXA", 0          },  // 8Ah
+    { "NOP", INVALID1   },  // 8Bh
+    { "STY", ADDR_ABS   },  // 8Ch
+    { "STA", ADDR_ABS   },  // 8Dh
+    { "STX", ADDR_ABS   },  // 8Eh
+    { "NOP", INVALID1   },  // 8Fh
+    { "BCC", ADDR_REL   },  // 90h
+    { "STA", ADDR_INDY  },  // 91h
+    { "STA", ADDR_IZPG  },  // 92h
+    { "NOP", INVALID1   },  // 93h
+    { "STY", ADDR_ZPGX  },  // 94h
+    { "STA", ADDR_ZPGX  },  // 95h
+    { "STX", ADDR_ZPGY  },  // 96h
+    { "NOP", INVALID1   },  // 97h
+    { "TYA", 0          },  // 98h
+    { "STA", ADDR_ABSY  },  // 99h
+    { "TXS", 0          },  // 9Ah
+    { "NOP", INVALID1   },  // 9Bh
+    { "STZ", ADDR_ABS   },  // 9Ch
+    { "STA", ADDR_ABSX  },  // 9Dh
+    { "STZ", ADDR_ABSX  },  // 9Eh
+    { "NOP", INVALID1   },  // 9Fh
+    { "LDY", ADDR_IMM   },  // A0h
+    { "LDA", ADDR_INDX  },  // A1h
+    { "LDX", ADDR_IMM   },  // A2h
+    { "NOP", INVALID1   },  // A3h
+    { "LDY", ADDR_ZPG   },  // A4h
+    { "LDA", ADDR_ZPG   },  // A5h
+    { "LDX", ADDR_ZPG   },  // A6h
+    { "NOP", INVALID1   },  // A7h
+    { "TAY", 0          },  // A8h
+    { "LDA", ADDR_IMM   },  // A9h
+    { "TAX", 0          },  // AAh
+    { "NOP", INVALID1   },  // ABh
+    { "LDY", ADDR_ABS   },  // ACh
+    { "LDA", ADDR_ABS   },  // ADh
+    { "LDX", ADDR_ABS   },  // AEh
+    { "NOP", INVALID1   },  // AFh
+    { "BCS", ADDR_REL   },  // B0h
+    { "LDA", ADDR_INDY  },  // B1h
+    { "LDA", ADDR_IZPG  },  // B2h
+    { "NOP", INVALID1   },  // B3h
+    { "LDY", ADDR_ZPGX  },  // B4h
+    { "LDA", ADDR_ZPGX  },  // B5h
+    { "LDX", ADDR_ZPGY  },  // B6h
+    { "NOP", INVALID1   },  // B7h
+    { "CLV", 0          },  // B8h
+    { "LDA", ADDR_ABSY  },  // B9h
+    { "TSX", 0          },  // BAh
+    { "NOP", INVALID1   },  // BBh
+    { "LDY", ADDR_ABSX  },  // BCh
+    { "LDA", ADDR_ABSX  },  // BDh
+    { "LDX", ADDR_ABSY  },  // BEh
+    { "NOP", INVALID1   },  // BFh
+    { "CPY", ADDR_IMM   },  // C0h
+    { "CMP", ADDR_INDX  },  // C1h
+    { "NOP", INVALID2   },  // C2h
+    { "NOP", INVALID1   },  // C3h
+    { "CPY", ADDR_ZPG   },  // C4h
+    { "CMP", ADDR_ZPG   },  // C5h
+    { "DEC", ADDR_ZPG   },  // C6h
+    { "NOP", INVALID1   },  // C7h
+    { "INY", 0          },  // C8h
+    { "CMP", ADDR_IMM   },  // C9h
+    { "DEX", 0          },  // CAh
+    { "NOP", INVALID1   },  // CBh
+    { "CPY", ADDR_ABS   },  // CCh
+    { "CMP", ADDR_ABS   },  // CDh
+    { "DEC", ADDR_ABS   },  // CEh
+    { "NOP", INVALID1   },  // CFh
+    { "BNE", ADDR_REL   },  // D0h
+    { "CMP", ADDR_INDY  },  // D1h
+    { "CMP", ADDR_IZPG  },  // D2h
+    { "NOP", INVALID1   },  // D3h
+    { "NOP", INVALID2   },  // D4h
+    { "CMP", ADDR_ZPGX  },  // D5h
+    { "DEC", ADDR_ZPGX  },  // D6h
+    { "NOP", INVALID1   },  // D7h
+    { "CLD", 0          },  // D8h
+    { "CMP", ADDR_ABSY  },  // D9h
+    { "PHX", 0          },  // DAh
+    { "NOP", INVALID1   },  // DBh
+    { "NOP", INVALID3   },  // DCh
+    { "CMP", ADDR_ABSX  },  // DDh
+    { "DEC", ADDR_ABSX  },  // DEh
+    { "NOP", INVALID1   },  // DFh
+    { "CPX", ADDR_IMM   },  // E0h
+    { "SBC", ADDR_INDX  },  // E1h
+    { "NOP", INVALID2   },  // E2h
+    { "NOP", INVALID1   },  // E3h
+    { "CPX", ADDR_ZPG   },  // E4h
+    { "SBC", ADDR_ZPG   },  // E5h
+    { "INC", ADDR_ZPG   },  // E6h
+    { "NOP", INVALID1   },  // E7h
+    { "INX", 0          },  // E8h
+    { "SBC", ADDR_IMM   },  // E9h
+    { "NOP", 0          },  // EAh
+    { "NOP", INVALID1   },  // EBh
+    { "CPX", ADDR_ABS   },  // ECh
+    { "SBC", ADDR_ABS   },  // EDh
+    { "INC", ADDR_ABS   },  // EEh
+    { "NOP", INVALID1   },  // EFh
+    { "BEQ", ADDR_REL   },  // F0h
+    { "SBC", ADDR_INDY  },  // F1h
+    { "SBC", ADDR_IZPG  },  // F2h
+    { "NOP", INVALID1   },  // F3h
+    { "NOP", INVALID2   },  // F4h
+    { "SBC", ADDR_ZPGX  },  // F5h
+    { "INC", ADDR_ZPGX  },  // F6h
+    { "NOP", INVALID1   },  // F7h
+    { "SED", 0          },  // F8h
+    { "SBC", ADDR_ABSY  },  // F9h
+    { "PLX", 0          },  // FAh
+    { "NOP", INVALID1   },  // FBh
+    { "NOP", INVALID3   },  // FCh
+    { "SBC", ADDR_ABSX  },  // FDh
+    { "INC", ADDR_ABSX  },  // FEh
+    { "NOP", INVALID1   },  // FFh
 };
 
 static const COLORREF color[2][COLORS] = {
     {
-        0x800000,
-        0xC0C0C0,
-        0x00FFFF,
-        0x808000,
-        0x000080,
-        0x800000,
-        0x00FFFF,
-        0xFFFFFF
+        0x800000, 0xC0C0C0, 0x00FFFF, 0x808000,
+        0x000080, 0x800000, 0x00FFFF, 0xFFFFFF
     },
     {
-        0x000000,
-        0xC0C0C0,
-        0xFFFFFF,
-        0x000000,
-        0xC0C0C0,
-        0x808080,
-        0xFFFFFF,
-        0xFFFFFF
+        0x000000, 0xC0C0C0, 0xFFFFFF, 0x000000,
+        0xC0C0C0, 0x808080, 0xFFFFFF, 0xFFFFFF
     },
 };
 
@@ -495,7 +478,6 @@ static int         watch[WATCHES];
 
 static int         colorscheme   = 0;
 static HFONT       debugfont     = (HFONT)0;
-static BOOL        fulldisp      = FALSE;
 static WORD        lastpc        = 0;
 static LPBYTE      membank       = NULL;
 static WORD        memorydump    = 0;
@@ -504,7 +486,6 @@ static int         stepcount     = 0;
 static BOOL        stepline      = FALSE;
 static int         stepstart     = 0;
 static int         stepuntil     = -1;
-static std::vector<symbol> symboltable;
 static WORD        topoffset     = 0;
 static FILE *      tracefile     = NULL;
 static BOOL        usingbp       = FALSE;
@@ -512,13 +493,16 @@ static BOOL        usingmemdump  = FALSE;
 static BOOL        usingwatches  = FALSE;
 static BOOL        viewingoutput = FALSE;
 
+static std::unordered_map<WORD, std::string> addrtosym;
+static std::unordered_map<std::string, WORD> symtoaddr;
+
 static void ComputeTopOffset(WORD centeroffset);
 static BOOL DisplayError(const char * errortext);
 static BOOL DisplayHelp(fcmd function);
-static BOOL InternalSingleStep();
-static WORD GetAddress(const char * symbol);
-static const char * GetSymbol(WORD address, int bytes);
+static int GetAddress(const char * symbol);
+static const char * GetSymbol(WORD address, int bytes, char * tmpbuf, int tmpbufsiz);
 static void GetTargets(int * intermediate, int * final);
+static BOOL InternalSingleStep();
 
 //===========================================================================
 static BOOL CheckBreakpoint(WORD address, BOOL memory) {
@@ -553,41 +537,40 @@ static BOOL CheckJump(WORD targetaddress) {
 //===========================================================================
 static BOOL CmdBlackWhite(int argc) {
     colorscheme = 1;
-    DebugDisplay(1);
+    DebugDisplay(TRUE);
     return FALSE;
 }
 
 //===========================================================================
 static BOOL CmdBreakpointAdd(int argc) {
-    if (!argc)
-        argv[argc = 1].val1 = regs.pc;
-    BOOL addedone = 0;
-    int  loop = 0;
-    while (loop++ < argc)
-        if (argv[loop].val1 || (argv[loop].str[0] == '0') ||
-            GetAddress(argv[loop].str)) {
-            if (!argv[loop].val1)
-                argv[loop].val1 = GetAddress(argv[loop].str);
+    if (argc == 1)
+        argv[argc = 2].val1 = regs.pc;
 
-              // FIND A FREE SLOT FOR THIS NEW BREAKPOINT
+    BOOL addedone = FALSE;
+    for (int loop = 1; loop < argc; ++loop) {
+        int addr = GetAddress(argv[loop].str);
+        if (argv[loop].val1 || argv[loop].str[0] == '0' || addr >= 0) {
+            if (!argv[loop].val1)
+                argv[loop].val1 = addr;
+
             int freeslot = 0;
             while ((freeslot < BREAKPOINTS) && breakpoint[freeslot].length)
                 freeslot++;
             if ((freeslot >= BREAKPOINTS) && !addedone)
                 return DisplayError("All breakpoint slots are currently in use.");
 
-              // ADD THE BREAKPOINT
             if (freeslot < BREAKPOINTS) {
                 breakpoint[freeslot].address = argv[loop].val1;
                 breakpoint[freeslot].length = argv[loop].val2
                     ? MIN(0x10000 - argv[loop].val1, argv[loop].val2)
                     : 1;
                 breakpoint[freeslot].enabled = 1;
-                addedone = 1;
-                usingbp = 1;
+                addedone = TRUE;
+                usingbp = TRUE;
             }
 
         }
+    }
     if (!addedone)
         return DisplayHelp(CmdBreakpointAdd);
     return TRUE;
@@ -595,31 +578,25 @@ static BOOL CmdBreakpointAdd(int argc) {
 
 //===========================================================================
 static BOOL CmdBreakpointClear(int argc) {
-    // CHECK FOR ERRORS
-    if (!argc)
+    if (argc < 2)
         return DisplayHelp(CmdBreakpointClear);
     if (!usingbp)
         return DisplayError("There are no breakpoints defined.");
 
-    // CLEAR EACH BREAKPOINT IN THE LIST
-    while (argc) {
-        if (!StrCmp(argv[argc].str, "*")) {
-            int loop = BREAKPOINTS;
-            while (loop--)
-                breakpoint[loop].length = 0;
+    for (int i = 1; i < argc; ++i) {
+        if (!StrCmp(argv[i].str, "*")) {
+            for (int j = 0; j < BREAKPOINTS; ++j)
+                breakpoint[j].length = 0;
         }
-        else if ((argv[argc].val1 >= 1) && (argv[argc].val1 <= BREAKPOINTS))
-            breakpoint[argv[argc].val1 - 1].length = 0;
-        argc--;
+        else if (argv[i].val1 >= 1 && argv[i].val1 <= BREAKPOINTS)
+            breakpoint[argv[i].val1 - 1].length = 0;
     }
 
-    // IF THERE ARE NO MORE BREAKPOINTS DEFINED, DISABLE THE BREAKPOINT
-    // FUNCTIONALITY AND ERASE THE BREAKPOINT DISPLAY FROM THE SCREEN
     int usedslot = 0;
-    while ((usedslot < BREAKPOINTS) && !breakpoint[usedslot].length)
+    while (usedslot < BREAKPOINTS && !breakpoint[usedslot].length)
         usedslot++;
     if (usedslot >= BREAKPOINTS) {
-        usingbp = 0;
+        usingbp = FALSE;
         DebugDisplay(TRUE);
         return FALSE;
     }
@@ -628,23 +605,18 @@ static BOOL CmdBreakpointClear(int argc) {
 
 //===========================================================================
 static BOOL CmdBreakpointDisable(int argc) {
-
-    // CHECK FOR ERRORS
-    if (!argc)
+    if (argc < 2)
         return DisplayHelp(CmdBreakpointDisable);
     if (!usingbp)
         return DisplayError("There are no breakpoints defined.");
 
-    // DISABLE EACH BREAKPOINT IN THE LIST
-    while (argc) {
-        if (!StrCmp(argv[argc].str, "*")) {
-            int loop = BREAKPOINTS;
-            while (loop--)
-                breakpoint[loop].enabled = 0;
+    for (int i = 1; i < argc; ++i) {
+        if (!StrCmp(argv[i].str, "*")) {
+            for (int j = 0; j < BREAKPOINTS; ++j)
+                breakpoint[j].enabled = FALSE;
         }
-        else if ((argv[argc].val1 >= 1) && (argv[argc].val1 <= BREAKPOINTS))
-            breakpoint[argv[argc].val1 - 1].enabled = 0;
-        argc--;
+        else if (argv[i].val1 >= 1 && argv[i].val1 <= BREAKPOINTS)
+            breakpoint[argv[i].val1 - 1].enabled = FALSE;
     }
 
     return TRUE;
@@ -652,23 +624,18 @@ static BOOL CmdBreakpointDisable(int argc) {
 
 //===========================================================================
 static BOOL CmdBreakpointEnable(int argc) {
-
-    // CHECK FOR ERRORS
-    if (!argc)
+    if (argc < 2)
         return DisplayHelp(CmdBreakpointEnable);
     if (!usingbp)
         return DisplayError("There are no breakpoints defined.");
 
-    // ENABLE EACH BREAKPOINT IN THE LIST
-    while (argc) {
-        if (!StrCmp(argv[argc].str, "*")) {
-            int loop = BREAKPOINTS;
-            while (loop--)
-                breakpoint[loop].enabled = 1;
+    for (int i = 1; i < argc; ++i) {
+        if (!StrCmp(argv[i].str, "*")) {
+            for (int j = 0; j < BREAKPOINTS; ++j)
+                breakpoint[j].enabled = TRUE;
         }
-        else if ((argv[argc].val1 >= 1) && (argv[argc].val1 <= BREAKPOINTS))
-            breakpoint[argv[argc].val1 - 1].enabled = 1;
-        argc--;
+        else if (argv[i].val1 >= 1 && argv[i].val1 <= BREAKPOINTS)
+            breakpoint[argv[i].val1 - 1].enabled = 1;
     }
 
     return TRUE;
@@ -676,12 +643,14 @@ static BOOL CmdBreakpointEnable(int argc) {
 
 //===========================================================================
 static BOOL CmdCodeDump(int argc) {
-    if ((!argc) ||
-        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
+    if (argc < 2)
         return DisplayHelp(CmdCodeDump);
-    topoffset = argv[1].val1;
-    if (!topoffset)
-        topoffset = GetAddress(argv[1].str);
+
+    int addr = GetAddress(argv[1].str);
+    if (argv[1].str[0] != '0' && !argv[1].val1 && addr < 0)
+        return DisplayHelp(CmdCodeDump);
+
+    topoffset = argv[1].val1 ? argv[1].val1 : (WORD)addr;
     return TRUE;
 }
 
@@ -706,10 +675,12 @@ static BOOL CmdExtBenchmark(int argc) {
 
 //===========================================================================
 static BOOL CmdFeedKey(int argc) {
-    KeybQueueKeypress(argc ? argv[1].val1 ? argv[1].val1
-        : argv[1].str[0]
-        : VK_SPACE,
-        0);
+    int key = argc > 1
+        ? argv[1].val1
+            ? argv[1].val1
+            : argv[1].str[0]
+        : VK_SPACE;
+    KeybQueueKeypress(key, 0);
     return FALSE;
 }
 
@@ -717,38 +688,45 @@ static BOOL CmdFeedKey(int argc) {
 static BOOL CmdFlagSet(int argc) {
     static const char flagname[] = "CZIDBRVN";
     int loop = 0;
-    while (loop < 8)
-        if (flagname[loop] == argv[0].str[1])
-            break;
-        else
-            loop++;
-    if (loop < 8)
-        if (argv[0].str[0] == 'R')
-            regs.ps &= ~(1 << loop);
-        else
-            regs.ps |= (1 << loop);
-    return TRUE;
+    for (; loop < 8; ++loop) {
+        if (flagname[loop] == argv[0].str[1]) {
+            if (argv[0].str[0] == 'R')
+                regs.ps &= ~(1 << loop);
+            else
+                regs.ps |= (1 << loop);
+            return TRUE;
+        }
+    }
+    return FALSE;
 }
 
 //===========================================================================
 static BOOL CmdGo(int argc) {
     stepcount = -1;
-    stepline = 0;
+    stepline  = FALSE;
     stepstart = regs.pc;
     stepuntil = argc ? argv[1].val1 : -1;
-    if (!stepuntil)
-        stepuntil = GetAddress(argv[1].str);
+    if (!stepuntil) {
+        int addr = GetAddress(argv[1].str);
+        if (addr >= 0)
+            stepuntil = addr;
+    }
     mode = MODE_STEPPING;
     return FALSE;
 }
 
 //===========================================================================
 static BOOL CmdInput(int argc) {
-    if ((!argc) ||
-        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
+    if (argc < 2)
         return DisplayHelp(CmdInput);
+
+    int addr = GetAddress(argv[1].str);
+    if (argv[1].str[0] != '0' && !argv[1].val1 && addr < 0)
+        return DisplayHelp(CmdInput);
+
     if (!argv[1].val1)
-        argv[1].val1 = GetAddress(argv[1].str);
+        argv[1].val1 = (WORD)addr;
+
     ioread[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 0, 0);
     return TRUE;
 }
@@ -758,6 +736,7 @@ static BOOL CmdInternalMemoryDump(int argc) {
     char filename[MAX_PATH];
     StrCopy(filename, progdir, ARRSIZE(filename));
     StrCat(filename, "memory.bin", ARRSIZE(filename));
+
     FILE * fp = fopen(filename, "wb");
     if (fp) {
         fwrite(mem, 0x30000, 1, fp);
@@ -768,7 +747,9 @@ static BOOL CmdInternalMemoryDump(int argc) {
 
 //===========================================================================
 static BOOL CmdLineDown(int argc) {
-    topoffset += addressmode[instruction[mem[topoffset]].addrmode].bytes;
+    const inst & in   = instruction[mem[topoffset]];
+    const addr & mode = addressmode[in.addrmode];
+    topoffset += mode.bytes;
     return TRUE;
 }
 
@@ -779,7 +760,9 @@ static BOOL CmdLineUp(int argc) {
     WORD newoffset = topoffset;
     while (newoffset < savedoffset) {
         topoffset = newoffset;
-        newoffset += addressmode[instruction[mem[newoffset]].addrmode].bytes;
+        const inst & in   = instruction[mem[newoffset]];
+        const addr & mode = addressmode[in.addrmode];
+        newoffset += mode.bytes;
     }
     topoffset = MIN(topoffset, savedoffset - 1);
     return TRUE;
@@ -787,43 +770,55 @@ static BOOL CmdLineUp(int argc) {
 
 //===========================================================================
 static BOOL CmdMemoryDump(int argc) {
-    if ((!argc) ||
-        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
+    if (argc < 2)
         return DisplayHelp(CmdMemoryDump);
-    memorydump = argv[1].val1;
-    if (!memorydump)
-        memorydump = GetAddress(argv[1].str);
-    usingmemdump = 1;
+
+    int addr = GetAddress(argv[1].str);
+    if (argv[1].str[0] != '0' && !argv[1].val1 && addr < 0)
+        return DisplayHelp(CmdMemoryDump);
+
+    memorydump = addr >= 0 ? (WORD)addr : argv[1].val1;
+    usingmemdump = TRUE;
     return TRUE;
 }
 
 //===========================================================================
 static BOOL CmdMemoryEnter(int argc) {
-    if ((argc < 2) ||
-        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))) ||
-        ((argv[2].str[0] != '0') && !argv[2].val1))
+    if (argc < 2)
         return DisplayHelp(CmdMemoryEnter);
-    WORD address = argv[1].val1;
-    if (!address)
-        address = GetAddress(argv[1].str);
-    while (argc >= 2) {
-        membank[address + argc - 2] = (BYTE)argv[argc].val1;
-        memdirty[address >> 8] = 1;
-        argc--;
+
+    int addr = GetAddress(argv[1].str);
+    if (argv[1].str[0] != '0' && !argv[1].val1 && addr < 0)
+        return DisplayHelp(CmdMemoryEnter);
+    if (argv[2].str[0] != '0' && !argv[2].val1)
+        return DisplayHelp(CmdMemoryEnter);
+
+    WORD address = argv[1].val1 ? argv[1].val1 : (WORD)addr;
+    for (int i = 0; i < argc - 2; ++i) {
+        membank[address + i] = (BYTE)argv[i + 2].val1;
+        memdirty[(address + i) >> 8] = 1;
     }
+
     return TRUE;
 }
 
 //===========================================================================
 static BOOL CmdMemoryFill(int argc) {
-    if ((!argc) ||
-        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
+    if (argc < 4)
         return DisplayHelp(CmdMemoryFill);
-    WORD address = argv[1].val1 ? argv[1].val1 : GetAddress(argv[1].str);
-    WORD bytes = MAX(1, argv[1].val2);
+
+    int addr = GetAddress(argv[1].str);
+    if (argv[1].str[0] != '0' && !argv[1].val1 && addr < 0)
+        return DisplayHelp(CmdMemoryFill);
+
+    WORD address = argv[1].val1 ? argv[1].val1 : (WORD)addr;
+    WORD bytes = MAX(1, argv[2].val1);
+    BYTE value = (BYTE)argv[3].val1;
     while (bytes--) {
-        if ((address < 0xC000) || (address > 0xC0FF))
-            * (membank + address) = (BYTE)(argv[2].val1 & 0xFF);
+        if (address < 0xC000 || address > 0xC0FF) {
+            membank[address] = value;
+            memdirty[address >> 8] = 1;
+        }
         address++;
     }
     return TRUE;
@@ -831,35 +826,37 @@ static BOOL CmdMemoryFill(int argc) {
 
 //===========================================================================
 static BOOL CmdOutput(int argc) {
-    if ((!argc) ||
-        ((argv[1].str[0] != '0') && (!argv[1].val1) && (!GetAddress(argv[1].str))))
+    if (argc < 2)
         return DisplayHelp(CmdInput);
+
+    int addr = GetAddress(argv[1].str);
+    if (argv[1].str[0] != '0' && !argv[1].val1 && addr < 0)
+        return DisplayHelp(CmdInput);
+
     if (!argv[1].val1)
-        argv[1].val1 = GetAddress(argv[1].str);
+        argv[1].val1 = (WORD)addr;
     iowrite[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 1, argv[2].val1 & 0xFF);
     return TRUE;
 }
 
 //===========================================================================
 static BOOL CmdPageDown(int argc) {
-    int loop = 0;
-    while (loop++ < SOURCELINES)
-        CmdLineDown(argc);
+    for (int loop = 0; loop < SOURCELINES; ++loop)
+        CmdLineDown(0);
     return TRUE;
 }
 
 //===========================================================================
 static BOOL CmdPageUp(int argc) {
-    int loop = 0;
-    while (loop++ < SOURCELINES)
-        CmdLineUp(argc);
+    for (int loop = 0; loop < SOURCELINES; ++loop)
+        CmdLineUp(0);
     return TRUE;
 }
 
 //===========================================================================
 static BOOL CmdProfile(int argc) {
     ZeroMemory(profiledata, 256 * sizeof(DWORD));
-    profiling = 1;
+    profiling = TRUE;
     return FALSE;
 }
 
@@ -872,29 +869,30 @@ static BOOL CmdSetupBenchmark(int argc) {
 
 //===========================================================================
 static BOOL CmdRegisterSet(int argc) {
-    if ((argc == 2) &&
-        (argv[1].str[0] == 'P') && (argv[2].str[0] == 'L'))
+    if (argc == 3 && argv[1].str[0] == 'P' && argv[2].str[0] == 'L')
         regs.pc = lastpc;
-    else if ((argc < 2) || ((argv[2].str[0] != '0') && !argv[2].val1))
+    else if (argc < 3 || (argv[2].str[0] != '0' && !argv[2].val1))
         return DisplayHelp(CmdMemoryEnter);
-    else switch (argv[1].str[0]) {
-        case 'A':
-            regs.a = (BYTE)(argv[2].val1 & 0xFF);
-            break;
-        case 'P':
-            regs.pc = argv[2].val1;
-            break;
-        case 'S':
-            regs.sp = 0x100 | (argv[2].val1 & 0xFF);
-            break;
-        case 'X':
-            regs.x = (BYTE)(argv[2].val1 & 0xFF);
-            break;
-        case 'Y':
-            regs.y = (BYTE)(argv[2].val1 & 0xFF);
-            break;
-        default:
-            return DisplayHelp(CmdMemoryEnter);
+    else {
+        switch (argv[1].str[0]) {
+            case 'A':
+                regs.a = (BYTE)argv[2].val1;
+                break;
+            case 'P':
+                regs.pc = argv[2].val1;
+                break;
+            case 'S':
+                regs.sp = 0x100 | (argv[2].val1 & 0xFF);
+                break;
+            case 'X':
+                regs.x = (BYTE)argv[2].val1;
+                break;
+            case 'Y':
+                regs.y = (BYTE)argv[2].val1;
+                break;
+            default:
+                return DisplayHelp(CmdMemoryEnter);
+        }
     }
     ComputeTopOffset(regs.pc);
     return TRUE;
@@ -902,8 +900,8 @@ static BOOL CmdRegisterSet(int argc) {
 
 //===========================================================================
 static BOOL CmdTrace(int argc) {
-    stepcount = argc ? argv[1].val1 : 1;
-    stepline  = 0;
+    stepcount = argc > 1 ? argv[1].val1 : 1;
+    stepline  = FALSE;
     stepstart = regs.pc;
     stepuntil = -1;
     mode      = MODE_STEPPING;
@@ -924,8 +922,8 @@ static BOOL CmdTraceFile(int argc) {
 
 //===========================================================================
 static BOOL CmdTraceLine(int argc) {
-    stepcount = argc ? argv[1].val1 : 1;
-    stepline = 1;
+    stepcount = argc > 1 ? argv[1].val1 : 1;
+    stepline  = TRUE;
     stepstart = regs.pc;
     stepuntil = -1;
     mode = MODE_STEPPING;
@@ -936,41 +934,38 @@ static BOOL CmdTraceLine(int argc) {
 //===========================================================================
 static BOOL CmdViewOutput(int argc) {
     VideoRedrawScreen();
-    viewingoutput = 1;
+    viewingoutput = TRUE;
     return FALSE;
 }
 
 //===========================================================================
 static BOOL CmdWatchAdd(int argc) {
-    if (!argc)
+    if (argc < 2)
         return DisplayHelp(CmdWatchAdd);
-    BOOL addedone = 0;
-    int  loop = 0;
-    while (loop++ < argc)
-        if (argv[loop].val1 || (argv[loop].str[0] == '0') ||
-            GetAddress(argv[loop].str)) {
-            if (!argv[loop].val1)
-                argv[loop].val1 = GetAddress(argv[loop].str);
 
-            // FIND A FREE SLOT FOR THIS NEW WATCH
+    BOOL addedone = FALSE;
+    for (int loop = 1; loop < argc; ++loop) {
+        int addr = GetAddress(argv[loop].str);
+        if (argv[loop].val1 || (argv[loop].str[0] == '0') || addr >= 0) {
+            if (!argv[loop].val1)
+                argv[loop].val1 = (WORD)addr;
+
             int freeslot = 0;
             while ((freeslot < WATCHES) && (watch[freeslot] >= 0))
                 freeslot++;
             if ((freeslot >= WATCHES) && !addedone)
                 return DisplayError("All watch slots are currently in use.");
 
-            // VERIFY THAT THE WATCH IS NOT ON AN I/O LOCATION
             if ((argv[loop].val1 >= 0xC000) && (argv[loop].val1 <= 0xC0FF))
                 return DisplayError("You may not watch an I/O location.");
 
-            // ADD THE WATCH
             if (freeslot < WATCHES) {
                 watch[freeslot] = argv[loop].val1;
-                addedone = 1;
-                usingwatches = 1;
+                addedone = TRUE;
+                usingwatches = TRUE;
             }
-
         }
+    }
     if (!addedone)
         return DisplayHelp(CmdWatchAdd);
     return TRUE;
@@ -978,30 +973,25 @@ static BOOL CmdWatchAdd(int argc) {
 
 //===========================================================================
 static BOOL CmdWatchClear(int argc) {
-    // CHECK FOR ERRORS
-    if (!argc)
+    if (argc < 2)
         return DisplayHelp(CmdWatchAdd);
     if (!usingwatches)
         return DisplayError("There are no watches defined.");
 
-    // CLEAR EACH WATCH IN THE LIST
-    while (argc) {
-        if (StrCmp(argv[argc].str, "*") == 0) {
-            int loop = WATCHES;
-            while (loop--)
-                watch[loop] = -1;
+    for (int i = 1; i < argc; ++i) {
+        if (!StrCmp(argv[i].str, "*")) {
+            for (int j = 0; j < WATCHES; ++j)
+                watch[j] = -1;
         }
-        else if ((argv[argc].val1 >= 1) && (argv[argc].val1 <= WATCHES))
-            watch[argv[argc].val1 - 1] = -1;
-        argc--;
+        else if ((argv[i].val1 >= 1) && (argv[i].val1 <= WATCHES))
+            watch[argv[i].val1 - 1] = -1;
     }
 
-    // IF THERE ARE NO MORE WATCHES DEFINED, ERASE THE WATCH DISPLAY
     int usedslot = 0;
-    while ((usedslot < WATCHES) && (watch[usedslot] < 0))
+    while (usedslot < WATCHES && watch[usedslot] < 0)
         usedslot++;
     if (usedslot >= WATCHES) {
-        usingwatches = 0;
+        usingwatches = FALSE;
         DebugDisplay(TRUE);
         return FALSE;
     }
@@ -1012,7 +1002,7 @@ static BOOL CmdWatchClear(int argc) {
 static BOOL CmdZap(int argc) {
     int loop = addressmode[instruction[mem[regs.pc]].addrmode].bytes;
     while (loop--)
-        * (mem + regs.pc + loop) = 0xEA;
+        mem[regs.pc + loop] = 0xEA;
     return TRUE;
 }
 
@@ -1054,18 +1044,25 @@ static BOOL DisplayHelp(fcmd function) {
 //===========================================================================
 static void DrawBreakpoints(HDC dc, int line) {
     RECT linerect;
-    linerect.left = SCREENSPLIT2;
-    linerect.top = (line << 4);
-    linerect.right = 560;
+    linerect.left   = SCREENSPLIT2;
+    linerect.top    = (line << 4);
+    linerect.right  = 560;
     linerect.bottom = linerect.top + 16;
     char fulltext[16] = "Breakpoints";
     SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
     SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
     int loop = 0;
     do {
-        ExtTextOut(dc, linerect.left, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            fulltext, StrLen(fulltext), NULL);
+        ExtTextOut(
+            dc,
+            linerect.left,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            fulltext,
+            StrLen(fulltext),
+            NULL
+        );
         linerect.top += 16;
         linerect.bottom += 16;
         if ((loop < BREAKPOINTS) && breakpoint[loop].length) {
@@ -1099,20 +1096,34 @@ static void DrawCommandLine(HDC dc, int line) {
     SetTextColor(dc, color[colorscheme][COLOR_COMMAND]);
     SetBkColor(dc, 0);
     RECT linerect;
-    linerect.left = 0;
-    linerect.top = 368 - (line << 4);
-    linerect.right = 12;
+    linerect.left   = 0;
+    linerect.top    = 368 - (line << 4);
+    linerect.right  = 12;
     linerect.bottom = linerect.top + 16;
     if (!title) {
-        ExtTextOut(dc, 1, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            ">", 1, NULL);
+        ExtTextOut(
+            dc,
+            1,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            ">",
+            1,
+            NULL
+        );
         linerect.left = 12;
     }
     linerect.right = 560;
-    ExtTextOut(dc, linerect.left, linerect.top,
-        ETO_CLIPPED | ETO_OPAQUE, &linerect,
-        commandstring[line] + title, StrLen(commandstring[line] + title), NULL);
+    ExtTextOut(
+        dc,
+        linerect.left,
+        linerect.top,
+        ETO_CLIPPED | ETO_OPAQUE,
+        &linerect,
+        commandstring[line] + title,
+        StrLen(commandstring[line] + title),
+        NULL
+    );
 }
 
 //===========================================================================
@@ -1131,20 +1142,23 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, char * text, size_t t
             address &= 0xFF;
         if (addrmode == ADDR_REL)
             address = offset + 2 + (int)(signed char)address;
-        if (StrStr(addressmode[addrmode].format, "%s"))
+        if (StrStr(addressmode[addrmode].format, "%s")) {
+            char tmpbuf[16];
             StrPrintf(
                 addresstext,
                 ARRSIZE(addresstext),
                 addressmode[addrmode].format,
-                GetSymbol(address, bytes)
+                GetSymbol(address, bytes, tmpbuf, ARRSIZE(tmpbuf))
             );
-        else
+        }
+        else {
             StrPrintf(
                 addresstext,
                 ARRSIZE(addresstext),
                 addressmode[addrmode].format,
                 (unsigned)address
             );
+        }
         if ((addrmode == ADDR_REL) && (offset == regs.pc) && CheckJump(address))
             if (address > offset)
                 StrCat(addresstext, " \x19", ARRSIZE(addresstext));
@@ -1170,13 +1184,14 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, char * text, size_t t
     }
 
     // PUT TOGETHER ALL OF THE DIFFERENT ELEMENTS THAT WILL MAKE UP THE LINE
+    char tmpbuf[16];
     StrPrintf(
         fulltext,
         ARRSIZE(fulltext),
         "%04X  %s  %-9s %s %s",
         (unsigned)offset,
         bytestext,
-        GetSymbol(offset, 0),
+        GetSymbol(offset, 0, tmpbuf, ARRSIZE(tmpbuf)),
         instruction[inst].mnemonic,
         addresstext
     );
@@ -1186,20 +1201,29 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, char * text, size_t t
     // DRAW THE LINE
     if (dc) {
         RECT linerect;
-        linerect.left = 0;
-        linerect.top = line << 4;
-        linerect.right = SCREENSPLIT1 - 14;
+        linerect.left   = 0;
+        linerect.top    = line << 4;
+        linerect.right  = SCREENSPLIT1 - 14;
         linerect.bottom = linerect.top + 16;
         BOOL bp = usingbp && CheckBreakpoint(offset, offset == regs.pc);
-        SetTextColor(dc, color[colorscheme][(offset == regs.pc) ? COLOR_INSTBKG
-            : bp ? COLOR_INSTBP
-            : COLOR_INSTTEXT]);
-        SetBkColor(dc, color[colorscheme][(offset == regs.pc) ? bp ? COLOR_INSTBP
-            : COLOR_INSTTEXT
-            : COLOR_INSTBKG]);
-        ExtTextOut(dc, 12, linerect.top,
-            ETO_CLIPPED | ETO_OPAQUE, &linerect,
-            fulltext, StrLen(fulltext), NULL);
+        SetTextColor(
+            dc,
+            color[colorscheme][(offset == regs.pc) ? COLOR_INSTBKG : bp ? COLOR_INSTBP : COLOR_INSTTEXT]
+        );
+        SetBkColor(
+            dc,
+            color[colorscheme][(offset == regs.pc) ? bp ? COLOR_INSTBP : COLOR_INSTTEXT : COLOR_INSTBKG]
+        );
+        ExtTextOut(
+            dc,
+            12,
+            linerect.top,
+            ETO_CLIPPED | ETO_OPAQUE,
+            &linerect,
+            fulltext,
+            StrLen(fulltext),
+            NULL
+        );
     }
 
     return bytes;
@@ -1211,9 +1235,9 @@ static void DrawFlags(HDC dc, int line, WORD value, char * text, size_t textchar
     char fulltext[2] = "?";
     RECT  linerect;
     if (dc) {
-        linerect.left = SCREENSPLIT1 + 63;
-        linerect.top = line << 4;
-        linerect.right = SCREENSPLIT1 + 72;
+        linerect.left   = SCREENSPLIT1 + 63;
+        linerect.top    = line << 4;
+        linerect.right  = SCREENSPLIT1 + 72;
         linerect.bottom = linerect.top + 16;
         SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
     }
@@ -1221,11 +1245,17 @@ static void DrawFlags(HDC dc, int line, WORD value, char * text, size_t textchar
     while (loop--) {
         if (dc) {
             fulltext[0] = mnemonic[loop];
-            SetTextColor(dc, color[colorscheme][(value & 1) ? COLOR_DATATEXT
-                : COLOR_STATIC]);
-            ExtTextOut(dc, linerect.left, linerect.top,
-                ETO_CLIPPED | ETO_OPAQUE, &linerect,
-                fulltext, 1, NULL);
+            SetTextColor(dc, color[colorscheme][(value & 1) ? COLOR_DATATEXT : COLOR_STATIC]);
+            ExtTextOut(
+                dc,
+                linerect.left,
+                linerect.top,
+                ETO_CLIPPED | ETO_OPAQUE,
+                &linerect,
+                fulltext,
+                1,
+                NULL
+            );
             linerect.left -= 9;
             linerect.right -= 9;
         }
@@ -1240,9 +1270,9 @@ static void DrawFlags(HDC dc, int line, WORD value, char * text, size_t textchar
 //===========================================================================
 static void DrawMemory(HDC dc, int line) {
     RECT linerect;
-    linerect.left = SCREENSPLIT2;
-    linerect.top = (line << 4);
-    linerect.right = 560;
+    linerect.left   = SCREENSPLIT2;
+    linerect.top    = (line << 4);
+    linerect.right  = 560;
     linerect.bottom = linerect.top + 16;
     char fulltext[16];
     StrPrintf(fulltext, ARRSIZE(fulltext), "Mem at %04X", (unsigned)memorydump);
@@ -1277,7 +1307,7 @@ static void DrawMemory(HDC dc, int line) {
                         fulltext + offset,
                         ARRSIZE(fulltext) - offset,
                         "%02X ",
-                        *(LPBYTE)(membank + curraddr)
+                        membank[curraddr]
                     );
                 }
                 curraddr++;
@@ -1290,9 +1320,9 @@ static void DrawMemory(HDC dc, int line) {
 //===========================================================================
 static void DrawRegister(HDC dc, int line, const char * name, int bytes, WORD value) {
     RECT linerect;
-    linerect.left = SCREENSPLIT1;
-    linerect.top = line << 4;
-    linerect.right = SCREENSPLIT1 + 40;
+    linerect.left   = SCREENSPLIT1;
+    linerect.top    = line << 4;
+    linerect.right  = SCREENSPLIT1 + 40;
     linerect.bottom = linerect.top + 16;
     SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
     SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
@@ -1311,7 +1341,7 @@ static void DrawRegister(HDC dc, int line, const char * name, int bytes, WORD va
         StrPrintf(valuestr, ARRSIZE(valuestr), "%04X", (unsigned)value);
     else
         StrPrintf(valuestr, ARRSIZE(valuestr), "%02X", (unsigned)value);
-    linerect.left = SCREENSPLIT1 + 40;
+    linerect.left  = SCREENSPLIT1 + 40;
     linerect.right = SCREENSPLIT2;
     SetTextColor(dc, color[colorscheme][COLOR_DATATEXT]);
     ExtTextOut(
@@ -1333,9 +1363,9 @@ static void DrawStack(HDC dc, int line) {
     while (loop < STACKLINES) {
         curraddr++;
         RECT linerect;
-        linerect.left = SCREENSPLIT1;
-        linerect.top = (loop + line) << 4;
-        linerect.right = SCREENSPLIT1 + 40;
+        linerect.left   = SCREENSPLIT1;
+        linerect.top    = (loop + line) << 4;
+        linerect.right  = SCREENSPLIT1 + 40;
         linerect.bottom = linerect.top + 16;
         SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
         SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
@@ -1352,7 +1382,7 @@ static void DrawStack(HDC dc, int line) {
             StrLen(outtext),
             NULL
         );
-        linerect.left = SCREENSPLIT1 + 40;
+        linerect.left  = SCREENSPLIT1 + 40;
         linerect.right = SCREENSPLIT2;
         SetTextColor(dc, color[colorscheme][COLOR_DATATEXT]);
         if (curraddr <= 0x1FF)
@@ -1389,9 +1419,9 @@ static void DrawTargets(HDC dc, int line) {
                 StrPrintf(valuestr, ARRSIZE(valuestr), "%04X", *(LPWORD)(mem + address[loop]));
         }
         RECT linerect;
-        linerect.left = SCREENSPLIT1;
-        linerect.top = (line + loop) << 4;
-        linerect.right = SCREENSPLIT1 + 40;
+        linerect.left   = SCREENSPLIT1;
+        linerect.top    = (line + loop) << 4;
+        linerect.right  = SCREENSPLIT1 + 40;
         linerect.bottom = linerect.top + 16;
         SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
         SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
@@ -1405,7 +1435,7 @@ static void DrawTargets(HDC dc, int line) {
             StrLen(addressstr),
             NULL
         );
-        linerect.left = SCREENSPLIT1 + 40;
+        linerect.left  = SCREENSPLIT1 + 40;
         linerect.right = SCREENSPLIT2;
         SetTextColor(dc, color[colorscheme][COLOR_DATATEXT]);
         ExtTextOut(
@@ -1424,9 +1454,9 @@ static void DrawTargets(HDC dc, int line) {
 //===========================================================================
 static void DrawWatches(HDC dc, int line) {
     RECT linerect;
-    linerect.left = SCREENSPLIT2;
-    linerect.top = (line << 4);
-    linerect.right = 560;
+    linerect.left   = SCREENSPLIT2;
+    linerect.top    = (line << 4);
+    linerect.right  = 560;
     linerect.bottom = linerect.top + 16;
     char outstr[16] = "Watches";
     SetTextColor(dc, color[colorscheme][COLOR_STATIC]);
@@ -1441,9 +1471,9 @@ static void DrawWatches(HDC dc, int line) {
         StrLen(outstr),
         NULL
     );
+
     linerect.right = SCREENSPLIT2 + 64;
-    int loop = 0;
-    while (loop < WATCHES) {
+    for (int loop = 0; loop < WATCHES; ++loop) {
         if (watch[loop] >= 0)
             StrPrintf(outstr, ARRSIZE(outstr), "%d: %04X", loop + 1, watch[loop]);
         else
@@ -1460,17 +1490,16 @@ static void DrawWatches(HDC dc, int line) {
             StrLen(outstr),
             NULL
         );
-        loop++;
     }
-    linerect.left = SCREENSPLIT2 + 64;
-    linerect.top = (line << 4);
-    linerect.right = 560;
+
+    linerect.left   = SCREENSPLIT2 + 64;
+    linerect.top    = (line << 4);
+    linerect.right  = 560;
     linerect.bottom = linerect.top + 16;
     SetTextColor(dc, color[colorscheme][COLOR_DATATEXT]);
-    loop = 0;
-    while (loop < WATCHES) {
+    for (int loop = 0; loop < WATCHES; ++loop) {
         if (watch[loop] >= 0)
-            StrPrintf(outstr, ARRSIZE(outstr), "%02X", (unsigned) * (LPBYTE)(mem + watch[loop]));
+            StrPrintf(outstr, ARRSIZE(outstr), "%02X", (unsigned)mem[watch[loop]]);
         else
             outstr[0] = 0;
         linerect.top += 16;
@@ -1485,29 +1514,28 @@ static void DrawWatches(HDC dc, int line) {
             StrLen(outstr),
             NULL
         );
-        loop++;
     }
 }
 
 //===========================================================================
 static BOOL ExecuteCommand(int argc) {
     char * context = NULL;
-    char * name    = StrTok(commandstring[0], " ,-=", &context);
+    char * name = StrTok(commandstring[0], " ,-=", &context);
     if (!name)
         name = commandstring[0];
-    int         found = 0;
+
+    int  found    = 0;
     fcmd function = NULL;
-    int         length = StrLen(name);
-    int         loop = 0;
+    int  length   = StrLen(name);
+    int  loop     = 0;
     while ((loop < COMMANDS) && (name[0] >= command[loop].name[0])) {
         if (!StrCmpLen(name, command[loop].name, length)) {
             function = command[loop].function;
             if (!StrCmp(name, command[loop].name)) {
                 found = 1;
-                loop = COMMANDS;
+                break;
             }
-            else
-                found++;
+            found++;
         }
         loop++;
     }
@@ -1521,56 +1549,38 @@ static BOOL ExecuteCommand(int argc) {
 
 //===========================================================================
 static void FreeSymbolTable() {
-    symboltable.clear();
+    symtoaddr.clear();
+    addrtosym.clear();
 }
 
 //===========================================================================
-static WORD GetAddress(const char * symbol) {
-    int loop = (int)symboltable.size();
-    while (loop--)
-        if (!StrCmpI(symboltable[loop].name, symbol))
-            return symboltable[loop].value;
-    return FALSE;
+static int GetAddress(const char * symbol) {
+    auto iter = symtoaddr.find(symbol);
+    if (iter == symtoaddr.end())
+        return -1;
+    return (int)iter->second;
 }
 
 //===========================================================================
-static const char * GetSymbol(WORD address, int bytes) {
-    // PERFORM A BINARY SEARCH THROUGH THE SYMBOL TABLE LOOKING FOR A VALUE
-    // MATCHING THIS ADDRESS
-    {
-        int lowlimit = -1;
-        int highlimit = (int)symboltable.size();
-        int curr = highlimit >> 1;
-        do {
-            int diff = ((int)address) - ((int)symboltable[curr].value);
-            if (diff < 0) {
-                highlimit = curr;
-                curr = lowlimit + ((curr - lowlimit) >> 1);
-            }
-            else if (diff > 0) {
-                lowlimit = curr;
-                curr = curr + ((highlimit + 1 - curr) >> 1);
-            }
-            else
-                return symboltable[curr].name;
-        } while ((curr > lowlimit) && (curr < highlimit));
-    }
+static const char * GetSymbol(WORD address, int bytes, char * tmpbuf, int tmpbufsiz) {
+    auto iter = addrtosym.find(address);
+    if (iter != addrtosym.end())
+        return iter->second.c_str();
 
     // IF THERE IS NO SYMBOL FOR THIS ADDRESS, THEN JUST RETURN A STRING
     // CONTAINING THE ADDRESS NUMBER
-    static char buffer[16];
     switch (bytes) {
         case 2:
-            StrPrintf(buffer, ARRSIZE(buffer), "$%02X", (unsigned)address);
+            StrPrintf(tmpbuf, tmpbufsiz, "$%02X", (unsigned)address);
             break;
         case 3:
-            StrPrintf(buffer, ARRSIZE(buffer), "$%04X", (unsigned)address);
+            StrPrintf(tmpbuf, tmpbufsiz, "$%04X", (unsigned)address);
             break;
         default:
-            buffer[0] = 0;
+            tmpbuf[0] = '\0';
             break;
     }
-    return buffer;
+    return tmpbuf;
 }
 
 //===========================================================================
@@ -1581,12 +1591,11 @@ static void GetTargets(int * intermediate, int * final) {
     BYTE argument8  = *(LPBYTE)(mem + regs.pc + 1);
     WORD argument16 = *(LPWORD)(mem + regs.pc + 1);
     switch (addrmode) {
-
         case ADDR_ABS:
             *final = argument16;
             break;
 
-        case ADDR_ABSIINDX:
+        case ADDR_IABSX:
             argument16 += regs.x;
             *intermediate = argument16;
             *final = *(LPWORD)(mem + *intermediate);
@@ -1658,11 +1667,6 @@ static BOOL InternalSingleStep() {
 }
 
 //===========================================================================
-static inline bool IsWhitespace(BYTE ch) {
-    return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
-}
-
-//===========================================================================
 static void OutputTraceLine() {
     char disassembly[50];
     char flags[9];
@@ -1690,10 +1694,10 @@ static int ParseCommandString() {
         int    length = StrLen(currptr);
         StrTok(currptr, " ,-=", &context);
         StrCopy(argv[argc].str, currptr, ARRSIZE(argv[argc].str));
-        argv[argc].val1 = (WORD)(StrToUnsigned(currptr, &endptr, 16) & 0xFFFF);
-        if (endptr)
+        argv[argc].val1 = (WORD)StrToUnsigned(currptr, &endptr, 16);
+        if (endptr) {
             if (*endptr == 'L') {
-                argv[argc].val2 = (WORD)(StrToUnsigned(endptr + 1, &endptr, 16) & 0xFFFF);
+                argv[argc].val2 = (WORD)StrToUnsigned(endptr + 1, &endptr, 16);
                 if (endptr && *endptr)
                     argv[argc].val2 = 0;
             }
@@ -1702,18 +1706,22 @@ static int ParseCommandString() {
                 if (*endptr)
                     argv[argc].val1 = 0;
             }
+        }
         else
             argv[argc].val2 = 0;
-        BOOL more = ((*currptr) && (length > StrLen(currptr)));
-        argc += more;
-        currptr += StrLen(currptr) + more;
+
+        int toklength = StrLen(currptr);
+        int more = *currptr && length > toklength ? 1 : 0;
+        ++argc;
+        currptr += toklength + more;
     }
-    int loop = argc;
-    while (loop++ < MAXARGS - 1) {
-        argv[loop].str[0] = 0;
+
+    for (int loop = argc; loop < MAXARGS; loop++) {
+        argv[loop].str[0] = '\0';
         argv[loop].val1 = 0;
         argv[loop].val2 = 0;
     }
+
     return argc;
 }
 
@@ -1721,49 +1729,52 @@ static int ParseCommandString() {
 static void ParseSymbolData(LPBYTE data, DWORD bytes) {
     LPBYTE term = data + bytes;
     while (data < term) {
-        while (data < term && IsWhitespace(*data))
+        while (data < term && CharIsWhitespace(*data))
             ++data;
 
         char addr[16];
         char * addrptr  = addr;
         char * addrterm = addr + ARRSIZE(addr) - 1;
-        while (data < term && !IsWhitespace(*data)) {
+        while (data < term && !CharIsWhitespace(*data)) {
             if (addrptr < addrterm)
                 *addrptr++ = *data;
             ++data;
         }
+        if (addrptr == addr)
+            break;
         *addrptr = '\0';
 
-        while (data < term && IsWhitespace(*data))
+        while (data < term && CharIsWhitespace(*data))
             ++data;
 
-        symbol sym;
-        char *symptr = sym.name;
-        char *symterm = sym.name + ARRSIZE(sym.name) - 1;
-        while (data < term && !IsWhitespace(*data)) {
-            if (symptr < symterm)
-                *symptr++ = *data;
+        LPBYTE symptr = data;
+        while (data < term && !CharIsWhitespace(*data))
             ++data;
-        }
-        *symptr = '\0';
+        if (symptr == data)
+            continue;
+        std::string symbol((const char *)symptr, (int)(data - symptr));
 
         bool error = false;
-        sym.value = 0;
+        WORD addrvalue = 0;
         for (char * addrptr = addr; *addrptr; ++addrptr) {
-            sym.value = sym.value << 4;
+            addrvalue = addrvalue << 4;
             if (*addrptr >= '0' && *addrptr <= '9')
-                sym.value += *addrptr - '0';
+                addrvalue += *addrptr - '0';
             else if (*addrptr >= 'A' && *addrptr <= 'F')
-                sym.value += *addrptr - 'A' + 10;
+                addrvalue += *addrptr - 'A' + 10;
             else if (*addrptr >= 'a' && *addrptr <= 'f')
-                sym.value += *addrptr - 'a' + 10;
+                addrvalue += *addrptr - 'a' + 10;
             else
                 error = true;
         }
         if (error)
             continue;
 
-        symboltable.push_back(sym);
+        if (addrvalue == 0) {
+            int foo = 0;
+        }
+        symtoaddr[symbol] = addrvalue;
+        addrtosym[addrvalue] = std::move(symbol);
     }
 }
 
@@ -1777,19 +1788,21 @@ static void WriteProfileData() {
         DWORD maxvalue;
         do {
             maxvalue = 0;
-            DWORD maxitem;
-            DWORD loop;
-            for (loop = 0; loop < 256; ++loop)
+            DWORD maxitem = 0;
+            for (int loop = 0; loop < 256; ++loop) {
                 if (profiledata[loop] > maxvalue) {
                     maxvalue = profiledata[loop];
                     maxitem = loop;
                 }
+            }
             if (maxvalue) {
-                fprintf(file,
-                    "%9u  %02X  %s\n",
+                fprintf(
+                    file,
+                    "%9u %02X %s\n",
                     (unsigned)maxvalue,
                     (unsigned)maxitem,
-                    instruction[maxitem].mnemonic);
+                    instruction[maxitem].mnemonic
+                );
                 profiledata[maxitem] = 0;
             }
         } while (maxvalue);
@@ -1820,21 +1833,22 @@ void DebugContinueStepping() {
             OutputTraceLine();
         lastpc = regs.pc;
         InternalSingleStep();
-        if ((regs.pc == stepuntil) || CheckBreakpoint(regs.pc, 1))
+        if (regs.pc == stepuntil || CheckBreakpoint(regs.pc, 1))
             stepcount = 0;
         else if (stepcount > 0)
             stepcount--;
     }
     if (stepcount) {
-        if (!((++stepstaken) & 0xFFFF))
+        if ((++stepstaken & 0xFFFF) == 0) {
             if (stepstaken == 0x10000)
                 VideoRedrawScreen();
             else
                 VideoRefreshScreen();
+        }
     }
     else {
         mode = MODE_DEBUG;
-        if ((stepstart < regs.pc) && (stepstart + 3 >= regs.pc))
+        if (stepstart < regs.pc && stepstart + 3 >= regs.pc)
             topoffset += addressmode[instruction[mem[topoffset]].addrmode].bytes;
         else
             ComputeTopOffset(regs.pc);
@@ -1859,13 +1873,13 @@ void DebugDisplay(BOOL drawbackground) {
     // DRAW THE BACKGROUND
     if (drawbackground) {
         RECT viewportrect;
-        viewportrect.left = 0;
-        viewportrect.top = 0;
-        viewportrect.right = SCREENSPLIT1 - 14;
+        viewportrect.left   = 0;
+        viewportrect.top    = 0;
+        viewportrect.right  = SCREENSPLIT1 - 14;
         viewportrect.bottom = 304;
         SetBkColor(dc, color[colorscheme][COLOR_INSTBKG]);
         ExtTextOut(dc, 0, 0, ETO_OPAQUE, &viewportrect, "", 0, NULL);
-        viewportrect.left = SCREENSPLIT1 - 14;
+        viewportrect.left  = SCREENSPLIT1 - 14;
         viewportrect.right = 560;
         SetBkColor(dc, color[colorscheme][COLOR_DATABKG]);
         ExtTextOut(dc, 0, 0, ETO_OPAQUE, &viewportrect, "", 0, NULL);
@@ -1873,12 +1887,9 @@ void DebugDisplay(BOOL drawbackground) {
 
     // DRAW DISASSEMBLED LINES
     {
-        int  line = 0;
         WORD offset = topoffset;
-        while (line < SOURCELINES) {
+        for (int line = 0; line < SOURCELINES; ++line)
             offset += DrawDisassembly(dc, line, offset, NULL, 0);
-            line++;
-        }
     }
 
     // DRAW THE DATA AREA
@@ -1898,11 +1909,8 @@ void DebugDisplay(BOOL drawbackground) {
         DrawMemory(dc, 14);
 
     // DRAW THE COMMAND LINE
-    {
-        int line = COMMANDLINES;
-        while (line--)
-            DrawCommandLine(dc, line);
-    }
+    for (int line = COMMANDLINES - 1; line >= 0; --line)
+        DrawCommandLine(dc, line);
 
     FrameReleaseDC(dc);
 }
@@ -1958,9 +1966,9 @@ void DebugInitialize() {
 void DebugProcessChar(char ch) {
     if (mode != MODE_DEBUG)
         return;
-    if ((ch == ' ') && !commandstring[0][0])
+    if (ch == ' ' && !commandstring[0][0])
         return;
-    if ((ch >= 32) && (ch <= 126)) {
+    if (ch >= 32 && ch <= 126) {
         ch = (ch >= 'a' && ch <= 'z') ? ch - 'a' + 'A' : ch;
         int length = StrLen(commandstring[0]);
         if (length < 68) {
@@ -1975,18 +1983,18 @@ void DebugProcessChar(char ch) {
 
 //===========================================================================
 void DebugProcessCommand(int keycode) {
-    if ((mode == MODE_STEPPING) && (keycode == VK_ESCAPE))
+    if (mode == MODE_STEPPING && keycode == VK_ESCAPE)
         stepcount = 0;
     if (mode != MODE_DEBUG)
         return;
     if (viewingoutput) {
         DebugDisplay(TRUE);
-        viewingoutput = 0;
+        viewingoutput = FALSE;
         return;
     }
     BOOL needscmdrefresh = 0;
     BOOL needsfullrefresh = 0;
-    if ((keycode == VK_SPACE) && commandstring[0][0])
+    if (keycode == VK_SPACE && commandstring[0][0])
         return;
     if (keycode == VK_BACK) {
         int length = StrLen(commandstring[0]);
@@ -1995,8 +2003,7 @@ void DebugProcessCommand(int keycode) {
         needscmdrefresh = 1;
     }
     else if (keycode == VK_RETURN) {
-        if ((!commandstring[0][0]) &&
-            (commandstring[1][0] != ' '))
+        if (!commandstring[0][0] && commandstring[1][0] != ' ')
             StrCopy(commandstring[0], commandstring[1], ARRSIZE(commandstring[0]));
         int loop = COMMANDLINES - 1;
         while (loop--)
@@ -2014,8 +2021,7 @@ void DebugProcessCommand(int keycode) {
     }
     if (needsfullrefresh)
         DebugDisplay(FALSE);
-    else if (needscmdrefresh && (!viewingoutput) &&
-        ((mode == MODE_DEBUG) || (mode == MODE_STEPPING))) {
+    else if (needscmdrefresh && !viewingoutput && (mode == MODE_DEBUG || mode == MODE_STEPPING)) {
         HDC dc = FrameGetDC();
         while (needscmdrefresh--)
             DrawCommandLine(dc, needscmdrefresh);

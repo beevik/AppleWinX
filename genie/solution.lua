@@ -150,7 +150,6 @@ project("AppleWinX")
     -- List include paths
     includedirs {
         path.join(srcDir),
-        path.join(rsrcDir),
     }
 
     -- List all files that should appear in the project
@@ -158,7 +157,6 @@ project("AppleWinX")
         path.join(srcDir, "*.h"),
         path.join(srcDir, "*.cpp"),
         path.join(rsrcDir, "*.rc"),
-        path.join(rsrcDir, "*.h"),
     }
 
     -- Libraries that must be linked to build the executable

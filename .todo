@@ -1,1 +1,5 @@
 Convert from Windows SDK to SDL.
+Use timers instead of CPU counters.
+Replace registry with config file(s).
+Convert modules to singletons.
+Rename applewin.* to emulator.*

@@ -14,6 +14,8 @@
 #include <cstring>
 #include <ctime>
 
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "platform.h"

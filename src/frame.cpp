@@ -24,24 +24,6 @@ constexpr int BTN_TODISK  = 5;
 constexpr int BTN_DEBUG   = 6;
 constexpr int BTN_SETUP   = 7;
 
-struct DEVMODE40 {
-    char  dmDeviceName[32];
-    WORD  dmVersions[2];
-    WORD  dmSize;
-    WORD  dmDriverExtra;
-    DWORD dmFields;
-    short dmPrintOptions[13];
-    char  dmFormName[32];
-    WORD  dmLogPixels;
-    DWORD dmBitsPerPel;
-    DWORD dmPelsWidth;
-    DWORD dmPelsHeight;
-    DWORD dmDisplayFlags;
-    DWORD dmDisplayFrequency;
-    DWORD dmMediaInformation[6];
-};
-typedef DEVMODE40 * LPDEVMODE40;
-
 static const char computerchoices[] = "Apple ][+\0"
                                       "Apple //e\0";
 static const char joystickchoices[] = "Disabled\0"

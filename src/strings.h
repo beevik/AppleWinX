@@ -8,6 +8,10 @@
 
 #pragma once
 
+bool CharIsWhitespace(char ch);
+char CharToLower(char ch);
+char CharToUpper(char ch);
+
 int          StrCat(char * dst, const char * src, size_t dstChars);
 char *       StrChr(char * str, char ch);
 const char * StrChr(const char * str, char ch);

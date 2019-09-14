@@ -8,7 +8,6 @@
 
 #include "pch.h"
 #pragma  hdrstop
-#include "resource.h"
 
 #define PNG_SETJMP_NOT_SUPPORTED
 #include <png.h>
