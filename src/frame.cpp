@@ -559,12 +559,10 @@ static LRESULT CALLBACK FrameWndProc(
             }
             else if ((wparam == VK_ESCAPE) && usingcursor)
                 SetUsingCursor(0);
-            else if ((mode == MODE_RUNNING) || (mode == MODE_LOGO) ||
-                ((mode == MODE_STEPPING) && (wparam != VK_ESCAPE))) {
+            else if (mode == MODE_RUNNING || mode == MODE_LOGO || (mode == MODE_STEPPING && wparam != VK_ESCAPE)) {
                 BOOL autorep = ((lparam & 0x40000000) != 0);
                 BOOL extended = ((lparam & 0x01000000) != 0);
-                if ((!JoyProcessKey((int)wparam, extended, 1, autorep)) &&
-                    (mode != MODE_LOGO))
+                if (!JoyProcessKey((int)wparam, extended, 1, autorep) && mode != MODE_LOGO)
                     KeybQueueKeypress((int)wparam, extended);
             }
             else if ((mode == MODE_DEBUG) || (mode == MODE_STEPPING))
