@@ -24,6 +24,9 @@ constexpr int SRCX_UNUSED   = 536;
 constexpr int SRC_CX        = 544;
 constexpr int SRC_CY        = 512;
 
+constexpr DWORD LOADPNG_CONVERT_RGB = 1 << 0;
+constexpr DWORD LOADPNG_BOTTOM_UP   = 1 << 1;
+
 constexpr DWORD VF_80COL    = 0x00000001;
 constexpr DWORD VF_DHIRES   = 0x00000002;
 constexpr DWORD VF_HIRES    = 0x00000004;
@@ -52,6 +55,7 @@ static LPBYTE        hiresmainptr;
 static uint32_t *    sourcelookup;
 static LPBYTE        textauxptr;
 static LPBYTE        textmainptr;
+static uint32_t *    screenpixels;
 static fupdate       updatelower;
 static fupdate       updateupper;
 
@@ -94,12 +98,16 @@ static void BitBltCell(
     int srcx,
     int srcy
 ) {
-    const uint32_t * srcptr = sourcelookup + SRC_CX * srcy + srcx;
-    uint32_t *       dstptr = framebuffer + SCREEN_CX * (SCREEN_CY - 1 - dsty) + dstx;
-    while (ysize--) {
-        for (int x = xsize - 1; x >= 0; x--)
-            dstptr[x] = srcptr[x];
-        dstptr -= SCREEN_CX;
+    const uint32_t * srcptr  = sourcelookup + SRC_CX * srcy + srcx;
+    uint32_t *       dstptr1 = framebuffer + SCREEN_CX * (SCREEN_CY - 1 - dsty) + dstx;
+    uint32_t *       dstptr2 = screenpixels + SCREEN_CX * dsty + dstx;
+    for (int y = 0; y < ysize; ++y) {
+        for (int x = xsize - 1; x >= 0; x--) {
+            dstptr1[x] = srcptr[x];
+            dstptr2[x] = srcptr[x];
+        }
+        dstptr1 -= SCREEN_CX;
+        dstptr2 += SCREEN_CX;
         srcptr += SRC_CX;
     }
 }
@@ -255,7 +263,13 @@ static void LoadImageData(png_structp read, png_bytep buf, size_t bytes) {
 }
 
 //===========================================================================
-static BOOL LoadPngImage(LPCSTR name, DWORD width, DWORD height, LPVOID buf, BOOL bmpconvert) {
+static BOOL LoadPngImage(
+    LPCSTR name,
+    DWORD width,
+    DWORD height,
+    LPVOID buf,
+    DWORD flags
+) {
     HRSRC handle = FindResourceA(instance, name, "IMAGE");
     if (!handle)
         return FALSE;
@@ -295,11 +309,11 @@ static BOOL LoadPngImage(LPCSTR name, DWORD width, DWORD height, LPVOID buf, BOO
 
     if (colortype == PNG_COLOR_TYPE_RGB)
         png_set_add_alpha(read, 0xff, PNG_FILLER_AFTER);
-    if (bmpconvert)
+    if (flags & LOADPNG_CONVERT_RGB)
         png_set_bgr(read);
 
     LPBYTE *rows = new LPBYTE[height];
-    if (bmpconvert) {
+    if (flags & LOADPNG_BOTTOM_UP) {
         for (DWORD y = 0; y < height; y++)
             rows[y] = (png_bytep)((LPDWORD)buf + (height - y - 1) * width);
     }
@@ -326,7 +340,7 @@ static BOOL LoadSourceLookup() {
         SRC_CX,
         SRC_CY,
         sourcelookup,
-        false // bmpconvert
+        0
     );
 }
 
@@ -750,17 +764,28 @@ void VideoDestroy() {
     DeleteDC(devicedc);
     DeleteObject(devicebitmap);
     DeleteObject(videofont);
-    devicedc = (HDC)0;
+    devicedc     = (HDC)0;
     devicebitmap = (HBITMAP)0;
-    videofont = (HFONT)0;
+    videofont    = (HFONT)0;
 }
 
 //===========================================================================
 void VideoDisplayLogo() {
+    screenpixels = WindowLockPixels();
+    LoadPngImage("LOGO", SCREEN_CX, SCREEN_CY, screenpixels, LOADPNG_CONVERT_RGB);
+    WindowUnlockPixels();
+
     if (!framedc)
         framedc = FrameGetDC();
 
-    if (LoadPngImage("LOGO", SCREEN_CX, SCREEN_CY, framebuffer, true)) {
+    BOOL success = LoadPngImage(
+        "LOGO",
+        SCREEN_CX,
+        SCREEN_CY,
+        framebuffer,
+        LOADPNG_CONVERT_RGB | LOADPNG_BOTTOM_UP
+    );
+    if (success) {
         BitBlt(
             framedc,
             0, 0,
@@ -1005,6 +1030,7 @@ void VideoRefreshScreen() {
     hiresmainptr = MemGetMainPtr(0x2000 << (displaypage2 ? 1 : 0));
     textauxptr   = MemGetAuxPtr(0x400 << (displaypage2 ? 1 : 0));
     textmainptr  = MemGetMainPtr(0x400 << (displaypage2 ? 1 : 0));
+    screenpixels = WindowLockPixels();
 
     int y      = 0;
     int ypixel = 0;
@@ -1018,6 +1044,8 @@ void VideoRefreshScreen() {
         for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14)
             updatelower(x, y, xpixel, ypixel, offset + x);
     }
+
+    WindowUnlockPixels();
 
     BitBlt(
         framedc,

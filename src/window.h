@@ -10,4 +10,6 @@
 
 void WindowDestroy();
 BOOL WindowInitialize();
+uint32_t * WindowLockPixels();
+void WindowUnlockPixels();
 void WindowUpdate();

@@ -15,16 +15,21 @@
 static SDL_Renderer * renderer;
 static SDL_Texture *  texture;
 static SDL_Surface *  screen;
+static bool           screendirty;
 static SDL_Window *   window;
 
 static SDL_Rect screenrect { 0, 0, 560, 384 };
 
 //===========================================================================
 void WindowDestroy() {
-    SDL_FreeSurface(screen);
-    SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
+    if (screen)
+        SDL_FreeSurface(screen);
+    if (texture)
+        SDL_DestroyTexture(texture);
+    if (renderer)
+        SDL_DestroyRenderer(renderer);
+    if (window)
+        SDL_DestroyWindow(window);
     renderer = nullptr;
     texture  = nullptr;
     screen   = nullptr;
@@ -42,10 +47,22 @@ BOOL WindowInitialize() {
         return FALSE;
     }
 
-    if (SDL_CreateWindowAndRenderer(screenrect.w * 2, screenrect.h * 2, 0, &window, &renderer) != 0) {
+    int result = SDL_CreateWindowAndRenderer(
+        screenrect.w * 2,
+        screenrect.h * 2,
+        SDL_WINDOW_RESIZABLE,
+        &window,
+        &renderer
+    );
+    if (result != 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create renderer: %s", SDL_GetError());
+        WindowDestroy();
         return FALSE;
     }
+    SDL_RenderSetLogicalSize(renderer, screenrect.w, screenrect.h);
+    SDL_RenderSetIntegerScale(renderer, SDL_FALSE);
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+    SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "0");
     SDL_SetWindowFullscreen(window, 0);
 
     texture = SDL_CreateTexture(
@@ -57,12 +74,10 @@ BOOL WindowInitialize() {
     );
     if (!texture) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create texture from surface: %s", SDL_GetError());
+        WindowDestroy();
         return FALSE;
     }
-
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-    SDL_RenderSetLogicalSize(renderer, screenrect.w, screenrect.h);
-    SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
 
     screen = SDL_CreateRGBSurface(
         0,
@@ -74,21 +89,38 @@ BOOL WindowInitialize() {
         0x000000ff,
         0xff000000
     );
-
-    uint32_t * pixels = (uint32_t *)screen->pixels;
-    for (int32_t i = 0, count = screenrect.w * screenrect.h; i < count; i += 2) {
-        pixels[i]   = 0xffff0000;
-        pixels[i+1] = 0xff000000;
+    if (!screen) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create screen surface: %s", SDL_GetError());
+        WindowDestroy();
+        return FALSE;
     }
 
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    SDL_UpdateTexture(texture, nullptr, pixels, screenrect.w * sizeof(uint32_t));
-
+    screendirty = true;
     return TRUE;
 }
 
 //===========================================================================
+uint32_t * WindowLockPixels() {
+    return (uint32_t *)screen->pixels;
+}
+
+//===========================================================================
+void WindowUnlockPixels() {
+    screendirty = true;
+}
+
+//===========================================================================
 void WindowUpdate() {
+    if (screendirty) {
+        SDL_UpdateTexture(
+            texture,
+            &screenrect,
+            screen->pixels,
+            screenrect.w * sizeof(uint32_t)
+        );
+        screendirty = false;
+    }
+
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xff);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, nullptr, nullptr);
