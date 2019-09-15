@@ -9,7 +9,8 @@
 #include "pch.h"
 #pragma  hdrstop
 
-constexpr double CPU_HZ = 1020484.45;
+constexpr double CPU_HZ        = 1020484.45;
+constexpr int    CYCLES_PER_MS = int(CPU_HZ / 1000.0);
 
 const char * title = "Apple //e Emulator";
 
@@ -17,6 +18,7 @@ BOOL      apple2e           = TRUE;
 BOOL      autoboot          = FALSE;
 BOOL      behind            = FALSE;
 DWORD     cumulativecycles  = 0;
+int       cyclesurplus      = 0;
 DWORD     cyclenum          = 0;
 DWORD     elapsedms         = 0;
 BOOL      fullspeed         = FALSE;
@@ -65,8 +67,9 @@ static void ContinueExecutionNew() {
 
     // Advance the emulator 1 millisecond at a time.
     for (int t = 0; t < ms; ++t) {
-        constexpr int cycles = int(CPU_HZ / 1000.0);
-        int cyclesexecuted = CpuExecute(cycles);
+        int cyclesattempted = CYCLES_PER_MS - cyclesurplus;
+        int cyclesexecuted  = CpuExecute(cyclesattempted);
+        cyclesurplus = cyclesexecuted - cyclesattempted;
 
         DiskUpdatePosition(cyclesexecuted);
         JoyUpdatePosition(cyclesexecuted);
