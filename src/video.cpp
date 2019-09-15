@@ -363,6 +363,20 @@ static void SetLastDrawnImage() {
 //===========================================================================
 static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
     BYTE ch = textmainptr[offset];
+
+    // Handle flashing text (1.87Hz blink rate)
+    constexpr DWORD BLINK_PERIOD = (DWORD)(CPU_CYCLES_PER_MS * 1000.0 / 1.87);
+    if (ch >= 64 && ch < 96) {
+        if (totalcycles % BLINK_PERIOD > BLINK_PERIOD / 2)
+            ch += 128;
+    }
+    else if (ch >= 96 && ch < 128) {
+        if (totalcycles % BLINK_PERIOD > BLINK_PERIOD / 2)
+            ch += 64;
+        else
+            ch -= 64;
+    }
+
     BitBltCell(
         xpixel, ypixel,
         14, 16,
@@ -1100,7 +1114,7 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
         case 0x0C: newmode &= ~VF_80COL;   break;
         case 0x0D: newmode |= VF_80COL;    break;
         case 0x0E: charoffs = 0;           break;
-        case 0x0F: charoffs = 0x100;       break;
+        case 0x0F: charoffs = 256;         break;
         case 0x50: newmode &= ~VF_TEXT;    break;
         case 0x51: newmode |= VF_TEXT;     break;
         case 0x52: newmode &= ~VF_MIXED;   break;
