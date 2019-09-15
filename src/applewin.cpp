@@ -74,8 +74,8 @@ static void ContinueExecutionNew() {
         SpkrUpdate(cyclesexecuted);
 
         cyclesthisframe += cyclesexecuted;
-        if (cyclesthisframe >= 17030) {
-            cyclesthisframe -= 17030;
+        if (cyclesthisframe >= 17025) {
+            cyclesthisframe -= 17025;
             VideoCheckPage(TRUE);
         }
 
