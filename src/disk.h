@@ -13,6 +13,7 @@ void         DiskDestroy();
 void         DiskGetLightStatus(int * drive1, int * drive2);
 const char * DiskGetName(int drive);
 BOOL         DiskInitialize();
+BOOL         DiskIsFullSpeedEligible();
 BOOL         DiskIsSpinning();
 void         DiskSelect(int drive);
 void         DiskUpdatePosition(DWORD cycles);

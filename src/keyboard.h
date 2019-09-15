@@ -11,6 +11,7 @@
 void  KeybGetCapsStatus(BOOL * status);
 BYTE  KeybGetKeycode();
 DWORD KeybGetNumQueries();
+bool  KeybIsKeyDown(SDL_Scancode scancode);
 void  KeybQueueKeypress(int virtkey, BOOL extended);
 void  KeybQueueKeypressSdl(const SDL_Keysym & sym);
 

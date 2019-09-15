@@ -32,7 +32,7 @@ extern BOOL         autoboot;
 extern BOOL         behind;
 extern DWORD        cumulativecycles;
 extern DWORD        cyclenum;
-extern DWORD        emulmsec;
+extern DWORD        elapsedms;
 extern BOOL         fullspeed;
 extern HINSTANCE    instance;
 extern int          mode;
@@ -44,3 +44,5 @@ extern BOOL         resettiming;
 extern BOOL         restart;
 extern DWORD        speed;
 extern const char * title;
+
+void SetMode(int newmode);

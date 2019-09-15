@@ -524,7 +524,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_DESTROY:
-            mode = MODE_SHUTDOWN;
+            SetMode(MODE_SHUTDOWN);
             DebugDestroy();
             if (!restart) {
                 DiskDestroy();
@@ -549,8 +549,8 @@ static LRESULT CALLBACK FrameWndProc(
             else if (wparam == VK_PAUSE) {
                 SetUsingCursor(0);
                 switch (mode) {
-                    case MODE_RUNNING:  mode = MODE_PAUSED;              break;
-                    case MODE_PAUSED:   mode = MODE_RUNNING;             break;
+                    case MODE_RUNNING:  SetMode(MODE_PAUSED);            break;
+                    case MODE_PAUSED:   SetMode(MODE_RUNNING);           break;
                     case MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
                 if ((mode != MODE_LOGO) && (mode != MODE_DEBUG))
@@ -694,7 +694,7 @@ static LRESULT CALLBACK FrameWndProc(
                     break;
             UpdateWindow(window);
             ResetMachineState();
-            mode = MODE_LOGO;
+            SetMode(MODE_LOGO);
             {
                 HCURSOR oldcursor = SetCursor(LoadCursor(0, IDC_WAIT));
                 VideoBenchmark();
@@ -807,7 +807,7 @@ static void ProcessButtonClick(int button) {
                 ResetMachineState();
             if ((mode == MODE_DEBUG) || (mode == MODE_STEPPING))
                 DebugEnd();
-            mode = MODE_RUNNING;
+            SetMode(MODE_RUNNING);
             VideoRedrawScreen();
             resettiming = 1;
             break;

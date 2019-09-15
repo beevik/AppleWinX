@@ -739,12 +739,12 @@ BYTE VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
 
 //===========================================================================
 void VideoCheckPage(BOOL force) {
-    if ((displaypage2 != (SW_PAGE2() != 0)) && (force || (emulmsec - lastpageflip > 500))) {
+    //if ((displaypage2 != (SW_PAGE2() != 0)) && (force || (emulmsec - lastpageflip > 500))) {
         displaypage2 = (SW_PAGE2() != 0);
         VideoRefreshScreen();
         hasrefreshed = TRUE;
-        lastpageflip = emulmsec;
-    }
+        lastpageflip = elapsedms;
+    //}
 }
 
 //===========================================================================
@@ -1138,16 +1138,16 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
             if (!redrawfull) {
                 VideoRefreshScreen();
                 hasrefreshed = TRUE;
-                lastrefresh  = emulmsec;
+                lastrefresh  = elapsedms;
             }
         }
-        else if (!SW_PAGE2() && !redrawfull && (emulmsec - lastrefresh >= 20)) {
+        else if (!SW_PAGE2() && !redrawfull && (elapsedms - lastrefresh >= 20)) {
             displaypage2 = FALSE;
             VideoRefreshScreen();
             hasrefreshed = TRUE;
-            lastrefresh  = emulmsec;
+            lastrefresh  = elapsedms;
         }
-        lastpageflip = emulmsec;
+        lastpageflip = elapsedms;
     }
 
     if (address == 0x50)

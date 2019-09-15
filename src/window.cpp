@@ -38,8 +38,8 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
         case SDL_SCANCODE_PAUSE:
             if (IsUnmodified(key.keysym.mod)) {
                 switch (mode) {
-                    case MODE_RUNNING:  mode = MODE_PAUSED;              break;
-                    case MODE_PAUSED:   mode = MODE_RUNNING;             break;
+                    case MODE_RUNNING:  SetMode(MODE_PAUSED);            break;
+                    case MODE_PAUSED:   SetMode(MODE_RUNNING);           break;
                     case MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
                 if ((mode != MODE_LOGO) && (mode != MODE_DEBUG))
@@ -191,7 +191,7 @@ void WindowUpdate() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_QUIT:
-                mode = MODE_SHUTDOWN;
+                SetMode(MODE_SHUTDOWN);
                 return;
             case SDL_KEYDOWN:
                 ProcessEventKeyDown(event.key);

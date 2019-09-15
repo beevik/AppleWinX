@@ -664,7 +664,7 @@ static BOOL CmdColor(int argc) {
 //===========================================================================
 static BOOL CmdExtBenchmark(int argc) {
     DebugEnd();
-    mode = MODE_RUNNING;
+    SetMode(MODE_RUNNING);
     VideoRedrawScreen();
     DWORD currtime = GetTickCount();
     while ((extbench = GetTickCount()) != currtime);
@@ -711,7 +711,7 @@ static BOOL CmdGo(int argc) {
         if (addr >= 0)
             stepuntil = addr;
     }
-    mode = MODE_STEPPING;
+    SetMode(MODE_STEPPING);
     return FALSE;
 }
 
@@ -904,7 +904,7 @@ static BOOL CmdTrace(int argc) {
     stepline  = FALSE;
     stepstart = regs.pc;
     stepuntil = -1;
-    mode      = MODE_STEPPING;
+    SetMode(MODE_STEPPING);
     DebugContinueStepping();
     return FALSE;
 }
@@ -926,7 +926,7 @@ static BOOL CmdTraceLine(int argc) {
     stepline  = TRUE;
     stepstart = regs.pc;
     stepuntil = -1;
-    mode = MODE_STEPPING;
+    SetMode(MODE_STEPPING);
     DebugContinueStepping();
     return FALSE;
 }
@@ -1818,7 +1818,7 @@ static void WriteProfileData() {
 void DebugBegin() {
     if (!membank)
         membank = mem;
-    mode = MODE_DEBUG;
+    SetMode(MODE_DEBUG);
     addressmode[INVALID2].bytes = apple2e ? 2 : 1;
     addressmode[INVALID3].bytes = apple2e ? 3 : 1;
     ComputeTopOffset(regs.pc);
@@ -1847,7 +1847,7 @@ void DebugContinueStepping() {
         }
     }
     else {
-        mode = MODE_DEBUG;
+        SetMode(MODE_DEBUG);
         if (stepstart < regs.pc && stepstart + 3 >= regs.pc)
             topoffset += addressmode[instruction[mem[topoffset]].addrmode].bytes;
         else

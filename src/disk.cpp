@@ -9,9 +9,10 @@
 #include "pch.h"
 #pragma  hdrstop
 
-constexpr int DRIVES   = 2;
-constexpr int NIBBLES  = 6384;
-constexpr int TRACKS   = 35;
+constexpr int INDICATOR_LAG = 200000;
+constexpr int DRIVES        = 2;
+constexpr int NIBBLES       = 6384;
+constexpr int TRACKS        = 35;
 
 struct floppy {
     char   imagename[16];
@@ -43,7 +44,7 @@ static void WriteTrack(int drive);
 static void CheckSpinning() {
     DWORD modechange = (floppymotoron && !floppydrive[currdrive].spinning);
     if (floppymotoron)
-        floppydrive[currdrive].spinning = 20000;
+        floppydrive[currdrive].spinning = INDICATOR_LAG;
     if (modechange)
         FrameRefreshStatus();
 }
@@ -306,6 +307,11 @@ BOOL DiskInitialize() {
 }
 
 //===========================================================================
+BOOL DiskIsFullSpeedEligible() {
+    return optenhancedisk && floppymotoron;
+}
+
+//===========================================================================
 BOOL DiskIsSpinning() {
     return (floppydrive[0].spinning || floppydrive[1].spinning);
 }
@@ -319,29 +325,30 @@ BYTE DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
     if (!fptr->trackimagedata)
         return 0xFF;
     BYTE result = 0;
-    if ((!floppywritemode) || (!fptr->writeprotected))
-        if (floppywritemode)
+    if (!floppywritemode || !fptr->writeprotected) {
+        if (floppywritemode) {
             if (floppylatch & 0x80) {
-                *(fptr->trackimage + fptr->byte) = floppylatch;
+                fptr->trackimage[fptr->byte] = floppylatch;
                 fptr->trackimagedirty = 1;
             }
             else
                 return 0;
+        }
         else {
-            if (optenhancedisk &&
-                ((*(LPDWORD)(mem + programcounter) == 0xD5C9FB10) ||
-                (*(LPDWORD)(mem + programcounter) == 0xD549FB10)) &&
-                    ((*(LPDWORD)(mem + programcounter + 4) & 0xFFFF00FF) != 0xAAC900F0) &&
-                (mem[programcounter + 4] != 0xD0 || mem[programcounter + 5] == 0xF7 || mem[programcounter + 5] == 0xF0))
+            if (optenhancedisk
+                && (*(LPDWORD)(mem + programcounter) == 0xD5C9FB10 || *(LPDWORD)(mem + programcounter) == 0xD549FB10)
+                && (*(LPDWORD)(mem + programcounter + 4) & 0xFFFF00FF) != 0xAAC900F0
+                && (mem[programcounter + 4] != 0xD0 || mem[programcounter + 5] == 0xF7 || mem[programcounter + 5] == 0xF0))
             {
                 int loop = fptr->nibbles;
-                while ((*(fptr->trackimage + fptr->byte) != 0xD5) && loop--) {
+                while (fptr->trackimage[fptr->byte] != 0xD5 && loop--) {
                     if (++fptr->byte >= fptr->nibbles)
                         fptr->byte = 0;
                 }
             }
-            result = *(fptr->trackimage + fptr->byte);
+            result = fptr->trackimage[fptr->byte];
         }
+    }
     if (++fptr->byte >= fptr->nibbles)
         fptr->byte = 0;
     return result;
@@ -395,7 +402,7 @@ BYTE DiskSetReadMode(WORD pc, BYTE address, BYTE write, BYTE value) {
 BYTE DiskSetWriteMode(WORD pc, BYTE address, BYTE write, BYTE value) {
     floppywritemode = 1;
     BOOL modechange = !floppydrive[currdrive].writelight;
-    floppydrive[currdrive].writelight = 20000;
+    floppydrive[currdrive].writelight = INDICATOR_LAG;
     if (modechange)
         FrameRefreshStatus();
     return MemReturnRandomData(TRUE);
@@ -407,16 +414,16 @@ void DiskUpdatePosition(DWORD cycles) {
     while (loop--) {
         floppy * fptr = &floppydrive[loop];
         if (fptr->spinning && !floppymotoron) {
-            if (!(fptr->spinning -= MIN(fptr->spinning, (cycles >> 6))))
+            if (!(fptr->spinning -= MIN(fptr->spinning, cycles)))
                 FrameRefreshStatus();
         }
         if (floppywritemode && (currdrive == loop) && fptr->spinning)
-            fptr->writelight = 20000;
+            fptr->writelight = INDICATOR_LAG;
         else if (fptr->writelight) {
-            if (!(fptr->writelight -= MIN(fptr->writelight, (cycles >> 6))))
+            if (!(fptr->writelight -= MIN(fptr->writelight, cycles)))
                 FrameRefreshStatus();
         }
-        if ((!optenhancedisk) && (!diskaccessed) && fptr->spinning) {
+        if (!optenhancedisk && !diskaccessed && fptr->spinning) {
             needsprecision = cumulativecycles;
             fptr->byte += (cycles >> 5);
             if (fptr->byte >= fptr->nibbles)

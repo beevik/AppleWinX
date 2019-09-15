@@ -9,6 +9,8 @@
 #include "pch.h"
 #pragma  hdrstop
 
+constexpr double CPU_HZ = 1020484.45;
+
 const char * title = "Apple //e Emulator";
 
 BOOL      apple2e           = TRUE;
@@ -16,9 +18,10 @@ BOOL      autoboot          = FALSE;
 BOOL      behind            = FALSE;
 DWORD     cumulativecycles  = 0;
 DWORD     cyclenum          = 0;
-DWORD     emulmsec          = 0;
+DWORD     elapsedms         = 0;
 BOOL      fullspeed         = FALSE;
 HINSTANCE instance          = (HINSTANCE)0;
+int64_t   lastexecute       = 0;
 int       mode              = MODE_LOGO;
 DWORD     needsprecision    = 0;
 BOOL      optenhancedisk    = TRUE;
@@ -28,12 +31,71 @@ BOOL      resettiming       = FALSE;
 BOOL      restart           = FALSE;
 DWORD     speed             = 10;
 
-static DWORD calibrating    = 0;
 static DWORD clockgran      = 0;
 static DWORD cyclegran      = 0;
 static DWORD finegraindelay = 1;
-static DWORD lasttrimimages = 0;
-static BOOL  optpopuplabels = TRUE;
+
+//===========================================================================
+static void ContinueExecutionNew() {
+    static int cyclesthisframe = 0;
+
+    // Check if the emulator should run at full-speed.
+    bool forcefullspeed = (speed == SPEED_MAX) || KeybIsKeyDown(SDL_SCANCODE_SCROLLLOCK);
+    bool tmpfullspeed   = DiskIsFullSpeedEligible() && !SpkrNeedsAccurateCycleCount();
+    fullspeed = forcefullspeed || tmpfullspeed;
+
+    // Check actual elapsed time.
+    int64_t elapsed = TimerGetMsElapsed();
+    if (elapsed == lastexecute && !fullspeed) {
+        TimerWait();
+        return;
+    }
+
+    // Calculate the speed-up (or slow-down) multiplier.
+    double multiplier;
+    if (speed < 10)
+        multiplier = 0.5 + speed * 0.05;
+    else
+        multiplier = speed * 0.1;
+
+    // See how many milliseconds we need to simulate in order to catch up to the
+    // wall clock.  Allow up to 32ms of simulation time while catching up.
+    int msnormal = MIN(32, int((elapsed - lastexecute) * multiplier));
+    int ms = fullspeed ? 32 : msnormal;
+
+    // Advance the emulator 1 millisecond at a time.
+    for (int t = 0; t < ms; ++t) {
+        constexpr int cycles = int(CPU_HZ / 1000.0);
+        int cyclesexecuted = CpuExecute(cycles);
+
+        DiskUpdatePosition(cyclesexecuted);
+        JoyUpdatePosition(cyclesexecuted);
+        VideoUpdateVbl(cyclesexecuted, cyclesthisframe >= 15000);
+        SpkrUpdate(cyclesexecuted);
+
+        cyclesthisframe += cyclesexecuted;
+        if (cyclesthisframe >= 17030) {
+            cyclesthisframe -= 17030;
+            VideoCheckPage(TRUE);
+        }
+
+        cumulativecycles += cyclesexecuted;
+        elapsedms++;
+
+        // Check if fullspeed status has changed.
+        if (fullspeed) {
+            tmpfullspeed = DiskIsFullSpeedEligible() && !SpkrNeedsAccurateCycleCount();
+            fullspeed    = forcefullspeed || tmpfullspeed;
+            if (!fullspeed)
+                ms = msnormal;
+        }
+    }
+
+    lastexecute = elapsed;
+
+    if (!fullspeed)
+        TimerWait();
+}
 
 //===========================================================================
 static void ContinueExecution() {
@@ -51,15 +113,15 @@ static void ContinueExecution() {
         DWORD cyclestorun = cyclegran >> (cyclegran >= 20000 ? 1 : 0);
         while (loop--) {
             cyclenum = 0;
-            if (((cumulativecycles - needsprecision) > 1500000) && !finegraintiming)
+            if (((cumulativecycles - needsprecision) > 1500000) && !finegraintiming) {
                 do {
                     DWORD executedcycles = CpuExecute(2000);
                     cyclenum += executedcycles;
                     DiskUpdatePosition(executedcycles);
                     JoyUpdatePosition(executedcycles);
-                    VideoUpdateVbl(executedcycles,
-                        (cyclestorun - cyclenum) <= 2000);
+                    VideoUpdateVbl(executedcycles, (cyclestorun - cyclenum) <= 2000);
                 } while (cyclenum < cyclestorun);
+            }
             else {
                 DWORD cyclesneeded = 0;
                 do {
@@ -81,14 +143,15 @@ static void ContinueExecution() {
                     JoyUpdatePosition(cyclenum - startcycles);
                     VideoUpdateVbl(cyclenum - startcycles,
                         (cyclestorun - cyclesneeded) < 1000);
-                    if (finegraintiming && finegrainlast)
-                        if ((calibrating == 0) && (SpkrCyclesSinceSound() > 50000))
+                    if (finegraintiming && finegrainlast) {
+                        if (SpkrCyclesSinceSound() > 50000)
                             skippedfinegrain = 1;
                         else {
                             ranfinegrain = 1;
                             DWORD loop = finegraindelay;
                             while (loop--);
                         }
+                    }
                 } while (cyclesneeded < cyclestorun);
             }
             cumulativecycles += cyclenum;
@@ -96,7 +159,7 @@ static void ContinueExecution() {
             CommUpdate(cyclenum);
         }
     }
-    emulmsec += clockgran;
+    elapsedms += clockgran;
     pages = 0;
 
     // DETERMINE WHETHER THE SCREEN WAS UPDATED, THE DISK WAS SPINNING,
@@ -105,8 +168,8 @@ static void ContinueExecution() {
     VideoCheckPage(FALSE);
     BOOL diskspinning  = DiskIsSpinning();
     BOOL screenupdated = VideoHasRefreshed();
-    BOOL systemidle    = (KeybGetNumQueries() > (clockgran << 2)) && (calibrating == 0) && !ranfinegrain;
-    fullspeed = ((speed == SPEED_MAX) || (GetKeyState(VK_SCROLL) < 0)) && (calibrating == 0);
+    BOOL systemidle    = (KeybGetNumQueries() > (clockgran << 2)) && !ranfinegrain;
+    fullspeed = speed == SPEED_MAX || KeybIsKeyDown(SDL_SCANCODE_SCROLLLOCK);
     if (screenupdated)
         pageflipping = 3;
 
@@ -118,7 +181,7 @@ static void ContinueExecution() {
         static BOOL  lastupdates[2] = { 0, 0 };
         anyupdates |= screenupdated;
         DWORD cyclelimit = 50000;
-        if (behind || fullspeed || calibrating > 0 || ranfinegrain)
+        if (behind || fullspeed || ranfinegrain)
             cyclelimit <<= 1;
         if ((cumulativecycles - lastcycles) >= cyclelimit) {
             lastcycles = cumulativecycles;
@@ -140,38 +203,11 @@ static void ContinueExecution() {
         }
     }
 
-    // IF WE ARE CURRENTLY CALIBRATING THE SYSTEM THEN ADJUST FINE
-    // GRAIN TIMING
-    if (calibrating > 0) {
-        static DWORD lastnormaldelays = 1;
-        static DWORD lastcycles = 0;
-        static DWORD lastdelay = 1;
-        if (cumulativecycles - lastcycles >= 100000) {
-            lastcycles = cumulativecycles;
-            if (finegraintiming && finegrainlast)
-                if (normaldelays + lastnormaldelays <= (DWORD)(clockgran <= 25))
-                    if (calibrating < 16) {
-                        calibrating++;
-                        finegraindelay = lastdelay;
-                        normaldelays = 1;
-                        resettiming = 1;
-                    }
-                    else
-                        calibrating = 0;
-                else {
-                    lastdelay = finegraindelay;
-                    finegraindelay += (1 << (16 - calibrating));
-                }
-            lastnormaldelays = normaldelays;
-            normaldelays = 0;
-        }
-    }
-
     // IF WE ARE NOT CALIBRATING THE SYSTEM, TURN FINE GRAIN TIMING
     // ON OR OFF BASED ON WHETHER THE DISK IS SPINNING, THE SCREEN IS
     // BEING UPDATED, OR THE SYSTEM IS IDLE
     finegrainlast = finegraintiming;
-    finegraintiming = (calibrating > 0) ||
+    finegraintiming =
         (!systemidle && !diskspinning && !fullspeed &&
             !pageflipping && !screenupdated && SpkrNeedsFineGrainTiming() && !VideoApparentlyDirty());
 
@@ -180,10 +216,8 @@ static void ContinueExecution() {
         static DWORD milliseconds = 0;
         static DWORD microseconds = 0;
         DWORD currtime = GetTickCount();
-        if ((!fullspeed) &&
-            ((!optenhancedisk) || (!diskspinning)) &&
-            (!resettiming)) {
-            if ((speed == SPEED_NORMAL) || (calibrating > 0))
+        if (!fullspeed && (!optenhancedisk || !diskspinning) && !resettiming) {
+            if (speed == SPEED_NORMAL)
                 milliseconds += clockgran;
             else {
                 DWORD delta = (DWORD)((clockgran * 2000.0) / pow(2.0, speed / 10.0));
@@ -200,7 +234,7 @@ static void ContinueExecution() {
                 behind = 0;
                 milliseconds = currtime;
             }
-            else if ((currtime >= milliseconds + 100) && (calibrating == 0))
+            else if (currtime >= milliseconds + 100)
                 behind = 1;
             else if (milliseconds > currtime) {
                 static DWORD ahead = 0;
@@ -229,7 +263,6 @@ static void ContinueExecution() {
             }
             else if (currtime - milliseconds > 250)
                 milliseconds += 100;
-
         }
         else {
             behind = fullspeed;
@@ -299,14 +332,10 @@ static void GetProgramDirectory() {
 
 //===========================================================================
 static BOOL LoadCalibrationData() {
-#define LOAD(a,b,c) if (!RegLoadValue(a,b,c)) return FALSE;
-    DWORD buildnumber = 0;
-    LOAD("", "CurrentBuildNumber", &buildnumber);
-    LOAD("Calibration", "Clock Granularity", &clockgran);
-    LOAD("Calibration", "Cycle Granularity", &cyclegran);
-    LOAD("Calibration", "Precision Timing", &finegraindelay);
-#undef LOAD
-    return (clockgran && cyclegran && finegraindelay);
+    clockgran      = 16;
+    cyclegran      = 16000;
+    finegraindelay = 98305;
+    return TRUE;
 }
 
 //===========================================================================
@@ -328,7 +357,7 @@ static void MessageLoop() {
         WindowUpdate();
 
         if (mode == MODE_RUNNING)
-            ContinueExecution();
+            ContinueExecutionNew();
         else if (mode == MODE_STEPPING)
             DebugContinueStepping();
         else if (mode == MODE_SHUTDOWN)
@@ -336,55 +365,6 @@ static void MessageLoop() {
         else
             Sleep(1);
     }
-}
-
-//===========================================================================
-static void PerformCalibration() {
-
-    // REGISTER THE WINDOW CLASS OF THE CALIBRATION DIALOG BOX
-    WNDCLASS wndclass;
-    ZeroMemory(&wndclass, sizeof(WNDCLASS));
-    wndclass.lpfnWndProc   = DlgProc;
-    wndclass.cbWndExtra    = DLGWINDOWEXTRA;
-    wndclass.hInstance     = instance;
-    wndclass.hIcon         = LoadIcon(instance, "APPLEWIN_ICON");
-    wndclass.hCursor       = LoadCursor(0, IDC_WAIT);
-    wndclass.hbrBackground = CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
-    wndclass.lpszClassName = "APPLE2CALIBRATION";
-    RegisterClass(&wndclass);
-
-    // CREATE THE CALIBRATION DIALOG BOX
-    HWND dlgwindow = CreateDialog(instance,
-        "CALIBRATION_DIALOG",
-        (HWND)0,
-        NULL);
-
-    // PROCESS MESSAGES UNTIL THE DIALOG BOX IS FULLY DRAWN
-    MSG message;
-    while (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
-        TranslateMessage(&message);
-        DispatchMessage(&message);
-    }
-
-    // WAIT ONE SECOND FOR DISK ACTIVITY TO STOP
-    Sleep(1000);
-
-    // SET UP MEMORY FOR THE CALIBRATION
-    FillMemory(mem, 0x102, 0x3E);
-    mem[0x102] = 0x4C;
-    mem[0x103] = 0x00;
-    mem[0x104] = 0x00;
-    regs.pc = 0;
-
-    // PERFORM THE CALIBRATION
-    calibrating = 1;
-    finegraindelay = 1;
-    while (calibrating > 0)
-        ContinueExecution();
-
-    // CLOSE THE DIALOG BOX
-    PostMessage(dlgwindow, WM_CLOSE, 0, 0);
-
 }
 
 //===========================================================================
@@ -414,6 +394,18 @@ static void SaveCalibrationData() {
 }
 
 //===========================================================================
+void SetMode(int newmode) {
+    if (mode == newmode)
+        return;
+
+    if (newmode == MODE_RUNNING) {
+        lastexecute = TimerGetMsElapsed();
+    }
+
+    mode = newmode;
+}
+
+//===========================================================================
 int APIENTRY WinMain(HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
 
     // DO ONE-TIME INITIALIZATION
@@ -431,24 +423,20 @@ int APIENTRY WinMain(HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
     do {
         // DO INITIALIZATION THAT MUST BE REPEATED FOR A RESTART
         restart = 0;
-        mode = MODE_LOGO;
+        SetMode(MODE_LOGO);
         LoadConfiguration();
         DebugInitialize();
         JoyInitialize();
         MemInitialize();
         VideoInitialize();
-        if (!LoadCalibrationData()) {
-            DetermineClockGranularity();
-            PerformCalibration();
-            SaveCalibrationData();
-            MemDestroy();
-            MemInitialize();
-        }
+        LoadCalibrationData();
         FrameCreateWindow();
+        TimerInitialize(1);
 
         // ENTER THE MAIN MESSAGE LOOP
         MessageLoop();
 
+        TimerDestroy();
     } while (restart);
 
     WindowDestroy();

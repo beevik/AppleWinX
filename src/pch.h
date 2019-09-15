@@ -41,5 +41,6 @@
 #include "registry.h"
 #include "speaker.h"
 #include "strings.h"
+#include "timer.h"
 #include "video.h"
 #include "window.h"

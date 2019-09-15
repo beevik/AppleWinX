@@ -275,6 +275,13 @@ BYTE KeybReadFlag(WORD pc, BYTE address, BYTE write, BYTE value) {
 }
 
 //===========================================================================
+bool KeybIsKeyDown(SDL_Scancode scancode) {
+    int keys;
+    const uint8_t * state = SDL_GetKeyboardState(&keys);
+    return state[scancode] != 0;
+}
+
+//===========================================================================
 void KeybQueueKeypress(int virtkey, BOOL extended) {
     if ((virtkey == VK_CAPITAL) && apple2e) {
         capslock = (GetKeyState(VK_CAPITAL) & 1);
