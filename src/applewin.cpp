@@ -9,18 +9,13 @@
 #include "pch.h"
 #pragma  hdrstop
 
-constexpr double CPU_HZ        = 1020484.45;
-constexpr int    CYCLES_PER_MS = int(CPU_HZ / 1000.0);
-
 const char * title = "Apple //e Emulator";
 
 BOOL      apple2e           = TRUE;
 BOOL      autoboot          = FALSE;
 BOOL      behind            = FALSE;
-DWORD     cumulativecycles  = 0;
 int       cyclesurplus      = 0;
 DWORD     cyclenum          = 0;
-DWORD     elapsedms         = 0;
 BOOL      fullspeed         = FALSE;
 HINSTANCE instance          = (HINSTANCE)0;
 int64_t   lastexecute       = 0;
@@ -32,6 +27,7 @@ char      progdir[MAX_PATH] = "";
 BOOL      resettiming       = FALSE;
 BOOL      restart           = FALSE;
 DWORD     speed             = 10;
+DWORD     totalcycles       = 0;
 
 static DWORD clockgran      = 0;
 static DWORD cyclegran      = 0;
@@ -46,11 +42,11 @@ static void ContinueExecutionNew() {
     bool tmpfullspeed   = DiskIsFullSpeedEligible() && !SpkrNeedsAccurateCycleCount();
     fullspeed = forcefullspeed || tmpfullspeed;
 
-    // Check actual elapsed time.
+    // Check the actual elapsed time.
     int64_t elapsed = TimerGetMsElapsed();
-    if (elapsed == lastexecute && !fullspeed) {
+    while (elapsed == lastexecute && !fullspeed) {
         TimerWait();
-        return;
+        elapsed = TimerGetMsElapsed();
     }
 
     // Calculate the speed-up (or slow-down) multiplier.
@@ -67,8 +63,8 @@ static void ContinueExecutionNew() {
 
     // Advance the emulator 1 millisecond at a time.
     for (int t = 0; t < ms; ++t) {
-        int cyclesattempted = CYCLES_PER_MS - cyclesurplus;
-        int cyclesexecuted  = CpuExecute(cyclesattempted);
+        int cyclesattempted = CPU_CYCLES_PER_MS - cyclesurplus;
+        int cyclesexecuted  = CpuExecute(cyclesattempted, &totalcycles);
         cyclesurplus = cyclesexecuted - cyclesattempted;
 
         DiskUpdatePosition(cyclesexecuted);
@@ -81,9 +77,6 @@ static void ContinueExecutionNew() {
             cyclesthisframe -= 17025;
             VideoCheckPage(TRUE);
         }
-
-        cumulativecycles += cyclesexecuted;
-        elapsedms++;
 
         // Check if fullspeed status has changed.
         if (fullspeed) {
@@ -116,9 +109,9 @@ static void ContinueExecution() {
         DWORD cyclestorun = cyclegran >> (cyclegran >= 20000 ? 1 : 0);
         while (loop--) {
             cyclenum = 0;
-            if (((cumulativecycles - needsprecision) > 1500000) && !finegraintiming) {
+            if (((totalcycles - needsprecision) > 1500000) && !finegraintiming) {
                 do {
-                    DWORD executedcycles = CpuExecute(2000);
+                    DWORD executedcycles = CpuExecute(2000, &totalcycles);
                     cyclenum += executedcycles;
                     DiskUpdatePosition(executedcycles);
                     JoyUpdatePosition(executedcycles);
@@ -134,13 +127,13 @@ static void ContinueExecution() {
                         while (loop2--) {
                             cyclesneeded += 33;
                             if (cyclenum < cyclesneeded)
-                                cyclenum += CpuExecute(cyclesneeded - cyclenum);
+                                cyclenum += CpuExecute(cyclesneeded - cyclenum, &totalcycles);
                         }
                     }
                     else {
                         cyclesneeded += 100;
                         if (cyclenum < cyclesneeded)
-                            cyclenum += CpuExecute(cyclesneeded - cyclenum);
+                            cyclenum += CpuExecute(cyclesneeded - cyclenum, &totalcycles);
                     }
                     DiskUpdatePosition(cyclenum - startcycles);
                     JoyUpdatePosition(cyclenum - startcycles);
@@ -157,12 +150,10 @@ static void ContinueExecution() {
                     }
                 } while (cyclesneeded < cyclestorun);
             }
-            cumulativecycles += cyclenum;
             SpkrUpdate(cyclenum);
             CommUpdate(cyclenum);
         }
     }
-    elapsedms += clockgran;
     pages = 0;
 
     // DETERMINE WHETHER THE SCREEN WAS UPDATED, THE DISK WAS SPINNING,
@@ -186,8 +177,8 @@ static void ContinueExecution() {
         DWORD cyclelimit = 50000;
         if (behind || fullspeed || ranfinegrain)
             cyclelimit <<= 1;
-        if ((cumulativecycles - lastcycles) >= cyclelimit) {
-            lastcycles = cumulativecycles;
+        if ((totalcycles - lastcycles) >= cyclelimit) {
+            lastcycles = totalcycles;
             if (!anyupdates && !lastupdates[0] && !lastupdates[1] && VideoApparentlyDirty()) {
                 VideoCheckPage(TRUE);
                 static DWORD lasttime = 0;

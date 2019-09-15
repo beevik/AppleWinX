@@ -23,6 +23,9 @@ constexpr int MODE_SHUTDOWN = 5;
 constexpr int SPEED_NORMAL  = 10;
 constexpr int SPEED_MAX     = 40;
 
+constexpr double CPU_HZ            = 1020484.32;
+constexpr DWORD  CPU_CYCLES_PER_MS = DWORD(CPU_HZ / 1000.0);
+
 #define  MAX(a,b)   (((a) > (b)) ? (a) : (b))
 #define  MIN(a,b)   (((a) < (b)) ? (a) : (b))
 #define  ARRSIZE(x) (sizeof(x) / sizeof(x[0]))
@@ -30,9 +33,7 @@ constexpr int SPEED_MAX     = 40;
 extern BOOL         apple2e;
 extern BOOL         autoboot;
 extern BOOL         behind;
-extern DWORD        cumulativecycles;
 extern DWORD        cyclenum;
-extern DWORD        elapsedms;
 extern BOOL         fullspeed;
 extern HINSTANCE    instance;
 extern int          mode;
@@ -44,5 +45,6 @@ extern BOOL         resettiming;
 extern BOOL         restart;
 extern DWORD        speed;
 extern const char * title;
+extern DWORD        totalcycles;
 
 void SetMode(int newmode);

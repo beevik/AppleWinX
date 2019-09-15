@@ -483,7 +483,7 @@ static LPBYTE      membank       = NULL;
 static WORD        memorydump    = 0;
 static BOOL        profiling     = FALSE;
 static int         stepcount     = 0;
-static BOOL        stepline      = FALSE;
+static DWORD       stepline      = 0;
 static int         stepstart     = 0;
 static int         stepuntil     = -1;
 static WORD        topoffset     = 0;
@@ -703,7 +703,7 @@ static BOOL CmdFlagSet(int argc) {
 //===========================================================================
 static BOOL CmdGo(int argc) {
     stepcount = -1;
-    stepline  = FALSE;
+    stepline  = 0;
     stepstart = regs.pc;
     stepuntil = argc ? argv[1].val1 : -1;
     if (!stepuntil) {
@@ -901,7 +901,7 @@ static BOOL CmdRegisterSet(int argc) {
 //===========================================================================
 static BOOL CmdTrace(int argc) {
     stepcount = argc > 1 ? argv[1].val1 : 1;
-    stepline  = FALSE;
+    stepline  = 0;
     stepstart = regs.pc;
     stepuntil = -1;
     SetMode(MODE_STEPPING);
@@ -923,7 +923,7 @@ static BOOL CmdTraceFile(int argc) {
 //===========================================================================
 static BOOL CmdTraceLine(int argc) {
     stepcount = argc > 1 ? argv[1].val1 : 1;
-    stepline  = TRUE;
+    stepline  = 1;
     stepstart = regs.pc;
     stepuntil = -1;
     SetMode(MODE_STEPPING);
@@ -1657,7 +1657,7 @@ static BOOL InternalSingleStep() {
     BOOL result = 0;
     _try {
         ++profiledata[mem[regs.pc]];
-        CpuExecute(stepline);
+        CpuExecute(stepline, &totalcycles);
         result = 1;
     }
     _except(EXCEPTION_EXECUTE_HANDLER) {

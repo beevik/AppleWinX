@@ -24,7 +24,6 @@ static WAVEHDR * wavehdr[WAVEBUFFERS];
 static DWORD    bufferrate   = 0;
 static DWORD    buffersize   = 0;
 static DWORD    bufferuse    = 0;
-static DWORD    cycleshift   = 0;
 static BOOL     directio     = FALSE;
 static DWORD    lastcyclenum = 0;
 static DWORD    lastdelta[2] = {0,0};
@@ -164,8 +163,6 @@ void SpkrDestroy() {
             wavehdr[loop] = NULL;
         }
     }
-    else
-        InternalBeep(0, 0);
 }
 
 //===========================================================================
@@ -173,7 +170,6 @@ void SpkrInitialize() {
     // DETERMINE THE DEFAULT BUFFER SIZE
     buffersize = 8192;
     bufferrate = 30994;
-    cycleshift = 5;
 
     // DETERMINE WHETHER A WAVEFORM OUTPUT DEVICE IS AVAILABLE
     if (soundtype == SOUND_WAVE) {
@@ -276,136 +272,57 @@ BOOL SpkrSetEmulationType(HWND window, DWORD newtype) {
 
 //===========================================================================
 BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
-    needsprecision = cumulativecycles;
+    needsprecision = totalcycles;
     if (extbench) {
         DisplayBenchmarkResults();
         extbench = 0;
     }
+
     if (waveout) {
         ++toggles;
-        DWORD loop = (lastcyclenum >> cycleshift) + waveoffset;
-        DWORD max  = (cyclenum >> cycleshift) + waveoffset;
+        DWORD loop = (lastcyclenum / 32) + waveoffset;
+        DWORD max  = (cyclenum / 32) + waveoffset;
         if (max <= loop)
             max = loop + 1;
         if (max > buffersize - 1)
             max = buffersize - 1;
         while (loop < max)
-            *(wavedata[waveprep] + loop++) = toggleval;
+            wavedata[waveprep][loop++] = toggleval;
         lastcyclenum = cyclenum;
         toggleval = ~toggleval;
     }
-    else if (soundtype != SOUND_NONE) {
-        // IF WE ARE CURRENTLY PLAYING A SOUND EFFECT OR ARE IN DIRECT
-        // EMULATION MODE, TOGGLE THE SPEAKER
-        if ((soundeffect > 2) || (soundtype == SOUND_DIRECT)) {
-            Beep(37, (DWORD)-1);
-            Beep(0, 0);
-        }
 
-        // SAVE INFORMATION ABOUT THE FREQUENCY OF SPEAKER TOGGLING FOR POSSIBLE
-        // LATER USE BY SOUND AVERAGING
-        if (lastcyclenum) {
-            toggles++;
-            DWORD delta = cyclenum - lastcyclenum;
-
-            // DETERMINE WHETHER WE ARE PLAYING A SOUND EFFECT
-            if (directio &&
-                ((delta < 250) ||
-                (lastdelta[0] && lastdelta[1] &&
-                    (delta - lastdelta[0] > 250) && (lastdelta[0] - delta > 250) &&
-                    (delta - lastdelta[1] > 250) && (lastdelta[1] - delta > 250))))
-                soundeffect = MIN(35, soundeffect + 2);
-
-            lastdelta[1] = lastdelta[0];
-            lastdelta[0] = delta;
-            totaldelta += delta;
-        }
-        lastcyclenum = cyclenum;
-    }
     return MemReturnRandomData(TRUE);
 }
 
 //===========================================================================
-void SpkrUpdate(DWORD totalcycles) {
-    if (waveout) {
-        // IF AT LEAST ONE TOGGLE WAS MADE DURING THIS CLOCK TICK, OR DURING A
-        // PREVIOUS CLOCK TICK WHOSE BUFFER WE ARE SHARING, THEN SUBMIT THE
-        // BUFFER TO THE WAVE DEVICE
-        if (toggles || waveoffset) {
-            int loop = lastcyclenum >> cycleshift;
-            int max = totalcycles >> cycleshift;
-            if (max + waveoffset > buffersize - 1)
-                max = buffersize - (waveoffset + 1);
-            while (loop < max)
-                *(wavedata[waveprep] + waveoffset + loop++) = toggleval;
-            if (waveoffset + (max << 1) >= bufferuse) {
-                SubmitWaveBuffer(waveoffset + max);
-                toggles = 0;
-                waveoffset = 0;
-            }
-            else
-                waveoffset += max;
-            lastcyclenum = 0;
-        }
+void SpkrUpdate(DWORD cycles) {
+    if (!waveout)
+        return;
 
-        // OTHERWISE, CHECK FOR COMPLETED BUFFERS
-        else {
-            waveprep = 0;
-            SubmitWaveBuffer(0);
+    // IF AT LEAST ONE TOGGLE WAS MADE DURING THIS CLOCK TICK, OR DURING A
+    // PREVIOUS CLOCK TICK WHOSE BUFFER WE ARE SHARING, THEN SUBMIT THE BUFFER
+    // TO THE WAVE DEVICE
+    if (toggles || waveoffset) {
+        int loop = lastcyclenum / 32;
+        int max = cycles / 32;
+        if (max + waveoffset > buffersize - 1)
+            max = buffersize - (waveoffset + 1);
+        while (loop < max)
+            wavedata[waveprep][waveoffset + loop++] = toggleval;
+        if (waveoffset + 2 * max >= bufferuse) {
+            SubmitWaveBuffer(waveoffset + max);
+            toggles = 0;
+            waveoffset = 0;
         }
-    }
-    else {
-        // IF WE ARE NOT PLAYING A SOUND EFFECT, PERFORM FREQUENCY AVERAGING
-        static DWORD currenthertz = 0;
-        static BOOL  lastfull     = FALSE;
-        static DWORD lasttoggles  = 0;
-        static DWORD lastval      = 0;
-        if ((soundeffect > 2) || (soundtype == SOUND_DIRECT)) {
-            lastval = 0;
-            if (currenthertz && (soundeffect > 4)) {
-                InternalBeep(0, 0);
-                currenthertz = 0;
-            }
-        }
-        else if (toggles && totaldelta) {
-            DWORD newval = 1000000 * toggles / totaldelta;
-            if (lastval && lastfull &&
-                (newval - currenthertz > 50) &&
-                (currenthertz - newval > 50)) {
-                InternalBeep(newval, (DWORD)-1);
-                currenthertz = newval;
-                lasttoggles = 0;
-            }
-            lastfull     = (totaldelta + ((totaldelta / toggles) << 1) >= totalcycles);
-            lasttoggles += toggles;
-            lastval      = newval;
-        }
-        else if (currenthertz) {
-            InternalBeep(0, 0);
-            currenthertz = 0;
-            lastfull     = FALSE;
-            lasttoggles  = 0;
-            lastval      = 0;
-        }
-        else if (lastval) {
-            currenthertz = (lasttoggles > 4) ? lastval : 0;
-            if (currenthertz)
-                InternalBeep(lastval, (DWORD)-1);
-            else
-                InternalClick();
-            lastfull    = FALSE;
-            lasttoggles = 0;
-            lastval     = 0;
-        }
-
-        // RESET THE FREQUENCY GATHERING VARIABLES
+        else
+            waveoffset += max;
         lastcyclenum = 0;
-        lastdelta[0] = 0;
-        lastdelta[1] = 0;
-        quietcycles = toggles ? 0 : (quietcycles + totalcycles);
-        toggles = 0;
-        totaldelta = 0;
-        if (soundeffect)
-            soundeffect--;
+    }
+
+    // OTHERWISE, CHECK FOR COMPLETED BUFFERS
+    else {
+        waveprep = 0;
+        SubmitWaveBuffer(0);
     }
 }

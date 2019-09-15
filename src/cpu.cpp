@@ -48,8 +48,8 @@ static const BYTE benchopcode[BENCHOPCODES] = {
                               | (flagn ? AF_SIGN     : 0)                   \
                               | (flagv ? AF_OVERFLOW : 0)                   \
                               | (flagz ? AF_ZERO     : 0)
-#define CMOS     if (!apple2e) { ++cycles; break; }
-#define CYC(a)   cycles += (a)
+#define CMOS     if (!apple2e) { ++*cyclecounter; break; }
+#define CYC(a)   *cyclecounter += (a)
 #define POP()    (mem[regs.sp >= 0x1FF ? (regs.sp = 0x100) : ++regs.sp])
 #define PUSH(a)  mem[regs.sp--] = (a);                                      \
                  if (regs.sp < 0x100) { regs.sp = 0x1FF; }
@@ -299,7 +299,7 @@ static const BYTE benchopcode[BENCHOPCODES] = {
 ***/
 
 //===========================================================================
-DWORD InternalCpuExecute(DWORD totalcycles) {
+DWORD InternalCpuExecute(DWORD attemptcycles, DWORD * cyclecounter) {
     WORD addr;
     BOOL flagc;
     BOOL flagn;
@@ -308,7 +308,7 @@ DWORD InternalCpuExecute(DWORD totalcycles) {
     WORD temp;
     WORD val;
     AF_TO_EF();
-    DWORD cycles = 0;
+    DWORD startcycles = *cyclecounter;
     do {
         switch (mem[regs.pc++]) {
             case 0x00:       BRK           CYC(7);  break;
@@ -568,9 +568,9 @@ DWORD InternalCpuExecute(DWORD totalcycles) {
             case 0xFE:       ABSX INC      CYC(6);  break;
             case 0xFF:       INVALID1      CYC(1);  break;
         }
-    } while (cycles < totalcycles);
+    } while (*cyclecounter - startcycles < attemptcycles);
     EF_TO_AF();
-    return cycles;
+    return *cyclecounter - startcycles;
 }
 
 //
@@ -582,35 +582,18 @@ void CpuDestroy() {
 }
 
 //===========================================================================
-DWORD CpuExecute(DWORD cycles) {
-    static BOOL laststep = 0;
-    DWORD result = 0;
+DWORD CpuExecute(DWORD cycles, DWORD * cyclecounter) {
+    static BOOL laststep = FALSE;
 
-    // IF WE ARE SINGLE STEPPING, USING THE INTERPRETIVE EMULATOR
-    if (!cycles) {
-        laststep = 1;
-        result = InternalCpuExecute(0);
+    if (cycles == 0) {
+        laststep = TRUE;
+        return InternalCpuExecute(0, cyclecounter);
     }
 
-    // OTHERWISE, USE THE CURRENT EMULATOR.  IF WE HAVE BEEN REQUESTED TO
-    // EXECUTE MORE THAN 65535 CYCLES, BREAK THE REQUEST INTO MULTIPLE
-    // 65535-CYCLE CHUNKS, BECAUSE SOME OF THE EXTERNAL EMULATORS KEEP TRACK
-    // OF THE CYCLE COUNT USING ONLY 16 BITS.
-    else {
-        if (laststep)
-            laststep = 0;
-        if (cycles <= 0xFFFF)
-            result = InternalCpuExecute(cycles);
-        else {
-            do {
-                DWORD cyclestoexec = MIN(65535, cycles);
-                result += InternalCpuExecute(cyclestoexec);
-                cycles -= cyclestoexec;
-            } while (cycles);
-        }
-    }
+    if (laststep)
+        laststep = FALSE;
 
-    return result;
+    return InternalCpuExecute(cycles, cyclecounter);
 }
 
 //===========================================================================
