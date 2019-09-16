@@ -36,10 +36,6 @@ static const char serialchoices[] =   "None\0"
                                       "COM2\0"
                                       "COM3\0"
                                       "COM4\0";
-static const char soundchoices[] =    "Disabled\0"
-                                      "PC Speaker (direct)\0"
-                                      "PC Speaker (translated)\0"
-                                      "Sound Card\0";
 static const char videochoices[] =    "Color\0"
                                       "Monochrome\0";
 
@@ -85,7 +81,6 @@ static BOOL CALLBACK ConfigDlgProc(
                     BOOL  newcomptype = (BOOL)SendDlgItemMessage(window, 101, CB_GETCURSEL, 0, 0);
                     BOOL  newvidtype = (BOOL)SendDlgItemMessage(window, 105, CB_GETCURSEL, 0, 0);
                     DWORD newjoytype = (DWORD)SendDlgItemMessage(window, 102, CB_GETCURSEL, 0, 0);
-                    DWORD newsoundtype = (DWORD)SendDlgItemMessage(window, 103, CB_GETCURSEL, 0, 0);
                     DWORD newserialport = (DWORD)SendDlgItemMessage(window, 104, CB_GETCURSEL, 0, 0);
                     if (newcomptype != apple2e)
                         if (MessageBox(window,
@@ -98,10 +93,6 @@ static BOOL CALLBACK ConfigDlgProc(
                             MB_ICONQUESTION | MB_YESNO) == IDYES)
                             afterclose = 2;
                     if (!JoySetEmulationType(window, newjoytype)) {
-                        afterclose = 0;
-                        return 0;
-                    }
-                    if (!SpkrSetEmulationType(window, newsoundtype)) {
                         afterclose = 0;
                         return 0;
                     }
@@ -118,7 +109,6 @@ static BOOL CALLBACK ConfigDlgProc(
 #define SAVE(a,b) RegSaveValue("Configuration",a,b);
                     SAVE("Computer Emulation", newcomptype);
                     SAVE("Joystick Emulation", joytype);
-                    SAVE("Sound Emulation", soundtype);
                     SAVE("Serial Port", serialport);
                     SAVE("Custom Speed", IsDlgButtonChecked(window, 107));
                     SAVE("Emulation Speed", speed);
@@ -177,7 +167,6 @@ static BOOL CALLBACK ConfigDlgProc(
             FillComboBox(window, 101, computerchoices, apple2e);
             FillComboBox(window, 105, videochoices, optmonochrome);
             FillComboBox(window, 102, joystickchoices, joytype);
-            FillComboBox(window, 103, soundchoices, soundtype);
             FillComboBox(window, 104, serialchoices, serialport);
             SendDlgItemMessage(window, 108, TBM_SETRANGE, 1, MAKELONG(0, 40));
             SendDlgItemMessage(window, 108, TBM_SETPAGESIZE, 0, 5);

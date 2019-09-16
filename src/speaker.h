@@ -8,14 +8,8 @@
 
 #pragma once
 
-extern DWORD soundtype;
-
-DWORD SpkrCyclesSinceSound();
 void  SpkrDestroy();
 void  SpkrInitialize();
-BOOL  SpkrNeedsAccurateCycleCount();
-BOOL  SpkrNeedsFineGrainTiming();
-BOOL  SpkrSetEmulationType(HWND window, DWORD newtype);
 void  SpkrUpdate(DWORD totalcycles);
 
 BYTE SpkrToggle(WORD pc, BYTE address, BYTE write, BYTE value);
