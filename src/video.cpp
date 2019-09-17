@@ -607,7 +607,7 @@ void VideoBenchmark() {
         milliseconds = GetTickCount();
         DWORD cycle = 0;
         do {
-            DWORD cyclecounter = 0;
+            int64_t cyclecounter = 0;
             CpuExecute(100000, &cyclecounter);
             totalmhz10++;
         } while (GetTickCount() - milliseconds < 1000);
@@ -625,10 +625,10 @@ void VideoBenchmark() {
             MB_ICONQUESTION | MB_YESNO
         );
         if (response == IDYES) {
-            BOOL  error        = FALSE;
-            WORD  lastpc       = 0x300;
-            int   loop         = 0;
-            DWORD cyclecounter = 0;
+            BOOL    error        = FALSE;
+            WORD    lastpc       = 0x300;
+            int     loop         = 0;
+            int64_t cyclecounter = 0;
             while ((loop < 10000) && !error) {
                 CpuSetupBenchmark();
                 CpuExecute(loop, &cyclecounter);
@@ -683,13 +683,13 @@ void VideoBenchmark() {
         DWORD milliseconds = GetTickCount();
         while (GetTickCount() == milliseconds) /* do nothing */;
         milliseconds = GetTickCount();
-        DWORD cyclecounter = 0;
+        int64_t cyclecounter = 0;
         DWORD cycle = 0;
         do {
             if (realisticfps < 10) {
                 int cycles = 100000;
                 while (cycles > 0) {
-                    DWORD executedcycles = CpuExecute(103, &cyclecounter);
+                    int executedcycles = CpuExecute(103, &cyclecounter);
                     cycles -= executedcycles;
                     DiskUpdatePosition(executedcycles);
                     JoyUpdatePosition(executedcycles);
@@ -760,7 +760,7 @@ void VideoCheckPage(BOOL force) {
         displaypage2 = (SW_PAGE2() != 0);
         VideoRefreshScreen();
         hasrefreshed = TRUE;
-        lastpageflip = totalcycles / CPU_CYCLES_PER_MS;
+        lastpageflip = DWORD(totalcycles / CPU_CYCLES_PER_MS);
     //}
 }
 
@@ -1139,7 +1139,7 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
         redrawfull = TRUE;
     }
 
-    DWORD currtime = totalcycles / CPU_CYCLES_PER_MS;
+    DWORD currtime = DWORD(totalcycles / CPU_CYCLES_PER_MS);
 
     if (fullspeed && oldpage2 && !SW_PAGE2()) {
         static DWORD lasttime = 0;
@@ -1151,16 +1151,8 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
 
     if (oldpage2 != SW_PAGE2()) {
         static DWORD lastrefresh = 0;
-        if ((displaypage2 && !SW_PAGE2()) || !behind) {
-            displaypage2 = (SW_PAGE2() != 0);
-            if (!redrawfull) {
-                VideoRefreshScreen();
-                hasrefreshed = TRUE;
-                lastrefresh  = currtime;
-            }
-        }
-        else if (!SW_PAGE2() && !redrawfull && (currtime - lastrefresh >= 20)) {
-            displaypage2 = FALSE;
+        displaypage2 = (SW_PAGE2() != 0);
+        if (!redrawfull) {
             VideoRefreshScreen();
             hasrefreshed = TRUE;
             lastrefresh  = currtime;

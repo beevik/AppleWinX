@@ -20,6 +20,6 @@ struct registers {
 extern registers regs;
 
 void  CpuDestroy();
-DWORD CpuExecute(DWORD cycles, DWORD * cyclecounter);
+int   CpuExecute(DWORD cycles, int64_t * cyclecounter);
 void  CpuInitialize();
 void  CpuSetupBenchmark();

@@ -669,7 +669,6 @@ static BOOL CmdExtBenchmark(int argc) {
     DWORD currtime = GetTickCount();
     while ((extbench = GetTickCount()) != currtime);
     KeybQueueKeypress(VK_SPACE, 0);
-    resettiming = 1;
     return FALSE;
 }
 

@@ -28,7 +28,7 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
-#include "applewin.h"
+#include "emulator.h"
 #include "comm.h"
 #include "cpu.h"
 #include "debug.h"

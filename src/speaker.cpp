@@ -14,7 +14,7 @@ static uint8_t           audiosilence;
 static int               audiobufsize;
 static BYTE *            audiobuf;
 static int8_t            audiosample = 80;
-static DWORD             lasttoggle;
+static int64_t           lasttoggle;
 
 //===========================================================================
 void SpkrDestroy() {

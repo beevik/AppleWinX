@@ -1,5 +1,4 @@
 Convert from Windows SDK to SDL.
 Replace registry with config file(s).
 Convert modules to singletons.
-Rename applewin.* to emulator.*
 Move sound processing into a separate thread

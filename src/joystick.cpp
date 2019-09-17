@@ -207,7 +207,6 @@ BYTE JoyReadButton(WORD, BYTE address, BYTE, BYTE) {
 
 //===========================================================================
 BYTE JoyReadPosition(WORD programcounter, BYTE address, BYTE, BYTE) {
-    needsprecision = totalcycles;
     if ((*(LPDWORD)(mem + programcounter) == 0xD0C80410) &&
         (*(LPWORD)(mem + programcounter + 4) == 0x88F8))
         delayleft = 1;
@@ -230,7 +229,6 @@ void JoyReset() {
 
 //===========================================================================
 BYTE JoyResetPosition(WORD pc, BYTE address, BYTE write, BYTE value) {
-    needsprecision = totalcycles;
     if (joy[joytype].device == DEVICE_JOYSTICK)
         CheckJoystick();
     xdelay = xpos;

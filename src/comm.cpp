@@ -11,16 +11,16 @@
 
 DWORD serialport = 0;
 
-static DWORD  baudrate         = CBR_19200;
-static BYTE   bytesize         = 8;
-static BYTE   commandbyte      = 0x00;
-static HANDLE commhandle       = INVALID_HANDLE_VALUE;
-static DWORD  comminactivity   = 0;
-static BYTE   controlbyte      = 0x1F;
-static BYTE   parity           = NOPARITY;
-static BYTE   recvbuffer[9];
-static DWORD  recvbytes        = 0;
-static BYTE   stopbits         = ONESTOPBIT;
+static DWORD    baudrate         = CBR_19200;
+static BYTE     bytesize         = 8;
+static BYTE     commandbyte      = 0x00;
+static HANDLE   commhandle       = INVALID_HANDLE_VALUE;
+static int64_t  comminactivity   = 0;
+static BYTE     controlbyte      = 0x1F;
+static BYTE     parity           = NOPARITY;
+static BYTE     recvbuffer[9];
+static DWORD    recvbytes        = 0;
+static BYTE     stopbits         = ONESTOPBIT;
 
 static void UpdateCommState();
 
@@ -190,10 +190,10 @@ void CommSetSerialPort(HWND window, DWORD newserialport) {
 }
 
 //===========================================================================
-void CommUpdate(DWORD totalcycles) {
+void CommUpdate(int64_t cycles) {
     if (commhandle == INVALID_HANDLE_VALUE)
         return;
-    if ((comminactivity += totalcycles) > 1000000) {
+    if ((comminactivity += cycles) > 1000000) {
         static DWORD lastcheck = 0;
         if ((comminactivity > 2000000) || (comminactivity - lastcheck > 99950)) {
             DWORD modemstatus = 0;

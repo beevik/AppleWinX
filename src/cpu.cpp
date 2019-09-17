@@ -299,7 +299,7 @@ static const BYTE benchopcode[BENCHOPCODES] = {
 ***/
 
 //===========================================================================
-DWORD InternalCpuExecute(DWORD attemptcycles, DWORD * cyclecounter) {
+int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
     WORD addr;
     BOOL flagc;
     BOOL flagn;
@@ -308,7 +308,7 @@ DWORD InternalCpuExecute(DWORD attemptcycles, DWORD * cyclecounter) {
     WORD temp;
     WORD val;
     AF_TO_EF();
-    DWORD startcycles = *cyclecounter;
+    int64_t startcycles = *cyclecounter;
     do {
         switch (mem[regs.pc++]) {
             case 0x00:       BRK           CYC(7);  break;
@@ -570,7 +570,7 @@ DWORD InternalCpuExecute(DWORD attemptcycles, DWORD * cyclecounter) {
         }
     } while (*cyclecounter - startcycles < attemptcycles);
     EF_TO_AF();
-    return *cyclecounter - startcycles;
+    return int(*cyclecounter - startcycles);
 }
 
 //
@@ -582,7 +582,7 @@ void CpuDestroy() {
 }
 
 //===========================================================================
-DWORD CpuExecute(DWORD cycles, DWORD * cyclecounter) {
+int CpuExecute(DWORD cycles, int64_t * cyclecounter) {
     static BOOL laststep = FALSE;
 
     if (cycles == 0) {

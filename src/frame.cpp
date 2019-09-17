@@ -544,7 +544,6 @@ static LRESULT CALLBACK FrameWndProc(
                 }
                 if ((mode != MODE_LOGO) && (mode != MODE_DEBUG))
                     VideoRedrawScreen();
-                resettiming = 1;
             }
             else if ((wparam == VK_ESCAPE) && usingcursor)
                 SetUsingCursor(0);
@@ -702,7 +701,7 @@ static LRESULT CALLBACK FrameWndProc(
                     "Configuration",
                     MB_ICONQUESTION | MB_YESNO) == IDNO)
                     break;
-            restart = 1;
+            restart = TRUE;
             PostMessage(window, WM_CLOSE, 0, 0);
             break;
 
@@ -798,7 +797,6 @@ static void ProcessButtonClick(int button) {
                 DebugEnd();
             SetMode(MODE_RUNNING);
             VideoRedrawScreen();
-            resettiming = 1;
             break;
 
         case BTN_DRIVE1:

@@ -13,7 +13,7 @@ extern DWORD serialport;
 void CommDestroy();
 void CommReset();
 void CommSetSerialPort(HWND window, DWORD newserialport);
-void CommUpdate(DWORD totalcycles);
+void CommUpdate(int64_t cycles);
 
 BYTE CommCommand(WORD pc, BYTE address, BYTE write, BYTE value);
 BYTE CommControl(WORD pc, BYTE address, BYTE write, BYTE value);

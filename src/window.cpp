@@ -44,7 +44,6 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
                 }
                 if ((mode != MODE_LOGO) && (mode != MODE_DEBUG))
                     VideoRedrawScreen();
-                resettiming = TRUE;
                 return;
             }
             break;

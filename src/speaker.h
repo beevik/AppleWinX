@@ -10,6 +10,6 @@
 
 void  SpkrDestroy();
 void  SpkrInitialize();
-void  SpkrUpdate(DWORD totalcycles);
+void  SpkrUpdate(DWORD cycles);
 
 BYTE SpkrToggle(WORD pc, BYTE address, BYTE write, BYTE value);
