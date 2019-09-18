@@ -10,14 +10,13 @@
 
 constexpr int MAXIMAGES = 16;
 
-typedef BYTE (* iofunction)(WORD pc, BYTE address, BYTE write, BYTE value);
+typedef BYTE (* fio)(WORD pc, BYTE address, BYTE write, BYTE value);
 
-
-extern iofunction ioread[0x100];
-extern iofunction iowrite[0x100];
+extern fio        ioRead[0x100];
+extern fio        ioWrite[0x100];
 extern LPBYTE     mem;
-extern LPBYTE     memdirty;
-extern LPBYTE     memwrite[MAXIMAGES][0x100];
+extern LPBYTE     memDirty;
+extern LPBYTE     memWrite[MAXIMAGES][0x100];
 extern DWORD      pages;
 
 void   MemDestroy();

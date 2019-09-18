@@ -8,6 +8,8 @@
 
 #pragma once
 
+extern BOOL optEnhancedDisk;
+
 void         DiskBoot();
 void         DiskDestroy();
 void         DiskGetLightStatus(int * drive1, int * drive2);

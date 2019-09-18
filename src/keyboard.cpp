@@ -9,7 +9,7 @@
 #include "pch.h"
 #pragma  hdrstop
 
-static const BYTE keycodes[0x65][4] = {
+static const BYTE keyCodes[0x65][4] = {
     { 0x00, 0x00, 0x00, 0x00 }, // 0x00 unused
     { 0x00, 0x00, 0x00, 0x00 }, // 0x01 unused
     { 0x00, 0x00, 0x00, 0x00 }, // 0x02 unused
@@ -113,7 +113,7 @@ static const BYTE keycodes[0x65][4] = {
     { 0x60, 0x60, 0x7E, 0x7E }, // 0x64 NONUS_BACKSLASH ` ~
 };
 
-static const BYTE asciicode[0x70][4] = {
+static const BYTE asciiCode[0x70][4] = {
     { 0x00, 0x00, 0x00, 0x00 }, // 0x00
     { 0x00, 0x00, 0x00, 0x00 }, // 0x01
     { 0x00, 0x00, 0x00, 0x00 }, // 0x02
@@ -228,11 +228,11 @@ static const BYTE asciicode[0x70][4] = {
     { 0x2F, 0x2F, 0x2F, 0x2F }, // 0x6F VK_DIVIDE
 };
 
-static BOOL  capslock        = TRUE;
-static DWORD keyboardqueries = 0;
-static BYTE  keycode         = 0;
-static BOOL  keywaiting      = FALSE;
-static int   lastscancode    = 0;
+static BOOL  capsLock        = TRUE;
+static DWORD keyboardQueries = 0;
+static BYTE  keyCode         = 0;
+static BOOL  keyWaiting      = FALSE;
+static int   lastScanCode    = 0;
 
 
 //
@@ -241,37 +241,37 @@ static int   lastscancode    = 0;
 
 //===========================================================================
 void KeybGetCapsStatus(BOOL * status) {
-    *status = capslock;
+    *status = capsLock;
 }
 
 //===========================================================================
 BYTE KeybGetKeycode() {
-    return keycode;
+    return keyCode;
 }
 
 //===========================================================================
 DWORD KeybGetNumQueries() {
-    DWORD result = keyboardqueries;
-    keyboardqueries = 0;
+    DWORD result = keyboardQueries;
+    keyboardQueries = 0;
     return result;
 }
 
 //===========================================================================
 BYTE KeybReadData(WORD pc, BYTE address, BYTE write, BYTE value) {
-    keyboardqueries++;
-    return keycode | (keywaiting ? 0x80 : 0);
+    keyboardQueries++;
+    return keyCode | (keyWaiting ? 0x80 : 0);
 }
 
 //===========================================================================
 BYTE KeybReadFlag(WORD pc, BYTE address, BYTE write, BYTE value) {
-    keyboardqueries++;
-    keywaiting = 0;
+    keyboardQueries++;
+    keyWaiting = 0;
     int keys;
     const uint8_t * state = SDL_GetKeyboardState(&keys);
-    if (lastscancode < keys && state[lastscancode])
-        return keycode | 0x80;
+    if (lastScanCode < keys && state[lastScanCode])
+        return keyCode | 0x80;
     else
-        return keycode;
+        return keyCode;
 }
 
 //===========================================================================
@@ -284,7 +284,7 @@ bool KeybIsKeyDown(SDL_Scancode scancode) {
 //===========================================================================
 void KeybQueueKeypress(int virtkey, BOOL extended) {
     if ((virtkey == VK_CAPITAL) && apple2e) {
-        capslock = (GetKeyState(VK_CAPITAL) & 1);
+        capsLock = (GetKeyState(VK_CAPITAL) & 1);
         FrameRefreshStatus();
     }
     if (((virtkey == VK_CANCEL) || (virtkey == VK_F12)) &&
@@ -297,17 +297,17 @@ void KeybQueueKeypress(int virtkey, BOOL extended) {
         return;
     int ctrl = (GetKeyState(VK_CONTROL) < 0);
     int shift = (GetKeyState(VK_SHIFT) < 0);
-    if ((virtkey >= 'A') && (virtkey <= 'Z') && (capslock || !apple2e))
+    if ((virtkey >= 'A') && (virtkey <= 'Z') && (capsLock || !apple2e))
         shift = 1;
-    keycode = asciicode[virtkey & 0x7F][ctrl | (shift << 1)];
-    keywaiting = (keycode != 0);
+    keyCode = asciiCode[virtkey & 0x7F][ctrl | (shift << 1)];
+    keyWaiting = (keyCode != 0);
 }
 
 //===========================================================================
 void KeybQueueKeypressSdl(const SDL_Keysym & sym) {
-    // Use system's actual capslock state to update emulator capslock state.
+    // Use system's actual capsLock state to update emulator capsLock state.
     if (sym.scancode == SDL_SCANCODE_CAPSLOCK && apple2e) {
-        capslock =  (SDL_GetModState() & KMOD_CAPS) ? TRUE : FALSE;
+        capsLock =  (SDL_GetModState() & KMOD_CAPS) ? TRUE : FALSE;
         FrameRefreshStatus();
     }
 
@@ -324,14 +324,14 @@ void KeybQueueKeypressSdl(const SDL_Keysym & sym) {
     int scancode = sym.scancode;
     int ctrl  = (sym.mod & KMOD_CTRL) ? 1 : 0;
     int shift = (sym.mod & KMOD_SHIFT) ? 1 : 0;
-    if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z && (capslock || !apple2e))
+    if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z && (capsLock || !apple2e))
         shift = 1;
     if (scancode >= SDL_SCANCODE_KP_1 && scancode <= SDL_SCANCODE_KP_0) {
         if (SDL_GetModState() & KMOD_NUM)
             scancode = scancode - SDL_SCANCODE_KP_1 + SDL_SCANCODE_1;
     }
-    lastscancode = scancode;
+    lastScanCode = scancode;
 
-    keycode = keycodes[scancode][ctrl | shift << 1];
-    keywaiting = (keycode != 0);
+    keyCode = keyCodes[scancode][ctrl | shift << 1];
+    keyWaiting = (keyCode != 0);
 }

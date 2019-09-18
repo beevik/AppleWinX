@@ -9,28 +9,28 @@
 #include "pch.h"
 #pragma  hdrstop
 
-static SDL_AudioDeviceID audiodevice = 0;
-static uint8_t           audiosilence;
-static int               audiobufsize;
-static BYTE *            audiobuf;
-static int8_t            audiosample = 80;
-static int64_t           lasttoggle;
+static SDL_AudioDeviceID audioDevice = 0;
+static uint8_t           audioSilence;
+static int               audioBufSize;
+static BYTE *            audioBuf;
+static int8_t            audioSample = 80;
+static int64_t           lastToggle;
 
 //===========================================================================
 void SpkrDestroy() {
     SDL_AudioQuit();
 
-    if (audiodevice) {
-        audiodevice = 0;
-        delete[] audiobuf;
+    if (audioDevice) {
+        audioDevice = 0;
+        delete[] audioBuf;
     }
 }
 
 //===========================================================================
 void SpkrInitialize() {
-    audiodevice    = 0;
-    audiosilence   = 0;
-    audiobufsize   = 0;
+    audioDevice    = 0;
+    audioSilence   = 0;
+    audioBufSize   = 0;
 
     SDL_InitSubSystem(SDL_INIT_AUDIO);
 
@@ -42,31 +42,31 @@ void SpkrInitialize() {
     want.samples  = 1024;
     want.callback = NULL;
 
-    audiodevice = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
-    if (audiodevice == 0)
+    audioDevice = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
+    if (audioDevice == 0)
         return;
 
-    audiosilence = have.silence;
-    audiobufsize = have.size;
-    audiobuf     = new BYTE[audiobufsize];
-    memset(audiobuf, have.silence, audiobufsize);
+    audioSilence = have.silence;
+    audioBufSize = have.size;
+    audioBuf     = new BYTE[audioBufSize];
+    memset(audioBuf, have.silence, audioBufSize);
 
-    SDL_PauseAudioDevice(audiodevice, 0);
+    SDL_PauseAudioDevice(audioDevice, 0);
 }
 
 //===========================================================================
 BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
-    int cyclessince = int(totalcycles - lasttoggle);
-    int samples     = cyclessince / 32;
+    int cyclesSince = int(totalCycles - lastToggle);
+    int samples     = cyclesSince / 32;
 
-    if (samples < audiobufsize && !fullspeed) {
+    if (samples < audioBufSize && !fullSpeed) {
         for (int i = 0; i < samples; i++)
-            audiobuf[i] = audiosample;
-        SDL_QueueAudio(audiodevice, audiobuf, samples);
+            audioBuf[i] = audioSample;
+        SDL_QueueAudio(audioDevice, audioBuf, samples);
     }
 
-    audiosample = -audiosample;
-    lasttoggle  = totalcycles;
+    audioSample = -audioSample;
+    lastToggle  = totalCycles;
 
     return MemReturnRandomData(TRUE);
 }

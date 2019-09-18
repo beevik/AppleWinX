@@ -54,7 +54,7 @@ static const BYTE benchopcode[BENCHOPCODES] = {
 #define PUSH(a)  mem[regs.sp--] = (a);                                      \
                  if (regs.sp < 0x100) { regs.sp = 0x1FF; }
 #define READ()   ((addr & 0xFF00) == 0xC000                                 \
-                    ? ioread[addr & 0xFF](regs.pc,(BYTE)addr,0,0)           \
+                    ? ioRead[addr & 0xFF](regs.pc,(BYTE)addr,0,0)           \
                     : mem[addr])
 #define SETNZ(a) {                                                          \
                    flagn = ((a) & 0x80);                                    \
@@ -64,12 +64,12 @@ static const BYTE benchopcode[BENCHOPCODES] = {
 #define TOBCD(a) (((((a) / 10) % 10) << 4) | ((a) % 10))
 #define TOBIN(a) (((a) >> 4) * 10 + ((a) & 0x0F))
 #define WRITE(a) {                                                          \
-                   memdirty[addr >> 8] = 0xFF;                              \
-                   LPBYTE page = memwrite[0][addr >> 8];                    \
+                   memDirty[addr >> 8] = 0xFF;                              \
+                   LPBYTE page = memWrite[0][addr >> 8];                    \
                    if (page)                                                \
                      page[addr & 0xFF] = (BYTE)(a);                         \
                    else if ((addr & 0xFF00) == 0xC000)                      \
-                     iowrite[addr & 0xFF](regs.pc,(BYTE)addr,1,(BYTE)(a));  \
+                     ioWrite[addr & 0xFF](regs.pc,(BYTE)addr,1,(BYTE)(a));  \
                  }
 
 

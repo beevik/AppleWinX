@@ -31,16 +31,15 @@ constexpr DWORD  CPU_CYCLES_PER_MS = DWORD(CPU_HZ / 1000.0);
 #define  ARRSIZE(x) (sizeof(x) / sizeof(x[0]))
 
 extern BOOL         apple2e;
-extern BOOL         autoboot;
-extern BOOL         fullspeed;
+extern BOOL         autoBoot;
+extern BOOL         fullSpeed;
 extern HINSTANCE    instance;
 extern int          mode;
-extern BOOL         optenhancedisk;
-extern BOOL         optmonochrome;
-extern char         progdir[MAX_PATH];
+extern char         programDir[MAX_PATH];
 extern BOOL         restart;
-extern DWORD        speed;
 extern const char * title;
-extern int64_t      totalcycles;
+extern int64_t      totalCycles;
 
+int  GetSpeed();
 void SetMode(int newmode);
+void SetSpeed(int speed);

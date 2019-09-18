@@ -9,80 +9,72 @@
 #include "pch.h"
 #pragma  hdrstop
 
+char         programDir[MAX_PATH];
 const char * title = "Apple //e Emulator";
 
-BOOL      apple2e           = TRUE;
-BOOL      autoboot          = FALSE;
-BOOL      fullspeed         = FALSE;
-HINSTANCE instance          = (HINSTANCE)0;
-int       mode              = MODE_LOGO;
-BOOL      optenhancedisk    = TRUE;
-BOOL      optmonochrome     = FALSE;
-char      progdir[MAX_PATH] = "";
-BOOL      restart           = FALSE;
-DWORD     speed             = 10;
-int64_t   totalcycles       = 0;
+BOOL      apple2e     = TRUE;
+BOOL      autoBoot    = FALSE;
+BOOL      fullSpeed   = FALSE;
+HINSTANCE instance    = (HINSTANCE)0;
+int       mode        = MODE_LOGO;
+BOOL      restart     = FALSE;
+int64_t   totalCycles = 0;
 
-static int64_t lastexecute = 0;
+static int     speed           = SPEED_NORMAL;
+static double  speedMultiplier = 1.0;
+static int64_t lastExecute     = 0;
 
 //===========================================================================
 static void ContinueExecution() {
-    static int cyclesurplus    = 0;
-    static int cyclesthisframe = 0;
+    static int cycleSurplus    = 0;
+    static int cyclesThisFrame = 0;
 
     // Check if the emulator should run at full-speed.
-    bool forcefullspeed = (speed == SPEED_MAX) || KeybIsKeyDown(SDL_SCANCODE_SCROLLLOCK);
-    bool tmpfullspeed   = DiskIsFullSpeedEligible();
-    fullspeed = forcefullspeed || tmpfullspeed;
+    bool forceFullspeed = (speed == SPEED_MAX) || KeybIsKeyDown(SDL_SCANCODE_SCROLLLOCK);
+    bool tmpFullspeed   = DiskIsFullSpeedEligible();
+    fullSpeed = forceFullspeed || tmpFullspeed;
 
     // Check the actual elapsed time.
     int64_t elapsed = TimerGetMsElapsed();
-    while (elapsed == lastexecute && !fullspeed) {
+    while (elapsed == lastExecute && !fullSpeed) {
         TimerWait();
         elapsed = TimerGetMsElapsed();
     }
 
-    // Calculate the speed-up (or slow-down) multiplier.
-    double multiplier;
-    if (speed < 10)
-        multiplier = 0.5 + speed * 0.05;
-    else
-        multiplier = speed * 0.1;
-
     // See how many milliseconds we need to simulate in order to catch up to the
     // wall clock.  Allow up to 32ms of simulation time while catching up.
-    int msnormal = MIN(32, int((elapsed - lastexecute) * multiplier));
-    int ms = fullspeed ? 32 : msnormal;
+    int msnormal = MIN(32, int((elapsed - lastExecute) * speedMultiplier));
+    int ms = fullSpeed ? 32 : msnormal;
 
     // Advance the emulator 1 millisecond at a time.
     for (int t = 0; t < ms; ++t) {
-        int cyclesattempted = CPU_CYCLES_PER_MS - cyclesurplus;
-        int cyclesexecuted  = CpuExecute(cyclesattempted, &totalcycles);
-        cyclesurplus = cyclesexecuted - cyclesattempted;
+        int cyclesattempted = CPU_CYCLES_PER_MS - cycleSurplus;
+        int cyclesexecuted  = CpuExecute(cyclesattempted, &totalCycles);
+        cycleSurplus = cyclesexecuted - cyclesattempted;
 
         DiskUpdatePosition(cyclesexecuted);
         JoyUpdatePosition(cyclesexecuted);
-        VideoUpdateVbl(cyclesexecuted, cyclesthisframe >= 15000);
+        VideoUpdateVbl(cyclesexecuted, cyclesThisFrame >= 15000);
         SpkrUpdate(cyclesexecuted);
 
-        cyclesthisframe += cyclesexecuted;
-        if (cyclesthisframe >= 17025) {
-            cyclesthisframe -= 17025;
+        cyclesThisFrame += cyclesexecuted;
+        if (cyclesThisFrame >= 17025) {
+            cyclesThisFrame -= 17025;
             VideoCheckPage(TRUE);
         }
 
         // Check if fullspeed status has changed.
-        if (fullspeed) {
-            tmpfullspeed = DiskIsFullSpeedEligible();
-            fullspeed    = forcefullspeed || tmpfullspeed;
-            if (!fullspeed)
+        if (fullSpeed) {
+            tmpFullspeed = DiskIsFullSpeedEligible();
+            fullSpeed    = forceFullspeed || tmpFullspeed;
+            if (!fullSpeed)
                 ms = msnormal;
         }
     }
 
-    lastexecute = elapsed;
+    lastExecute = elapsed;
 
-    if (!fullspeed)
+    if (!fullSpeed)
         TimerWait();
 }
 
@@ -116,12 +108,12 @@ static LRESULT CALLBACK DlgProc(
 
 //===========================================================================
 static void GetProgramDirectory() {
-    GetModuleFileName((HINSTANCE)0, progdir, MAX_PATH);
-    progdir[MAX_PATH - 1] = '\0';
-    int loop = StrLen(progdir);
+    GetModuleFileName((HINSTANCE)0, programDir, MAX_PATH);
+    programDir[MAX_PATH - 1] = '\0';
+    int loop = StrLen(programDir);
     while (loop--) {
-        if (progdir[loop] == '\\' || progdir[loop] == ':') {
-            progdir[loop + 1] = 0;
+        if (programDir[loop] == '\\' || programDir[loop] == ':') {
+            programDir[loop + 1] = 0;
             break;
         }
     }
@@ -129,14 +121,12 @@ static void GetProgramDirectory() {
 
 //===========================================================================
 static void LoadConfiguration() {
-#define LOAD(a,b) RegLoadValue("Configuration",a,b);
-    LOAD("Computer Emulation", (DWORD *)&apple2e);
-    LOAD("Joystick Emulation", &joytype);
-    LOAD("Serial Port", &serialport);
-    LOAD("Emulation Speed", &speed);
-    LOAD("Enhance Disk Speed", (DWORD *)&optenhancedisk);
-    LOAD("Monochrome Video", (DWORD *)&optmonochrome);
-#undef LOAD
+    RegLoadValue("Configuration", "Computer Emulation", (DWORD *)&apple2e);
+    RegLoadValue("Configuration", "Joystick Emulation", &joytype);
+    RegLoadValue("Configuration", "Serial Port", &serialport);
+    RegLoadValue("Configuration", "Emulation Speed", (DWORD *)&speed);
+    RegLoadValue("Configuration", "Enhance Disk Speed", (DWORD *)&optEnhancedDisk);
+    RegLoadValue("Configuration", "Monochrome Video", (DWORD *)&optMonochrome);
 }
 
 //===========================================================================
@@ -156,38 +146,33 @@ static void MessageLoop() {
 }
 
 //===========================================================================
-static void RegisterExtensions() {
-    char command[MAX_PATH];
-    GetModuleFileName((HMODULE)0, command, MAX_PATH);
-    command[MAX_PATH - 1] = 0;
-    char icon[MAX_PATH];
-    StrPrintf(icon, ARRSIZE(icon), "%s,1", command);
-    StrCat(command, " %1", ARRSIZE(command));
-    RegSetValue(HKEY_CLASSES_ROOT, ".bin", REG_SZ, "DiskImage", 10);
-    RegSetValue(HKEY_CLASSES_ROOT, ".do", REG_SZ, "DiskImage", 10);
-    RegSetValue(HKEY_CLASSES_ROOT, ".dsk", REG_SZ, "DiskImage", 10);
-    RegSetValue(HKEY_CLASSES_ROOT, ".nib", REG_SZ, "DiskImage", 10);
-    RegSetValue(HKEY_CLASSES_ROOT, ".po", REG_SZ, "DiskImage", 10);
-    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage", REG_SZ, "Disk Image", 11);
-    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage\\DefaultIcon", REG_SZ, icon, StrLen(icon) + 1);
-    RegSetValue(HKEY_CLASSES_ROOT, "DiskImage\\shell\\open\\command", REG_SZ, command, StrLen(command) + 1);
+int GetSpeed() {
+    return speed;
 }
 
 //===========================================================================
-void SetMode(int newmode) {
-    if (mode == newmode)
+void SetMode(int newMode) {
+    if (mode == newMode)
         return;
-    if (newmode == MODE_RUNNING)
-        lastexecute = TimerGetMsElapsed();
-    mode = newmode;
+    if (newMode == MODE_RUNNING)
+        lastExecute = TimerGetMsElapsed();
+    mode = newMode;
 }
 
 //===========================================================================
-int APIENTRY WinMain(HINSTANCE passinstance, HINSTANCE, LPSTR, int) {
-    instance = passinstance;
+void SetSpeed(int newSpeed) {
+    speed = newSpeed;
+    if (speed < SPEED_NORMAL)
+        speedMultiplier = 0.5 + speed * 0.05;
+    else
+        speedMultiplier = speed * 0.1;
+}
+
+//===========================================================================
+int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
+    instance = inst;
     GdiSetBatchLimit(512);
     GetProgramDirectory();
-    RegisterExtensions();
     FrameRegisterClass();
     ImageInitialize();
     if (!WindowInitialize())

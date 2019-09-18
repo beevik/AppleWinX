@@ -78,9 +78,9 @@ static BOOL CALLBACK ConfigDlgProc(
 
                 case IDOK:
                 {
-                    BOOL  newcomptype = (BOOL)SendDlgItemMessage(window, 101, CB_GETCURSEL, 0, 0);
-                    BOOL  newvidtype = (BOOL)SendDlgItemMessage(window, 105, CB_GETCURSEL, 0, 0);
-                    DWORD newjoytype = (DWORD)SendDlgItemMessage(window, 102, CB_GETCURSEL, 0, 0);
+                    BOOL  newcomptype   = (BOOL)SendDlgItemMessage(window, 101, CB_GETCURSEL, 0, 0);
+                    BOOL  newvidtype    = (BOOL)SendDlgItemMessage(window, 105, CB_GETCURSEL, 0, 0);
+                    DWORD newjoytype    = (DWORD)SendDlgItemMessage(window, 102, CB_GETCURSEL, 0, 0);
                     DWORD newserialport = (DWORD)SendDlgItemMessage(window, 104, CB_GETCURSEL, 0, 0);
                     if (newcomptype != apple2e)
                         if (MessageBox(window,
@@ -96,24 +96,22 @@ static BOOL CALLBACK ConfigDlgProc(
                         afterclose = 0;
                         return 0;
                     }
-                    if (optmonochrome != newvidtype) {
-                        optmonochrome = newvidtype;
+                    if (optMonochrome != newvidtype) {
+                        optMonochrome = newvidtype;
                         VideoReinitialize();
                         VideoRedrawScreen();
                     }
                     CommSetSerialPort(window, newserialport);
                     if (IsDlgButtonChecked(window, 106))
-                        speed = SPEED_NORMAL;
+                        SetSpeed(SPEED_NORMAL);
                     else
-                        speed = (DWORD)SendDlgItemMessage(window, 108, TBM_GETPOS, 0, 0);
-#define SAVE(a,b) RegSaveValue("Configuration",a,b);
-                    SAVE("Computer Emulation", newcomptype);
-                    SAVE("Joystick Emulation", joytype);
-                    SAVE("Serial Port", serialport);
-                    SAVE("Custom Speed", IsDlgButtonChecked(window, 107));
-                    SAVE("Emulation Speed", speed);
-                    SAVE("Monochrome Video", optmonochrome);
-#undef SAVE
+                        SetSpeed((int)SendDlgItemMessage(window, 108, TBM_GETPOS, 0, 0));
+                    RegSaveValue("Configuration", "Computer Emulation", newcomptype);
+                    RegSaveValue("Configuration", "Joystick Emulation", joytype);
+                    RegSaveValue("Configuration", "Serial Port", serialport);
+                    RegSaveValue("Configuration", "Custom Speed", IsDlgButtonChecked(window, 107));
+                    RegSaveValue("Configuration", "Emulation Speed", GetSpeed());
+                    RegSaveValue("Configuration", "Monochrome Video", optMonochrome);
                 }
                 EndDialog(window, 1);
                 if (afterclose)
@@ -165,16 +163,16 @@ static BOOL CALLBACK ConfigDlgProc(
 
         case WM_INITDIALOG:
             FillComboBox(window, 101, computerchoices, apple2e);
-            FillComboBox(window, 105, videochoices, optmonochrome);
+            FillComboBox(window, 105, videochoices, optMonochrome);
             FillComboBox(window, 102, joystickchoices, joytype);
             FillComboBox(window, 104, serialchoices, serialport);
             SendDlgItemMessage(window, 108, TBM_SETRANGE, 1, MAKELONG(0, 40));
             SendDlgItemMessage(window, 108, TBM_SETPAGESIZE, 0, 5);
             SendDlgItemMessage(window, 108, TBM_SETTICFREQ, 10, 0);
-            SendDlgItemMessage(window, 108, TBM_SETPOS, 1, speed);
+            SendDlgItemMessage(window, 108, TBM_SETPOS, 1, GetSpeed());
             {
                 BOOL custom = 1;
-                if (speed == 10) {
+                if (GetSpeed() == SPEED_NORMAL) {
                     custom = 0;
                     RegLoadValue("Configuration", "Custom Speed", (DWORD *)&custom);
                 }
@@ -495,7 +493,7 @@ static LRESULT CALLBACK FrameWndProc(
             if (helpquit) {
                 helpquit = 0;
                 char filename[MAX_PATH];
-                StrCopy(filename, progdir, ARRSIZE(filename));
+                StrCopy(filename, programDir, ARRSIZE(filename));
                 StrCat(filename, "applewin.hlp", ARRSIZE(filename));
                 WinHelp(window, filename, HELP_QUIT, 0);
             }
@@ -664,8 +662,8 @@ static LRESULT CALLBACK FrameWndProc(
         case WM_USER:
             SpkrInitialize();
             SetTimer(window, 1, 333, NULL);
-            if (autoboot) {
-                autoboot = 0;
+            if (autoBoot) {
+                autoBoot = 0;
                 ProcessButtonClick(BTN_RUN);
             }
             break;
@@ -781,7 +779,7 @@ static void ProcessButtonClick(int button) {
         case BTN_HELP:
         {
             char filename[MAX_PATH];
-            StrCopy(filename, progdir, ARRSIZE(filename));
+            StrCopy(filename, programDir, ARRSIZE(filename));
             StrCat(filename, "applewin.hlp", ARRSIZE(filename));
             WinHelp(framewindow, filename, HELP_CONTENTS, 0);
             helpquit = 1;

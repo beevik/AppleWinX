@@ -12,10 +12,10 @@
 static SDL_Renderer * renderer;
 static SDL_Texture *  texture;
 static SDL_Surface *  screen;
-static bool           screendirty;
+static bool           screenDirty;
 static SDL_Window *   window;
 
-static SDL_Rect screenrect { 0, 0, 560, 384 };
+static SDL_Rect screenRect { 0, 0, 560, 384 };
 
 //===========================================================================
 static inline bool IsCtrlOnly(uint16_t mod) {
@@ -51,7 +51,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
         case SDL_SCANCODE_1:
             if (IsCtrlOnly(key.keysym.mod)) {
                 SDL_SetWindowFullscreen(window, 0);
-                SDL_SetWindowSize(window, screenrect.w, screenrect.h);
+                SDL_SetWindowSize(window, screenRect.w, screenRect.h);
                 return;
             }
             break;
@@ -59,7 +59,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
         case SDL_SCANCODE_2:
             if (IsCtrlOnly(key.keysym.mod)) {
                 SDL_SetWindowFullscreen(window, 0);
-                SDL_SetWindowSize(window, 2 * screenrect.w, 2 * screenrect.h);
+                SDL_SetWindowSize(window, 2 * screenRect.w, 2 * screenRect.h);
                 return;
             }
             break;
@@ -108,8 +108,8 @@ BOOL WindowInitialize() {
     }
 
     int result = SDL_CreateWindowAndRenderer(
-        screenrect.w * 2,
-        screenrect.h * 2,
+        screenRect.w * 2,
+        screenRect.h * 2,
         SDL_WINDOW_RESIZABLE,
         &window,
         &renderer
@@ -119,7 +119,7 @@ BOOL WindowInitialize() {
         WindowDestroy();
         return FALSE;
     }
-    SDL_RenderSetLogicalSize(renderer, screenrect.w, screenrect.h);
+    SDL_RenderSetLogicalSize(renderer, screenRect.w, screenRect.h);
     SDL_RenderSetIntegerScale(renderer, SDL_FALSE);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "0");
@@ -129,8 +129,8 @@ BOOL WindowInitialize() {
         renderer,
         SDL_PIXELFORMAT_ARGB8888,
         SDL_TEXTUREACCESS_STREAMING,
-        screenrect.w,
-        screenrect.h
+        screenRect.w,
+        screenRect.h
     );
     if (!texture) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create texture from surface: %s", SDL_GetError());
@@ -141,8 +141,8 @@ BOOL WindowInitialize() {
 
     screen = SDL_CreateRGBSurface(
         0,
-        screenrect.w,
-        screenrect.h,
+        screenRect.w,
+        screenRect.h,
         32,
         0x00ff0000,
         0x0000ff00,
@@ -155,7 +155,7 @@ BOOL WindowInitialize() {
         return FALSE;
     }
 
-    screendirty = true;
+    screenDirty = true;
     return TRUE;
 }
 
@@ -166,19 +166,19 @@ uint32_t * WindowLockPixels() {
 
 //===========================================================================
 void WindowUnlockPixels() {
-    screendirty = true;
+    screenDirty = true;
 }
 
 //===========================================================================
 void WindowUpdate() {
-    if (screendirty) {
+    if (screenDirty) {
         SDL_UpdateTexture(
             texture,
-            &screenrect,
+            &screenRect,
             screen->pixels,
-            screenrect.w * sizeof(uint32_t)
+            screenRect.w * sizeof(uint32_t)
         );
-        screendirty = false;
+        screenDirty = false;
     }
 
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xff);

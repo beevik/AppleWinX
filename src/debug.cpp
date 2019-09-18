@@ -726,14 +726,14 @@ static BOOL CmdInput(int argc) {
     if (!argv[1].val1)
         argv[1].val1 = (WORD)addr;
 
-    ioread[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 0, 0);
+    ioRead[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 0, 0);
     return TRUE;
 }
 
 //===========================================================================
 static BOOL CmdInternalMemoryDump(int argc) {
     char filename[MAX_PATH];
-    StrCopy(filename, progdir, ARRSIZE(filename));
+    StrCopy(filename, programDir, ARRSIZE(filename));
     StrCat(filename, "memory.bin", ARRSIZE(filename));
 
     FILE * fp = fopen(filename, "wb");
@@ -795,7 +795,7 @@ static BOOL CmdMemoryEnter(int argc) {
     WORD address = argv[1].val1 ? argv[1].val1 : (WORD)addr;
     for (int i = 0; i < argc - 2; ++i) {
         membank[address + i] = (BYTE)argv[i + 2].val1;
-        memdirty[(address + i) >> 8] = 1;
+        memDirty[(address + i) >> 8] = 1;
     }
 
     return TRUE;
@@ -816,7 +816,7 @@ static BOOL CmdMemoryFill(int argc) {
     while (bytes--) {
         if (address < 0xC000 || address > 0xC0FF) {
             membank[address] = value;
-            memdirty[address >> 8] = 1;
+            memDirty[address >> 8] = 1;
         }
         address++;
     }
@@ -834,7 +834,7 @@ static BOOL CmdOutput(int argc) {
 
     if (!argv[1].val1)
         argv[1].val1 = (WORD)addr;
-    iowrite[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 1, argv[2].val1 & 0xFF);
+    ioWrite[argv[1].val1 & 0xFF](regs.pc, argv[1].val1 & 0xFF, 1, argv[2].val1 & 0xFF);
     return TRUE;
 }
 
@@ -913,7 +913,7 @@ static BOOL CmdTraceFile(int argc) {
     if (tracefile)
         fclose(tracefile);
     char filename[MAX_PATH];
-    StrCopy(filename, progdir, ARRSIZE(filename));
+    StrCopy(filename, programDir, ARRSIZE(filename));
     StrCat(filename, (argc && argv[1].str[0]) ? argv[1].str : "trace.txt", ARRSIZE(filename));
     tracefile = fopen(filename, "wt");
     return FALSE;
@@ -1656,7 +1656,7 @@ static BOOL InternalSingleStep() {
     BOOL result = 0;
     _try {
         ++profiledata[mem[regs.pc]];
-        CpuExecute(stepline, &totalcycles);
+        CpuExecute(stepline, &totalCycles);
         result = 1;
     }
     _except(EXCEPTION_EXECUTE_HANDLER) {
@@ -1780,7 +1780,7 @@ static void ParseSymbolData(LPBYTE data, DWORD bytes) {
 //===========================================================================
 static void WriteProfileData() {
     char filename[MAX_PATH];
-    StrCopy(filename, progdir, ARRSIZE(filename));
+    StrCopy(filename, programDir, ARRSIZE(filename));
     StrCat(filename, "Profile.txt", ARRSIZE(filename));
     FILE * file = fopen(filename, "wt");
     if (file) {

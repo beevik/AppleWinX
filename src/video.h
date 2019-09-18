@@ -7,7 +7,7 @@
 ***/
 
 
-extern BOOL graphicsmode;
+extern BOOL optMonochrome;
 
 BOOL VideoApparentlyDirty();
 void VideoBenchmark();

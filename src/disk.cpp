@@ -15,26 +15,28 @@ constexpr int NIBBLES       = 6384;
 constexpr int TRACKS        = 35;
 
 struct floppy {
-    char   imagename[16];
-    HIMAGE imagehandle;
+    char   imageName[16];
+    HIMAGE imageHandle;
     int    track;
-    LPBYTE trackimage;
+    LPBYTE trackImage;
     int    phase;
     int    byte;
-    BOOL   writeprotected;
-    BOOL   trackimagedata;
-    BOOL   trackimagedirty;
+    BOOL   writeProtected;
+    BOOL   trackImageData;
+    BOOL   trackImageDirty;
     DWORD  spinning;
-    DWORD  writelight;
+    DWORD  writeLight;
     int    nibbles;
 };
 
-static int    currdrive       = 0;
-static BOOL   diskaccessed    = FALSE;
-static floppy floppydrive[DRIVES];
-static BYTE   floppylatch     = 0;
-static BOOL   floppymotoron   = FALSE;
-static BOOL   floppywritemode = FALSE;
+BOOL optEnhancedDisk = TRUE;
+
+static int    currDrive       = 0;
+static BOOL   diskAccessed    = FALSE;
+static floppy floppyDrive[DRIVES];
+static BYTE   floppyLatch     = 0;
+static BOOL   floppyMotorOn   = FALSE;
+static BOOL   floppyWriteMode = FALSE;
 
 static void ReadTrack(int drive);
 static void RemoveDisk(int drive);
@@ -42,9 +44,9 @@ static void WriteTrack(int drive);
 
 //===========================================================================
 static void CheckSpinning() {
-    DWORD modechange = (floppymotoron && !floppydrive[currdrive].spinning);
-    if (floppymotoron)
-        floppydrive[currdrive].spinning = INDICATOR_LAG;
+    DWORD modechange = (floppyMotorOn && !floppyDrive[currDrive].spinning);
+    if (floppyMotorOn)
+        floppyDrive[currDrive].spinning = INDICATOR_LAG;
     if (modechange)
         FrameRefreshStatus();
 }
@@ -79,39 +81,39 @@ static void GetImageTitle(const char * imagefilename, char * imagename, size_t i
 
 //===========================================================================
 static BOOL InsertDisk(int drive, const char * imagefilename, BOOL createifnecessary) {
-    floppy * fptr = &floppydrive[drive];
-    if (fptr->imagehandle)
+    floppy * fptr = &floppyDrive[drive];
+    if (fptr->imageHandle)
         RemoveDisk(drive);
     ZeroMemory(fptr, sizeof(floppy));
     BOOL result = ImageOpen(
         imagefilename,
-        &fptr->imagehandle,
-        &fptr->writeprotected,
+        &fptr->imageHandle,
+        &fptr->writeProtected,
         createifnecessary
     );
     if (result)
-        GetImageTitle(imagefilename, fptr->imagename, ARRSIZE(fptr->imagename));
+        GetImageTitle(imagefilename, fptr->imageName, ARRSIZE(fptr->imageName));
     return result;
 }
 
 //===========================================================================
 static void ReadTrack(int drive) {
-    floppy * fptr = &floppydrive[drive];
+    floppy * fptr = &floppyDrive[drive];
     if (fptr->track >= TRACKS) {
-        fptr->trackimagedata = 0;
+        fptr->trackImageData = 0;
         return;
     }
-    if (!fptr->trackimage)
-        fptr->trackimage = (LPBYTE)new BYTE[0x1A00];
-    if (fptr->trackimage && fptr->imagehandle) {
+    if (!fptr->trackImage)
+        fptr->trackImage = (LPBYTE)new BYTE[0x1A00];
+    if (fptr->trackImage && fptr->imageHandle) {
         ImageReadTrack(
-            fptr->imagehandle,
+            fptr->imageHandle,
             fptr->track,
             fptr->phase,
-            fptr->trackimage,
+            fptr->trackImage,
             &fptr->nibbles
         );
-        fptr->trackimagedata = (fptr->nibbles != 0);
+        fptr->trackImageData = (fptr->nibbles != 0);
     }
 }
 
@@ -136,17 +138,17 @@ static void NotifyInvalidImage(const char * imagefilename) {
 
 //===========================================================================
 static void RemoveDisk(int drive) {
-    floppy * fptr = &floppydrive[drive];
-    if (fptr->imagehandle) {
-        if (fptr->trackimage && fptr->trackimagedirty)
+    floppy * fptr = &floppyDrive[drive];
+    if (fptr->imageHandle) {
+        if (fptr->trackImage && fptr->trackImageDirty)
             WriteTrack(drive);
-        ImageClose(fptr->imagehandle);
-        fptr->imagehandle = (HIMAGE)0;
+        ImageClose(fptr->imageHandle);
+        fptr->imageHandle = (HIMAGE)0;
     }
-    if (fptr->trackimage) {
-        delete[] fptr->trackimage;
-        fptr->trackimage = NULL;
-        fptr->trackimagedata = 0;
+    if (fptr->trackImage) {
+        delete[] fptr->trackImage;
+        fptr->trackImage = NULL;
+        fptr->trackImageData = 0;
     }
 }
 
@@ -165,19 +167,19 @@ static void RemoveStepperDelay() {
 
 //===========================================================================
 static void WriteTrack(int drive) {
-    floppy *fptr = &floppydrive[drive];
+    floppy *fptr = &floppyDrive[drive];
     if (fptr->track >= TRACKS)
         return;
-    if (fptr->trackimage && fptr->imagehandle) {
+    if (fptr->trackImage && fptr->imageHandle) {
         ImageWriteTrack(
-            fptr->imagehandle,
+            fptr->imageHandle,
             fptr->track,
             fptr->phase,
-            fptr->trackimage,
+            fptr->trackImage,
             fptr->nibbles
         );
     }
-    fptr->trackimagedirty = 0;
+    fptr->trackImageDirty = 0;
 }
 
 //
@@ -188,22 +190,22 @@ static void WriteTrack(int drive) {
 void DiskBoot() {
     // THIS FUNCTION RELOADS A PROGRAM IMAGE IF ONE IS LOADED IN DRIVE ONE.
     // IF A DISK IMAGE OR NO IMAGE IS LOADED IN DRIVE ONE, IT DOES NOTHING.
-    if (floppydrive[0].imagehandle && ImageBoot(floppydrive[0].imagehandle))
-        floppymotoron = 0;
+    if (floppyDrive[0].imageHandle && ImageBoot(floppyDrive[0].imageHandle))
+        floppyMotorOn = FALSE;
 }
 
 //===========================================================================
 BYTE DiskControlMotor(WORD, BYTE address, BYTE, BYTE) {
-    floppymotoron = address & 1;
+    floppyMotorOn = (address & 1) != 0;
     return MemReturnRandomData(TRUE);
 }
 
 //===========================================================================
 BYTE DiskControlStepper(WORD, BYTE address, BYTE, BYTE) {
     CheckSpinning();
-    if (optenhancedisk)
+    if (optEnhancedDisk)
         RemoveStepperDelay();
-    floppy * fptr = &floppydrive[currdrive];
+    floppy * fptr = &floppyDrive[currDrive];
     if (address & 1) {
         int phase = (address >> 1) & 3;
         int direction = 0;
@@ -216,10 +218,10 @@ BYTE DiskControlStepper(WORD, BYTE address, BYTE, BYTE) {
             if (!(fptr->phase & 1)) {
                 int newtrack = MIN(TRACKS - 1, fptr->phase >> 1);
                 if (newtrack != fptr->track) {
-                    if (fptr->trackimage && fptr->trackimagedirty)
-                        WriteTrack(currdrive);
+                    if (fptr->trackImage && fptr->trackImageDirty)
+                        WriteTrack(currDrive);
                     fptr->track = newtrack;
-                    fptr->trackimagedata = 0;
+                    fptr->trackImageData = 0;
                 }
             }
         }
@@ -235,20 +237,20 @@ void DiskDestroy() {
 
 //===========================================================================
 BYTE DiskEnable(WORD, BYTE address, BYTE, BYTE) {
-    currdrive = address & 1;
+    currDrive = address & 1;
     CheckSpinning();
     return 0;
 }
 
 //===========================================================================
 void DiskGetLightStatus(int * drive1, int * drive2) {
-    *drive1 = floppydrive[0].spinning
-        ? floppydrive[0].writelight
+    *drive1 = floppyDrive[0].spinning
+        ? floppyDrive[0].writeLight
             ? 2
             : 1
         : 0;
-    *drive2 = floppydrive[1].spinning
-        ? floppydrive[1].writelight
+    *drive2 = floppyDrive[1].spinning
+        ? floppyDrive[1].writeLight
             ? 2
             : 1
         : 0;
@@ -256,13 +258,13 @@ void DiskGetLightStatus(int * drive1, int * drive2) {
 
 //===========================================================================
 const char * DiskGetName(int drive) {
-    return floppydrive[drive].imagename;
+    return floppyDrive[drive].imageName;
 }
 
 //===========================================================================
 BOOL DiskInitialize() {
     for (int loop = 0; loop < DRIVES; loop++)
-        ZeroMemory(&floppydrive[loop], sizeof(floppy));
+        ZeroMemory(&floppyDrive[loop], sizeof(floppy));
 
     // PARSE THE COMMAND LINE LOOKING FOR THE NAME OF A DISK IMAGE.
     // (THIS IS MADE MORE COMPLICATED BY THE FACT THAT LONG FILE NAMES MAY
@@ -289,13 +291,13 @@ BOOL DiskInitialize() {
             *ptr = '\0';
     }
     else {
-        StrCopy(imagefilename, progdir, ARRSIZE(imagefilename));
+        StrCopy(imagefilename, programDir, ARRSIZE(imagefilename));
         StrCat(imagefilename, "master.dsk", ARRSIZE(imagefilename));
     }
 
     if (InsertDisk(0, imagefilename, 0)) {
         if (*cmdlinename)
-            autoboot = TRUE;
+            autoBoot = TRUE;
         delete[] cmdlinenameCopy;
         return TRUE;
     }
@@ -308,45 +310,45 @@ BOOL DiskInitialize() {
 
 //===========================================================================
 BOOL DiskIsFullSpeedEligible() {
-    return optenhancedisk && floppymotoron;
+    return optEnhancedDisk && floppyMotorOn;
 }
 
 //===========================================================================
 BOOL DiskIsSpinning() {
-    return (floppydrive[0].spinning || floppydrive[1].spinning);
+    return (floppyDrive[0].spinning || floppyDrive[1].spinning);
 }
 
 //===========================================================================
 BYTE DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
-    floppy * fptr = &floppydrive[currdrive];
-    diskaccessed = 1;
-    if ((!fptr->trackimagedata) && fptr->imagehandle)
-        ReadTrack(currdrive);
-    if (!fptr->trackimagedata)
+    floppy * fptr = &floppyDrive[currDrive];
+    diskAccessed = TRUE;
+    if ((!fptr->trackImageData) && fptr->imageHandle)
+        ReadTrack(currDrive);
+    if (!fptr->trackImageData)
         return 0xFF;
     BYTE result = 0;
-    if (!floppywritemode || !fptr->writeprotected) {
-        if (floppywritemode) {
-            if (floppylatch & 0x80) {
-                fptr->trackimage[fptr->byte] = floppylatch;
-                fptr->trackimagedirty = 1;
+    if (!floppyWriteMode || !fptr->writeProtected) {
+        if (floppyWriteMode) {
+            if (floppyLatch & 0x80) {
+                fptr->trackImage[fptr->byte] = floppyLatch;
+                fptr->trackImageDirty = 1;
             }
             else
                 return 0;
         }
         else {
-            if (optenhancedisk
+            if (optEnhancedDisk
                 && (*(LPDWORD)(mem + programcounter) == 0xD5C9FB10 || *(LPDWORD)(mem + programcounter) == 0xD549FB10)
                 && (*(LPDWORD)(mem + programcounter + 4) & 0xFFFF00FF) != 0xAAC900F0
                 && (mem[programcounter + 4] != 0xD0 || mem[programcounter + 5] == 0xF7 || mem[programcounter + 5] == 0xF0))
             {
                 int loop = fptr->nibbles;
-                while (fptr->trackimage[fptr->byte] != 0xD5 && loop--) {
+                while (fptr->trackImage[fptr->byte] != 0xD5 && loop--) {
                     if (++fptr->byte >= fptr->nibbles)
                         fptr->byte = 0;
                 }
             }
-            result = fptr->trackimage[fptr->byte];
+            result = fptr->trackImage[fptr->byte];
         }
     }
     if (++fptr->byte >= fptr->nibbles)
@@ -362,16 +364,16 @@ void DiskSelect(int drive) {
     OPENFILENAME ofn;
     ZeroMemory(&ofn, sizeof(OPENFILENAME));
     ofn.lStructSize = sizeof(OPENFILENAME);
-    ofn.hwndOwner = framewindow;
-    ofn.hInstance = instance;
-    ofn.lpstrFilter = "All Images\0*.apl;*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
-        "Disk Images (*.bin,*.do,*.dsk,*.iie,*.nib,*.po)\0*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
-        "All Files\0*.*\0";
-    ofn.lpstrFile = filename;
-    ofn.nMaxFile = MAX_PATH;
+    ofn.hwndOwner       = framewindow;
+    ofn.hInstance       = instance;
+    ofn.lpstrFilter     = "All Images\0*.apl;*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
+                          "Disk Images (*.bin,*.do,*.dsk,*.iie,*.nib,*.po)\0*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
+                          "All Files\0*.*\0";
+    ofn.lpstrFile       = filename;
+    ofn.nMaxFile        = MAX_PATH;
     ofn.lpstrInitialDir = directory;
-    ofn.Flags = OFN_CREATEPROMPT | OFN_HIDEREADONLY;
-    ofn.lpTemplateName = "INSERT_DIALOG";
+    ofn.Flags           = OFN_CREATEPROMPT | OFN_HIDEREADONLY;
+    ofn.lpTemplateName  = "INSERT_DIALOG";
     if (GetOpenFileName(&ofn)) {
         if ((!ofn.nFileExtension) || !filename[ofn.nFileExtension])
             StrCat(filename, ".dsk", ARRSIZE(filename));
@@ -388,21 +390,21 @@ void DiskSelect(int drive) {
 //===========================================================================
 BYTE DiskSetLatchValue(WORD, BYTE, BYTE write, BYTE value) {
     if (write)
-        floppylatch = value;
-    return floppylatch;
+        floppyLatch = value;
+    return floppyLatch;
 }
 
 //===========================================================================
 BYTE DiskSetReadMode(WORD pc, BYTE address, BYTE write, BYTE value) {
-    floppywritemode = 0;
-    return MemReturnRandomData(floppydrive[currdrive].writeprotected);
+    floppyWriteMode = FALSE;
+    return MemReturnRandomData(floppyDrive[currDrive].writeProtected);
 }
 
 //===========================================================================
 BYTE DiskSetWriteMode(WORD pc, BYTE address, BYTE write, BYTE value) {
-    floppywritemode = 1;
-    BOOL modechange = !floppydrive[currdrive].writelight;
-    floppydrive[currdrive].writelight = INDICATOR_LAG;
+    floppyWriteMode = TRUE;
+    BOOL modechange = !floppyDrive[currDrive].writeLight;
+    floppyDrive[currDrive].writeLight = INDICATOR_LAG;
     if (modechange)
         FrameRefreshStatus();
     return MemReturnRandomData(TRUE);
@@ -410,24 +412,23 @@ BYTE DiskSetWriteMode(WORD pc, BYTE address, BYTE write, BYTE value) {
 
 //===========================================================================
 void DiskUpdatePosition(DWORD cycles) {
-    int loop = 2;
-    while (loop--) {
-        floppy * fptr = &floppydrive[loop];
-        if (fptr->spinning && !floppymotoron) {
+    for (int i = 0; i < 2; ++i) {
+        floppy * fptr = &floppyDrive[i];
+        if (fptr->spinning && !floppyMotorOn) {
             if (!(fptr->spinning -= MIN(fptr->spinning, cycles)))
                 FrameRefreshStatus();
         }
-        if (floppywritemode && (currdrive == loop) && fptr->spinning)
-            fptr->writelight = INDICATOR_LAG;
-        else if (fptr->writelight) {
-            if (!(fptr->writelight -= MIN(fptr->writelight, cycles)))
+        if (floppyWriteMode && (currDrive == i) && fptr->spinning)
+            fptr->writeLight = INDICATOR_LAG;
+        else if (fptr->writeLight) {
+            if (!(fptr->writeLight -= MIN(fptr->writeLight, cycles)))
                 FrameRefreshStatus();
         }
-        if (!optenhancedisk && !diskaccessed && fptr->spinning) {
+        if (!optEnhancedDisk && !diskAccessed && fptr->spinning) {
             fptr->byte += (cycles >> 5);
             if (fptr->byte >= fptr->nibbles)
                 fptr->byte -= fptr->nibbles;
         }
     }
-    diskaccessed = 0;
+    diskAccessed = FALSE;
 }
