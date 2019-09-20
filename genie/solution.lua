@@ -181,5 +181,5 @@ project("AppleWinX")
     -- Set up precompiled headers
     configuration { "vs*" }
         pchheader("pch.h")
-        pchsource(path.join(srcDir, "emulator.cpp"))
+        pchsource(path.join(srcDir, "pch.cpp"))
     configuration {} -- reset

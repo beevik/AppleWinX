@@ -23,6 +23,8 @@ constexpr int BENCHOPCODES = 33;
 
 registers regs;
 
+static CpuType cpuType;
+
 static const BYTE benchopcode[BENCHOPCODES] = {
     0x06, 0x16, 0x24, 0x45, 0x48, 0x65, 0x68, 0x76,
     0x84, 0x85, 0x86, 0x91, 0x94, 0xA4, 0xA5, 0xA6,
@@ -294,9 +296,515 @@ static const BYTE benchopcode[BENCHOPCODES] = {
 
 /****************************************************************************
 *
-*  OPCODE TABLE
+*   Addressing mode helpers
 *
 ***/
+
+//===========================================================================
+static inline uint16_t Absolute() {
+    uint16_t addr = *(uint16_t *)(mem + regs.pc);
+    regs.pc += 2;
+    return addr;
+}
+
+//===========================================================================
+static inline uint16_t AbsoluteX() {
+    uint16_t addr = *(uint16_t *)(mem + regs.pc) + uint16_t(regs.x);
+    regs.pc += 2;
+    return addr;
+}
+
+//===========================================================================
+static inline uint16_t AbsoluteX(int * cycles) {
+    uint16_t oldaddr = regs.pc;
+    uint16_t addr = *(uint16_t *)(mem + regs.pc) + uint16_t(regs.x);
+    if ((oldaddr ^ addr) & 0xff00)
+        ++*cycles;
+    regs.pc += 2;
+    return addr;
+}
+
+//===========================================================================
+static inline uint16_t AbsoluteY(int * cycles) {
+    uint16_t oldaddr = regs.pc;
+    uint16_t addr = *(uint16_t *)(mem + regs.pc) + uint16_t(regs.y);
+    if ((oldaddr ^ addr) & 0xff00)
+        ++*cycles;
+    regs.pc += 2;
+    return addr;
+}
+
+//===========================================================================
+static inline uint16_t Immediate() {
+    ++regs.pc;
+    return regs.pc;
+}
+
+//===========================================================================
+static inline uint16_t IndirectX() {
+    uint16_t addr = *(uint16_t *)(mem + ((mem[regs.pc] + regs.x) & 0xFF);
+    ++regs.pc;
+    return addr;
+}
+
+//===========================================================================
+static inline uint16_t IndirectY(int * cycles) {
+    uint16_t oldaddr = regs.pc;
+    uint16_t addr = *(uint16_t *)(mem + mem[regs.pc]) + (uint16_t)regs.y;
+    if ((oldaddr ^ addr) & 0xff00)
+        ++*cycles;
+    ++regs.pc;
+    return addr;
+}
+
+//===========================================================================
+static inline uint16_t IndirectZeroPage() {
+    uint16_t addr = *(uint16_t *)(mem + mem[regs.pc]);
+    ++regs.pc;
+    return addr;
+}
+
+//===========================================================================
+static inline uint16_t Relative() {
+    uint16_t addr = regs.pc + (int8_t)mem[regs.pc];
+    ++regs.pc;
+    return addr;
+}
+
+//===========================================================================
+static inline uint8_t ZeroPage() {
+    uint16_t addr = mem[regs.pc];
+    ++regs.pc;
+    return addr;
+}
+
+//===========================================================================
+static inline uint8_t ZeroPageX() {
+    uint16_t addr = uint8_t(mem[regs.pc] + regs.x);
+    ++regs.pc;
+    return addr;
+}
+
+//===========================================================================
+static inline uint8_t ZeroPageY() {
+    uint16_t addr = uint8_t(mem[regs.pc] + regs.y);
+    ++regs.pc;
+    return addr;
+}
+
+
+/****************************************************************************
+*
+*  Memory access helpers
+*
+***/
+
+//===========================================================================
+static inline int Branch(uint8_t condition, uint16_t addr) {
+    int      cycles = 0;
+    uint16_t oldpc  = regs.pc;
+    if (condition) {
+        regs.pc = addr;
+        ++cycles;
+        if ((oldpc ^ regs.pc) ^ 0xff00)
+            ++cycles;
+    }
+    return cycles;
+}
+
+//===========================================================================
+static inline uint8_t Pop8() {
+    regs.sp = ((regs.sp + 1) & 0xff) | 0x100;
+    return mem[regs.sp];
+}
+
+//===========================================================================
+static inline void Push8(uint8_t value) {
+    mem[regs.sp--] = value;
+    if (regs.sp < 0x100)
+        regs.sp = 0x1FF;
+}
+
+//===========================================================================
+static inline uint8_t Read8(uint16_t addr) {
+    return (addr & 0xFF00) == 0xC000
+        ? ioRead[addr & 0xFF](regs.pc, (uint8_t)addr, 0, 0)
+        : mem[addr];
+}
+
+//===========================================================================
+static inline void Write8(uint16_t addr, uint8_t value) {
+    memDirty[addr >> 8] = 0xff;
+    uint8_t * page = memWrite[0][addr >> 8];
+    if (page)
+        page[addr & 0xff] = value;
+    else if ((addr & 0xff00) == 0xc000)
+        ioWrite[addr & 0xff](regs.pc, uint8_t(addr), 1, value);
+}
+
+//===========================================================================
+static inline uint16_t Read16(uint16_t addr) {
+    return *(uint16_t *)(mem + addr);
+}
+
+
+/****************************************************************************
+*
+*   Status bit helpers
+*
+***/
+
+//===========================================================================
+static inline void UpdateZ(uint8_t value) {
+    if (value)
+        regs.ps &= ~AF_ZERO;
+    else
+        regs.ps |= AF_ZERO;
+}
+
+//===========================================================================
+static inline void UpdateNZ(uint8_t value) {
+    if (value & 0x80)
+        regs.ps |= AF_SIGN;
+    else
+        regs.ps &= ~AF_SIGN;
+    if (value)
+        regs.ps &= ~AF_ZERO;
+    else
+        regs.ps |= AF_ZERO;
+}
+
+
+/****************************************************************************
+*
+*   Instruction implementations
+*
+***/
+
+//===========================================================================
+static inline void And(uint8_t val8) {
+    regs.a &= val8;
+    UpdateNZ(regs.a);
+}
+
+//===========================================================================
+static inline uint8_t Asl(uint8_t val8) {
+    if (val8 & 0x80)
+        regs.ps |= AF_CARRY;
+    else
+        regs.ps &= ~AF_CARRY;
+    val8 <<= 1;
+    UpdateNZ(val8);
+    return val8;
+}
+
+//===========================================================================
+static inline void Bit(uint8_t val8) {
+    UpdateZ(regs.a & val8);
+    if (val8 & 0x80)
+        regs.ps |= AF_SIGN;
+    else
+        regs.ps &= ~AF_SIGN;
+    if (val8 & 0x40)
+        regs.ps |= AF_OVERFLOW;
+    else
+        regs.ps &= ~AF_OVERFLOW;
+}
+
+//===========================================================================
+static inline void Brk() {
+    Push8(regs.pc >> 8);
+    Push8(regs.pc & 0xff);
+    regs.ps |= AF_BREAK;
+    Push8(regs.ps);
+    regs.ps |= AF_INTERRUPT;
+    regs.pc = Read16(0xfffe);
+}
+
+//===========================================================================
+static inline void Jsr(uint16_t addr) {
+    --regs.pc;
+    Push8(regs.pc >> 8);
+    Push8(regs.pc & 0xff);
+    regs.pc = addr;
+}
+
+//===========================================================================
+static inline void Ora(uint8_t val8) {
+    regs.a |= val8;
+    UpdateNZ(regs.a);
+}
+
+//===========================================================================
+static inline void Php() {
+    regs.ps |= AF_RESERVED;
+    Push8(regs.ps);
+}
+
+//===========================================================================
+static inline uint8_t Rol(uint8_t val8) {
+    uint8_t hibit = val8 >> 7;
+    val8 = val8 << 1 | (regs.ps & AF_CARRY);
+    if (hibit)
+        regs.ps |= AF_CARRY;
+    else
+        regs.ps &= ~AF_CARRY;
+    UpdateNZ(val8);
+    return val8;
+}
+
+//===========================================================================
+static inline uint8_t Trb(uint8_t val8) {
+    UpdateZ(regs.a & val8);
+    val8 &= ~regs.a;
+    return val8;
+}
+
+//===========================================================================
+static inline uint8_t Tsb(uint8_t val8) {
+    UpdateZ(val8 & regs.a);
+    val8 |= regs.a;
+    return val8;
+}
+
+//===========================================================================
+int CpuStep() {
+    int      cycles = 0;
+    uint16_t addr;
+    uint8_t  val8;
+
+    switch (mem[regs.pc++]) {
+        case 0x00: // BRK
+            Brk();
+            cycles += 7;
+            break;
+        case 0x01: // ORA (indx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            Ora(val8);
+            cycles += 6;
+            break;
+        case 0x02: // invalid2
+            cycles += 2;
+            break;
+        case 0x03: // invalid1
+            cycles += 1;
+            break;
+        case 0x04: // invalid1
+            cycles += 1;
+            break;
+        case 0x05: // ORA (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Ora(val8);
+            cycles += 3;
+            break;
+        case 0x06: // ASL (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Asl(val8);
+            Write8(addr, val8);
+            cycles += 5;
+            break;
+        case 0x07: // invalid1
+            cycles += 1;
+            break;
+        case 0x08: // PHP
+            Php();
+            cycles += 3;
+            break;
+        case 0x09: // ORA (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Ora(val8);
+            cycles += 2;
+            break;
+        case 0x0a: // ASL (acc)
+            val8 = regs.a;
+            val8 = Asl(val8);
+            regs.a = val8;
+            cycles += 2;
+            break;
+        case 0x0b: // invalid1
+            cycles += 1;
+            break;
+        case 0x0c: // invalid1
+            cycles += 1;
+            break;
+        case 0x0d: // ORA (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Ora(val8);
+            cycles += 4;
+            break;
+        case 0x0e: // ASL (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            val8 = Asl(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0x0f: // invalid1
+            cycles += 1;
+            break;
+        case 0x10: // BPL
+            addr = Relative();
+            cycles += Branch(!(regs.ps & AF_SIGN), addr);
+            cycles += 2;
+            break;
+        case 0x11: // ORA (indy)
+            addr = IndirectY(&cycles);
+            val8 = Read8(addr);
+            Ora(val8);
+            cycles += 5;
+            break;
+        case 0x12: // invalid
+            cycles += 1;
+            break;
+        case 0x13: // invalid1
+            cycles += 1;
+            break;
+        case 0x14: // invalid1
+            cycles += 1;
+            break;
+        case 0x15: // ORA (zpgx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            Ora(val8);
+            cycles += 4;
+            break;
+        case 0x16: // ASL (zpgx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            val8 = Asl(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0x17: // invalid1
+            cycles += 1;
+            break;
+        case 0x18: // CLC
+            regs.ps &= AF_CARRY;
+            cycles += 1;
+            break;
+        case 0x19: // ORA (absy)
+            addr = AbsoluteY(&cycles);
+            val8 = Read8(addr);
+            Ora(val8);
+            cycles += 4;
+            break;
+        case 0x1a: // invalid1
+            cycles += 1;
+            break;
+        case 0x1b: // invalid1
+            cycles += 1;
+            break;
+        case 0x1c: // invalid1
+            cycles += 1;
+            break;
+        case 0x1d: // ORA (absx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
+            Ora(val8);
+            cycles += 4;
+            break;
+        case 0x1e: // ASL (absx)
+            addr = AbsoluteX();
+            val8 = Read8(addr);
+            val8 = Asl(val8);
+            Write8(addr, val8);
+            cycles += 7;
+            break;
+        case 0x1f: // invalid1
+            cycles += 1;
+            break;
+        case 0x20: // JSR (abs)
+            addr = Absolute();
+            Jsr(addr);
+            cycles += 6;
+            break;
+        case 0x21: // AND (indx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            And(val8);
+            cycles += 6;
+            break;
+        case 0x22: // invalid2
+            cycles += 2;
+            break;
+        case 0x23: // invalid1
+            cycles += 1;
+            break;
+        case 0x24: // BIT (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Bit(val8);
+            cycles += 3;
+            break;
+        case 0x25: // AND (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            And(val8);
+            cycles += 3;
+            break;
+        case 0x26: // ROL (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Rol(val8);
+            Write8(addr, val8);
+            cycles += 5;
+            break;
+        case 0x27: // invalid1
+            cycles += 1;
+            break;
+        case 0x28: // PLP
+            regs.ps = Pop8();
+            cycles += 4;
+            break;
+        case 0x29: // AND (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            And(val8);
+            cycles += 2;
+            break;
+        case 0x2a: // ROL (acc)
+            val8 = regs.a;
+            val8 = Rol(val8);
+            regs.a = val8;
+            cycles += 2;
+            break;
+        case 0x2b: // invalid1
+            cycles += 1;
+            break;
+        case 0x2c: // BIT (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Bit(val8);
+            cycles += 4;
+            break;
+        case 0x2d: // AND (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            And(val8);
+            cycles += 4;
+            break;
+        case 0x2e: // ROL (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            val8 = Rol(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0x2f: // invalid1
+            cycles += 1;
+            break;
+
+#if 0
+#endif
+    }
+
+    return cycles;
+}
 
 //===========================================================================
 int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
@@ -356,7 +864,7 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
             case 0x2A:       ROLA          CYC(2);  break;
             case 0x2B:       INVALID1      CYC(1);  break;
             case 0x2C:       ABS BIT       CYC(4);  break;
-            case 0x2D:       ABS AND       CYC(2);  break;
+            case 0x2D:       ABS AND       CYC(4);  break;
             case 0x2E:       ABS ROL       CYC(6);  break;
             case 0x2F:       INVALID1      CYC(1);  break;
             case 0x30:       REL BMI       CYC(3);  break;
@@ -606,6 +1114,11 @@ void CpuInitialize() {
     regs.ps = 0x20;
     regs.pc = *(LPWORD)(mem + 0xFFFC);
     regs.sp = 0x01FF;
+}
+
+//===========================================================================
+void CpuSetType (CpuType type) {
+    cpuType = type;
 }
 
 //===========================================================================
