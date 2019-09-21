@@ -347,7 +347,7 @@ static inline uint16_t Indirect() {
 }
 
 //===========================================================================
-static inline uint16_t Indirect_6502() {
+static inline uint16_t Indirect6502() {
     uint16_t addr;
     if (mem[regs.pc] == 0xff) {
         uint16_t addr0 = *(uint16_t *)(mem + regs.pc);
@@ -480,23 +480,32 @@ static inline void Write8(uint16_t addr, uint8_t value) {
 ***/
 
 //===========================================================================
-static inline void UpdateZ(uint8_t value) {
-    if (value)
-        regs.ps &= ~AF_ZERO;
+static inline void ResetFlag(uint8_t flag) {
+    regs.ps &= ~flag;
+}
+
+//===========================================================================
+static inline void SetFlag(uint8_t flag) {
+    regs.ps |= flag;
+}
+
+//===========================================================================
+static inline void SetFlagTo(uint8_t flag, int predicate) {
+    if (predicate)
+        regs.ps |= flag;
     else
-        regs.ps |= AF_ZERO;
+        regs.ps &= ~flag;
+}
+
+//===========================================================================
+static inline void UpdateZ(uint8_t value) {
+    SetFlagTo(AF_ZERO, value == 0);
 }
 
 //===========================================================================
 static inline void UpdateNZ(uint8_t value) {
-    if (value & 0x80)
-        regs.ps |= AF_SIGN;
-    else
-        regs.ps &= ~AF_SIGN;
-    if (value)
-        regs.ps &= ~AF_ZERO;
-    else
-        regs.ps |= AF_ZERO;
+    SetFlagTo(AF_SIGN, value & 0x80);
+    SetFlagTo(AF_ZERO, value == 0);
 }
 
 
@@ -507,7 +516,7 @@ static inline void UpdateNZ(uint8_t value) {
 ***/
 
 //===========================================================================
-static inline void Adc_6502(uint8_t val8) {
+static inline void Adc6502(uint8_t val8) {
     uint32_t acc   = uint32_t(regs.a);
     uint32_t add   = uint32_t(val8);
     uint32_t carry = uint32_t(regs.ps & AF_CARRY);
@@ -522,29 +531,19 @@ static inline void Adc_6502(uint8_t val8) {
 
         uint32_t hi = (acc & 0xf0) + (add & 0xf0) + carrylo;
         if (hi >= 0xa0) {
-            regs.ps |= AF_CARRY;
+            SetFlag(AF_CARRY);
             hi -= 0xa0;
         }
         else
-            regs.ps &= ~AF_CARRY;
+            ResetFlag(AF_CARRY);
 
         newval = hi | lo;
-        if (((acc ^ newval) & 0x80) && !((acc ^ add) & 0x80))
-            regs.ps |= AF_OVERFLOW;
-        else
-            regs.ps &= ~AF_OVERFLOW;
+        SetFlagTo(AF_OVERFLOW, ((acc ^ newval) & 0x80) && !((acc ^ add) & 0x80));
     }
     else {
         newval = acc + add + carry;
-        if (newval & 0x100)
-            regs.ps |= AF_CARRY;
-        else
-            regs.ps &= ~AF_CARRY;
-
-        if ((acc & 0x80) == (add & 0x80) && (acc & 0x80) != (newval & 0x80))
-            regs.ps |= AF_OVERFLOW;
-        else
-            regs.ps &= ~AF_OVERFLOW;
+        SetFlagTo(AF_CARRY, newval & 0x100);
+        SetFlagTo(AF_OVERFLOW, (acc & 0x80) == (add & 0x80) && (acc & 0x80) != (newval & 0x80));
     }
 
     regs.a = uint8_t(newval);
@@ -559,10 +558,7 @@ static inline void And(uint8_t val8) {
 
 //===========================================================================
 static inline uint8_t Asl(uint8_t val8) {
-    if (val8 & 0x80)
-        regs.ps |= AF_CARRY;
-    else
-        regs.ps &= ~AF_CARRY;
+    SetFlagTo(AF_CARRY, val8 & 0x80);
     val8 <<= 1;
     UpdateNZ(val8);
     return val8;
@@ -571,34 +567,55 @@ static inline uint8_t Asl(uint8_t val8) {
 //===========================================================================
 static inline void Bit(uint8_t val8) {
     UpdateZ(regs.a & val8);
-    if (val8 & 0x80)
-        regs.ps |= AF_SIGN;
-    else
-        regs.ps &= ~AF_SIGN;
-    if (val8 & 0x40)
-        regs.ps |= AF_OVERFLOW;
-    else
-        regs.ps &= ~AF_OVERFLOW;
+    SetFlagTo(AF_SIGN, val8 & 0x80);
+    SetFlagTo(AF_OVERFLOW, val8 & 0x40);
 }
 
 //===========================================================================
 static inline void Brk() {
     Push8(regs.pc >> 8);
     Push8(regs.pc & 0xff);
-    regs.ps |= AF_BREAK;
+    SetFlag(AF_BREAK);
     Push8(regs.ps);
-    regs.ps |= AF_INTERRUPT;
+    SetFlag(AF_INTERRUPT);
     regs.pc = Read16(0xfffe);
 }
 
 //===========================================================================
-static inline void Clc() {
-    regs.ps &= ~AF_CARRY;
+static inline void Cmp(uint8_t val8) {
+    SetFlagTo(AF_CARRY, regs.a >= val8);
+    UpdateNZ(regs.a - val8);
 }
 
 //===========================================================================
-static inline void Cli() {
-    regs.ps &= ~AF_INTERRUPT;
+static inline void Cpx(uint8_t val8) {
+    SetFlagTo(AF_CARRY, regs.x >= val8);
+    UpdateNZ(regs.x - val8);
+}
+
+//===========================================================================
+static inline void Cpy(uint8_t val8) {
+    SetFlagTo(AF_CARRY, regs.y >= val8);
+    UpdateNZ(regs.y - val8);
+}
+
+//===========================================================================
+static inline uint8_t Dec(uint8_t val8) {
+    val8--;
+    UpdateNZ(val8);
+    return val8;
+}
+
+//===========================================================================
+static inline void Dex() {
+    --regs.x;
+    UpdateNZ(regs.x);
+}
+
+//===========================================================================
+static inline void Dey() {
+    --regs.y;
+    UpdateNZ(regs.y);
 }
 
 //===========================================================================
@@ -608,15 +625,22 @@ static inline void Eor(uint8_t val8) {
 }
 
 //===========================================================================
-static inline uint8_t Lsr(uint8_t val8) {
-    if (val8 & 1)
-        regs.ps |= AF_CARRY;
-    else
-        regs.ps &= ~AF_CARRY;
-    regs.ps &= ~AF_SIGN;
-    val8 >>= 1;
-    UpdateZ(val8);
+static inline uint8_t Inc(uint8_t val8) {
+    ++val8;
+    UpdateNZ(val8);
     return val8;
+}
+
+//===========================================================================
+static inline void Inx() {
+    ++regs.x;
+    UpdateNZ(regs.x);
+}
+
+//===========================================================================
+static inline void Iny() {
+    ++regs.y;
+    UpdateNZ(regs.y);
 }
 
 //===========================================================================
@@ -633,6 +657,33 @@ static inline void Jsr(uint16_t addr) {
 }
 
 //===========================================================================
+static inline void Lda(uint8_t val8) {
+    regs.a = val8;
+    UpdateNZ(regs.a);
+}
+
+//===========================================================================
+static inline void Ldx(uint8_t val8) {
+    regs.x = val8;
+    UpdateNZ(regs.x);
+}
+
+//===========================================================================
+static inline void Ldy(uint8_t val8) {
+    regs.y = val8;
+    UpdateNZ(regs.y);
+}
+
+//===========================================================================
+static inline uint8_t Lsr(uint8_t val8) {
+    SetFlagTo(AF_CARRY, val8 & 1);
+    ResetFlag(AF_SIGN);
+    val8 >>= 1;
+    UpdateZ(val8);
+    return val8;
+}
+
+//===========================================================================
 static inline void Ora(uint8_t val8) {
     regs.a |= val8;
     UpdateNZ(regs.a);
@@ -640,7 +691,7 @@ static inline void Ora(uint8_t val8) {
 
 //===========================================================================
 static inline void Php() {
-    regs.ps |= AF_RESERVED;
+    SetFlag(AF_RESERVED);
     Push8(regs.ps);
 }
 
@@ -654,10 +705,7 @@ static inline void Pla() {
 static inline uint8_t Rol(uint8_t val8) {
     uint8_t hibit = val8 >> 7;
     val8 = val8 << 1 | (regs.ps & AF_CARRY);
-    if (hibit)
-        regs.ps |= AF_CARRY;
-    else
-        regs.ps &= ~AF_CARRY;
+    SetFlagTo(AF_CARRY, hibit);
     UpdateNZ(val8);
     return val8;
 }
@@ -666,10 +714,7 @@ static inline uint8_t Rol(uint8_t val8) {
 static inline uint8_t Ror(uint8_t val8) {
     uint8_t lobit = val8 & 1;
     val8 = val8 >> 1 | ((regs.ps & AF_CARRY) << 7);
-    if (lobit)
-        regs.ps |= AF_CARRY;
-    else
-        regs.ps &= ~AF_CARRY;
+    SetFlagTo(AF_CARRY, lobit);
     UpdateNZ(val8);
     return val8;
 }
@@ -686,8 +731,57 @@ static inline void Rts() {
 }
 
 //===========================================================================
-static inline void Sec() {
-    regs.ps |= AF_CARRY;
+static inline void Sbc6502(uint8_t val8) {
+    uint32_t acc   = uint32_t(regs.a);
+    uint32_t sub   = uint32_t(val8);
+    uint32_t carry = uint32_t(regs.ps & AF_CARRY);
+    uint32_t newval;
+    if (regs.ps & AF_DECIMAL) {
+        uint32_t lo = 0x0f + (acc & 0x0f) - (sub & 0x0f) + carry;
+        uint32_t carrylo;
+        if (lo < 0x10) {
+            lo -= 0x06;
+            carrylo = 0;
+        }
+        else {
+            lo -= 0x10;
+            carrylo = 0x10;
+        }
+
+        uint32_t hi = 0xf0 + (acc & 0xf0) - (sub & 0xf0) + carrylo;
+        if (hi < 0x100) {
+            ResetFlag(AF_CARRY);
+            hi -= 0x60;
+        }
+        else {
+            SetFlag(AF_CARRY);
+            hi -= 0x100;
+        }
+
+        newval = hi | lo;
+
+        SetFlagTo(AF_OVERFLOW, ((acc ^ newval) & 0x80) && ((acc ^ sub) & 0x80));
+    }
+    else {
+        newval = 0xff + acc - sub + carry;
+        SetFlagTo(AF_CARRY, newval >= 0x100);
+        SetFlagTo(AF_OVERFLOW, ((acc * 0x80) != (sub & 0x80)) && ((acc & 0x80) != (newval & 0x80)));
+    }
+
+    regs.a = uint8_t(newval);
+    UpdateNZ(regs.a);
+}
+
+//===========================================================================
+static inline void Tax() {
+    regs.x = regs.a;
+    UpdateNZ(regs.x);
+}
+
+//===========================================================================
+static inline void Tay() {
+    regs.y = regs.a;
+    UpdateNZ(regs.y);
 }
 
 //===========================================================================
@@ -705,70 +799,42 @@ static inline uint8_t Tsb(uint8_t val8) {
 }
 
 //===========================================================================
-int CpuStep() {
+static inline void Tsx() {
+    regs.x = uint8_t(regs.sp & 0xff);
+    UpdateNZ(regs.x);
+}
+
+//===========================================================================
+static inline void Txa() {
+    regs.a = regs.x;
+    UpdateNZ(regs.a);
+}
+
+//===========================================================================
+static inline void Txs() {
+    regs.sp = regs.x | 0x100;
+}
+
+//===========================================================================
+static inline void Tya() {
+    regs.a = regs.y;
+    UpdateNZ(regs.a);
+}
+
+
+/****************************************************************************
+*
+*   CPU step functions
+*
+***/
+
+//===========================================================================
+int CpuStep6502() {
     int      cycles = 0;
     uint16_t addr;
     uint8_t  val8;
 
     switch (mem[regs.pc++]) {
-        case 0x03: // invalid1
-        case 0x04:
-        case 0x07:
-        case 0x0b:
-        case 0x0c:
-        case 0x0f:
-        case 0x12:
-        case 0x13:
-        case 0x14:
-        case 0x17:
-        case 0x1a:
-        case 0x1b:
-        case 0x1c:
-        case 0x1f:
-        case 0x27:
-        case 0x23:
-        case 0x2b:
-        case 0x2f:
-        case 0x32:
-        case 0x33:
-        case 0x34:
-        case 0x37:
-        case 0x3a:
-        case 0x3b:
-        case 0x3c:
-        case 0x3f:
-        case 0x43:
-        case 0x47:
-        case 0x4b:
-        case 0x4f:
-        case 0x52:
-        case 0x53:
-        case 0x57:
-        case 0x5a:
-        case 0x5b:
-        case 0x5f:
-        case 0x63:
-        case 0x64:
-        case 0x67:
-        case 0x6b:
-        case 0x6f:
-            cycles += 1;
-            break;
-
-        case 0x02: // invalid2
-        case 0x22:
-        case 0x42:
-        case 0x44:
-        case 0x54:
-        case 0x62:
-        case 0x82:
-        case 0xc2:
-        case 0xd4:
-        case 0xe2:
-        case 0xf4:
-            cycles += 2;
-            break;
-
         case 0x00: // BRK
             Brk();
             cycles += 7;
@@ -956,7 +1022,7 @@ int CpuStep() {
             cycles += 6;
             break;
         case 0x38: // SEC
-            Sec();
+            SetFlag(AF_CARRY);
             cycles += 2;
             break;
         case 0x39: // AND (absy)
@@ -1058,7 +1124,7 @@ int CpuStep() {
             cycles += 6;
             break;
         case 0x58: // CLI
-            Cli();
+            ResetFlag(AF_INTERRUPT);
             cycles += 2;
             break;
         case 0x59: // EOR (absy)
@@ -1090,13 +1156,13 @@ int CpuStep() {
         case 0x61: // ADC (indx)
             addr = IndirectX();
             val8 = Read8(addr);
-            Adc_6502(val8);
+            Adc6502(val8);
             cycles += 6;
             break;
         case 0x65: // ADC (zpg)
             addr = ZeroPage();
             val8 = Read8(addr);
-            Adc_6502(val8);
+            Adc6502(val8);
             cycles += 3;
             break;
         case 0x66: // ROR (zpg)
@@ -1113,22 +1179,22 @@ int CpuStep() {
         case 0x69: // ADC (imm)
             addr = Immediate();
             val8 = Read8(addr);
-            Adc_6502(val8);
+            Adc6502(val8);
             cycles += 2;
             break;
         case 0x6a: // ROR (acc)
             regs.a = Ror(regs.a);
             cycles += 2;
             break;
-        case 0x6c: // JMP (iabs)
-            addr = Indirect_6502();
+        case 0x6c: // JMP (ind)
+            addr = Indirect6502();
             Jmp(addr);
             cycles += 6;
             break;
         case 0x6d: // ADC (abs)
             addr = Absolute();
             val8 = Read8(addr);
-            Adc_6502(val8);
+            Adc6502(val8);
             cycles += 4;
             break;
         case 0x6e: // ROR (abs)
@@ -1138,31 +1204,513 @@ int CpuStep() {
             Write8(addr, val8);
             cycles += 7;
             break;
+        case 0x70: // BVS
+            addr = Relative();
+            Branch(regs.ps & AF_OVERFLOW, addr, &cycles);
+            cycles += 2;
+            break;
+        case 0x71: // ADC (indy)
+            addr = IndirectY(&cycles);
+            val8 = Read8(addr);
+            Adc6502(val8);
+            cycles += 5;
+            break;
+        case 0x75: // ADC (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            Adc6502(val8);
+            cycles += 4;
+            break;
+        case 0x76: // ROR (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            val8 = Ror(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0x78: // SEI
+            SetFlag(AF_INTERRUPT);
+            cycles += 2;
+            break;
+        case 0x79: // ADC (absy)
+            addr = AbsoluteY(&cycles);
+            val8 = Read8(addr);
+            Adc6502(val8);
+            cycles += 4;
+            break;
+        case 0x7d: // ADC (absx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
+            Adc6502(val8);
+            cycles += 4;
+            break;
+        case 0x7e: // ROR (absx)
+            addr = AbsoluteX();
+            val8 = Read8(addr);
+            val8 = Ror(val8);
+            Write8(addr, val8);
+            cycles += 7;
+            break;
+        case 0x81: // STA (indx)
+            addr = IndirectX();
+            Write8(addr, regs.a);
+            cycles += 6;
+            break;
+        case 0x84: // STY (zpg)
+            addr = ZeroPage();
+            Write8(addr, regs.y);
+            cycles += 3;
+            break;
+        case 0x85: // STA (zpg)
+            addr = ZeroPage();
+            Write8(addr, regs.a);
+            cycles += 3;
+            break;
+        case 0x86: // STX (zpg)
+            addr = ZeroPage();
+            Write8(addr, regs.x);
+            cycles += 3;
+            break;
+        case 0x88: // DEY
+            Dey();
+            cycles += 2;
+            break;
+        case 0x8a: // TXA
+            Txa();
+            cycles += 2;
+            break;
+        case 0x8c: // STY (abs)
+            addr = Absolute();
+            Write8(addr, regs.y);
+            cycles += 4;
+            break;
+        case 0x8d: // STA (abs)
+            addr = Absolute();
+            Write8(addr, regs.a);
+            cycles += 4;
+            break;
+        case 0x8e: // STX (abs)
+            addr = Absolute();
+            Write8(addr, regs.x);
+            cycles += 4;
+            break;
+        case 0x90: // BCC
+            addr = Relative();
+            Branch(!(regs.ps & AF_CARRY), addr, &cycles);
+            cycles += 2;
+            break;
+        case 0x91: // STA (indy)
+            addr = IndirectY(&cycles);
+            Write8(addr, regs.a);
+            cycles += 6;
+            break;
+        case 0x94: // STY (zpx)
+            addr = ZeroPageX();
+            Write8(addr, regs.y);
+            cycles += 4;
+            break;
+        case 0x95: // STA (zpx)
+            addr = ZeroPageX();
+            Write8(addr, regs.a);
+            cycles += 4;
+            break;
+        case 0x96: // STX (zpy)
+            addr = ZeroPageY();
+            Write8(addr, regs.x);
+            cycles += 4;
+            break;
+        case 0x98: // TYA
+            Tya();
+            cycles += 2;
+            break;
+        case 0x99: // STA (absy)
+            addr = AbsoluteY(&cycles);
+            Write8(addr, regs.a);
+            cycles += 5;
+            break;
+        case 0x9a: // TXS
+            Txs();
+            cycles += 2;
+            break;
+        case 0x9d: // STA (absx)
+            addr = AbsoluteX(&cycles);
+            Write8(addr, regs.a);
+            cycles += 5;
+            break;
+        case 0xa0: // LDY (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Ldy(val8);
+            cycles += 2;
+            break;
+        case 0xa1: // LDA (indx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            Lda(val8);
+            cycles += 6;
+            break;
+        case 0xa2: // LDX (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Ldx(val8);
+            cycles += 2;
+            break;
+        case 0xa4: // LDY (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Ldy(val8);
+            cycles += 3;
+            break;
+        case 0xa5: // LDA (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Lda(val8);
+            cycles += 3;
+            break;
+        case 0xa6: // LDX (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Ldx(val8);
+            cycles += 3;
+            break;
+        case 0xa8: // TAY
+            Tay();
+            cycles += 2;
+            break;
+        case 0xa9: // LDA (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Lda(val8);
+            cycles += 2;
+            break;
+        case 0xaa:
+            Tax();
+            cycles += 2;
+            break;
+        case 0xac: // LDY (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Ldy(val8);
+            cycles += 4;
+            break;
+        case 0xad: // LDA (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Lda(val8);
+            cycles += 4;
+            break;
+        case 0xae: // LDX (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Ldx(val8);
+            cycles += 4;
+            break;
+        case 0xb0: // BCS
+            addr = Relative();
+            Branch(regs.ps & AF_CARRY, addr, &cycles);
+            cycles += 2;
+            break;
+        case 0xb1: // LDA (indy)
+            addr = IndirectY(&cycles);
+            val8 = Read8(addr);
+            Ldy(val8);
+            cycles += 5;
+            break;
+        case 0xb4: // LDY (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            Ldy(val8);
+            cycles += 4;
+            break;
+        case 0xb5: // LDA (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            Lda(val8);
+            cycles += 4;
+            break;
+        case 0xb6: // LDX (zpy)
+            addr = ZeroPageY();
+            val8 = Read8(addr);
+            Ldx(val8);
+            cycles += 4;
+            break;
+        case 0xb8: // CLV
+            ResetFlag(AF_OVERFLOW);
+            cycles += 2;
+            break;
+        case 0xb9: // LDA (absy)
+            addr = AbsoluteY(&cycles);
+            val8 = Read8(addr);
+            Lda(val8);
+            cycles += 4;
+            break;
+        case 0xba: // TSX
+            Tsx();
+            cycles += 2;
+            break;
+        case 0xbc: // LDY (absx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
+            Ldy(val8);
+            cycles += 4;
+            break;
+        case 0xbd: // LDA (absx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
+            Lda(val8);
+            cycles += 4;
+            break;
+        case 0xbe: // LDX (absy)
+            addr = AbsoluteY(&cycles);
+            val8 = Read8(addr);
+            Ldx(val8);
+            cycles += 4;
+            break;
+        case 0xc0: // CPY (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Cpy(val8);
+            cycles += 2;
+            break;
+        case 0xc1: // CMP (indx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            Cmp(val8);
+            cycles += 6;
+            break;
+        case 0xc4: // CPY (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Cpy(val8);
+            cycles += 3;
+            break;
+        case 0xc5: // CMP (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Cmp(val8);
+            cycles += 3;
+            break;
+        case 0xc6: // DEC (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Dec(val8);
+            Write8(addr, val8);
+            cycles += 5;
+            break;
+        case 0xc8: // INY
+            Iny();
+            cycles += 2;
+            break;
+        case 0xc9: // CMP (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Cmp(val8);
+            cycles += 2;
+            break;
+        case 0xca: // DEX
+            Dex();
+            cycles += 2;
+            break;
+        case 0xcc: // CPY (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Cpy(val8);
+            cycles += 4;
+            break;
+        case 0xcd: // CMP (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Cmp(val8);
+            cycles += 4;
+            break;
+        case 0xce: // DEC (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            val8 = Dec(val8);
+            Write8(addr, val8);
+            cycles += 5;
+            break;
+        case 0xd0: // BNE
+            addr = Relative();
+            Branch(!(regs.ps & AF_ZERO), addr, &cycles);
+            cycles += 2;
+            break;
+        case 0xd1: // CMP (indy)
+            addr = IndirectY(&cycles);
+            val8 = Read8(addr);
+            Cmp(val8);
+            cycles += 5;
+            break;
+        case 0xd5: // CMP (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            Cmp(val8);
+            cycles += 4;
+            break;
+        case 0xd6: // DEC (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            val8 = Dec(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0xd8: // CLD
+            ResetFlag(AF_DECIMAL);
+            cycles += 2;
+            break;
+        case 0xd9: // CMP (absy)
+            addr = AbsoluteY(&cycles);
+            val8 = Read8(addr);
+            Cmp(val8);
+            cycles += 4;
+            break;
+        case 0xdc: // invalid3
+            cycles += 4;
+            break;
+        case 0xdd: // CMP (absx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
+            Cmp(val8);
+            cycles += 4;
+            break;
+        case 0xde: // DEC (absx)
+            addr = AbsoluteX();
+            val8 = Read8(addr);
+            val8 = Dec(val8);
+            Write8(addr, val8);
+            cycles += 7;
+            break;
+        case 0xe0: // CPX (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Cpx(val8);
+            cycles += 2;
+            break;
+        case 0xe1: // SBC (indx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            Sbc6502(val8);
+            cycles += 6;
+            break;
+        case 0xe4: // CPX (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Cpx(val8);
+            cycles += 3;
+            break;
+        case 0xe5: // SBC (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Sbc6502(val8);
+            cycles += 3;
+            break;
+        case 0xe6: // INC (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Inc(val8);
+            Write8(addr, val8);
+            cycles += 5;
+            break;
+        case 0xe8: // INX
+            Inx();
+            cycles += 2;
+            break;
+        case 0xe9: // SBC (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Sbc6502(val8);
+            cycles += 2;
+            break;
+        case 0xea: // NOP
+            cycles += 2;
+            break;
+        case 0xec: // CPX (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Cpx(val8);
+            cycles += 4;
+            break;
+        case 0xed: // SBC (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Sbc6502(val8);
+            cycles += 4;
+            break;
+        case 0xee: // INC (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            val8 = Inc(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0xf0: // BEQ
+            addr = Relative();
+            Branch(regs.ps & AF_ZERO, addr, &cycles);
+            cycles += 2;
+            break;
+        case 0xf1: // SBC (indy)
+            addr = IndirectY(&cycles);
+            val8 = Read8(addr);
+            Sbc6502(val8);
+            cycles += 5;
+            break;
+        case 0xf5: // SBC (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            Sbc6502(val8);
+            cycles += 4;
+            break;
+        case 0xf6: // INC (zpx)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Inc(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0xf8: // SED
+            SetFlag(AF_DECIMAL);
+            cycles += 2;
+            break;
+        case 0xf9: // SBC (absy)
+            addr = AbsoluteY(&cycles);
+            val8 = Read8(addr);
+            Sbc6502(val8);
+            cycles += 4;
+            break;
+        case 0xfc: // invalid3
+            cycles += 4;
+            break;
+        case 0xfd: // SBC (absx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
+            Sbc6502(val8);
+            cycles += 4;
+            break;
+        case 0xfe: // INC (absx)
+            addr = AbsoluteX();
+            val8 = Read8(addr);
+            val8 = Inc(val8);
+            Write8(addr, val8);
+            cycles += 7;
+            break;
 
-#if 0
-            case 0x70:       REL BVS       CYC(3);  break;
-            case 0x71:       INDY ADC      CYC(5);  break;
-            case 0x72: CMOS  IND ADC       CYC(5);  break;
-            case 0x73:       INVALID1      CYC(1);  break;
-            case 0x74: CMOS  ZPGX STZ      CYC(4);  break;
-            case 0x75:       ZPGX ADC      CYC(4);  break;
-            case 0x76:       ZPGX ROR      CYC(6);  break;
-            case 0x77:       INVALID1      CYC(1);  break;
-            case 0x78:       SEI           CYC(2);  break;
-            case 0x79:       ABSY ADC      CYC(4);  break;
-            case 0x7A: CMOS  PLY           CYC(4);  break;
-            case 0x7B:       INVALID1      CYC(1);  break;
-            case 0x7C: CMOS  IABSX JMP     CYC(6);  break;
-            case 0x7D:       ABSX ADC      CYC(4);  break;
-            case 0x7E:       ABSX ROR      CYC(6);  break;
-            case 0x7F:       INVALID1      CYC(1);  break;
-#endif
+        case 0x02: // invalid2
+        case 0x22:
+        case 0x42:
+        case 0x44:
+        case 0x54:
+        case 0x62:
+        case 0x82:
+        case 0xc2:
+        case 0xd4:
+        case 0xe2:
+        case 0xf4:
+            cycles += 2;
+            break;
 
-            case 0x81:
-                addr = AbsoluteX(&cycles);
-                Write8(addr, regs.a);
-                cycles += 6;
-                break;
+        default:
+            cycles++;
+            break;
     }
 
     return cycles;
