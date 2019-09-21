@@ -89,7 +89,7 @@ static const BYTE benchopcode[BENCHOPCODES] = {
 #define IMM    addr = regs.pc++;
 #define INDX   addr = *(LPWORD)(mem + ((mem[regs.pc++] + regs.x) & 0xFF));
 #define INDY   addr = *(LPWORD)(mem + mem[regs.pc++]) + (WORD)regs.y;
-#define IZPG   addr = *(LPWORD)(mem + mem[regs.pc++]);
+#define IND    addr = *(LPWORD)(mem + mem[regs.pc++]);
 #define REL    addr = (signed char)mem[regs.pc++];
 #define ZPG    addr = mem[regs.pc++];
 #define ZPGX   addr = (mem[regs.pc++] + regs.x) & 0xFF;
@@ -336,13 +336,33 @@ static inline uint16_t AbsoluteY(int * cycles) {
 
 //===========================================================================
 static inline uint16_t Immediate() {
-    ++regs.pc;
-    return regs.pc;
+    return regs.pc++;
+}
+
+//===========================================================================
+static inline uint16_t Indirect() {
+    uint16_t addr = *(uint16_t *)(mem + *(uint16_t *)(mem + regs.pc));
+    regs.pc += 2;
+    return addr;
+}
+
+//===========================================================================
+static inline uint16_t Indirect_6502() {
+    uint16_t addr;
+    if (mem[regs.pc] == 0xff) {
+        uint16_t addr0 = *(uint16_t *)(mem + regs.pc);
+        uint16_t addr1 = addr0 - 0xff;
+        addr = uint16_t(mem[addr0]) | uint16_t(mem[addr1] << 8);
+    }
+    else
+        addr = *(uint16_t *)(mem + *(uint16_t *)(mem + regs.pc));
+    regs.pc += 2;
+    return addr;
 }
 
 //===========================================================================
 static inline uint16_t IndirectX() {
-    uint16_t addr = *(uint16_t *)(mem + ((mem[regs.pc] + regs.x) & 0xFF);
+    uint16_t addr = *(uint16_t *)(mem + ((mem[regs.pc] + regs.x) & 0xff));
     ++regs.pc;
     return addr;
 }
@@ -372,21 +392,21 @@ static inline uint16_t Relative() {
 }
 
 //===========================================================================
-static inline uint8_t ZeroPage() {
+static inline uint16_t ZeroPage() {
     uint16_t addr = mem[regs.pc];
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
-static inline uint8_t ZeroPageX() {
+static inline uint16_t ZeroPageX() {
     uint16_t addr = uint8_t(mem[regs.pc] + regs.x);
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
-static inline uint8_t ZeroPageY() {
+static inline uint16_t ZeroPageY() {
     uint16_t addr = uint8_t(mem[regs.pc] + regs.y);
     ++regs.pc;
     return addr;
@@ -400,16 +420,12 @@ static inline uint8_t ZeroPageY() {
 ***/
 
 //===========================================================================
-static inline int Branch(uint8_t condition, uint16_t addr) {
-    int      cycles = 0;
-    uint16_t oldpc  = regs.pc;
+static inline void Branch(uint8_t condition, uint16_t addr, int * cycles) {
     if (condition) {
+        uint16_t oldaddr = regs.pc;
         regs.pc = addr;
-        ++cycles;
-        if ((oldpc ^ regs.pc) ^ 0xff00)
-            ++cycles;
+        *cycles += 1 + ((oldaddr ^ addr) ^ 0xff00) ? 1 : 0;
     }
-    return cycles;
 }
 
 //===========================================================================
@@ -419,32 +435,41 @@ static inline uint8_t Pop8() {
 }
 
 //===========================================================================
+static inline uint16_t Pop16() {
+    uint16_t addr0 = Pop8();
+    uint16_t addr1 = Pop8();
+    return addr0 | addr1 << 8;
+}
+
+//===========================================================================
 static inline void Push8(uint8_t value) {
-    mem[regs.sp--] = value;
-    if (regs.sp < 0x100)
-        regs.sp = 0x1FF;
+    mem[regs.sp] = value;
+    regs.sp = (regs.sp - 1) | 0x100;
 }
 
 //===========================================================================
 static inline uint8_t Read8(uint16_t addr) {
-    return (addr & 0xFF00) == 0xC000
-        ? ioRead[addr & 0xFF](regs.pc, (uint8_t)addr, 0, 0)
-        : mem[addr];
-}
-
-//===========================================================================
-static inline void Write8(uint16_t addr, uint8_t value) {
-    memDirty[addr >> 8] = 0xff;
-    uint8_t * page = memWrite[0][addr >> 8];
-    if (page)
-        page[addr & 0xff] = value;
-    else if ((addr & 0xff00) == 0xc000)
-        ioWrite[addr & 0xff](regs.pc, uint8_t(addr), 1, value);
+    if ((addr & 0xff00) == 0xc000)
+        return ioRead[addr & 0xff](regs.pc, (uint8_t)addr, 0, 0);
+    else
+        return mem[addr];
 }
 
 //===========================================================================
 static inline uint16_t Read16(uint16_t addr) {
     return *(uint16_t *)(mem + addr);
+}
+
+//===========================================================================
+static inline void Write8(uint16_t addr, uint8_t value) {
+    int       offset = addr & 0xff;
+    int       pageno = addr >> 8;
+    uint8_t * page   = memWrite[0][pageno];
+    memDirty[pageno] = 0xff;
+    if (page)
+        page[offset] = value;
+    else if (pageno == 0xc0)
+        ioWrite[offset](regs.pc, uint8_t(offset), 1, value);
 }
 
 
@@ -480,6 +505,51 @@ static inline void UpdateNZ(uint8_t value) {
 *   Instruction implementations
 *
 ***/
+
+//===========================================================================
+static inline void Adc_6502(uint8_t val8) {
+    uint32_t acc   = uint32_t(regs.a);
+    uint32_t add   = uint32_t(val8);
+    uint32_t carry = uint32_t(regs.ps & AF_CARRY);
+    uint32_t newval;
+    if (regs.ps & AF_DECIMAL) {
+        uint32_t lo = (acc & 0x0f) + (add & 0x0f) + carry;
+        uint32_t carrylo = 0;
+        if (lo >= 0x0a) {
+            carrylo = 0x10;
+            lo -= 0x0a;
+        }
+
+        uint32_t hi = (acc & 0xf0) + (add & 0xf0) + carrylo;
+        if (hi >= 0xa0) {
+            regs.ps |= AF_CARRY;
+            hi -= 0xa0;
+        }
+        else
+            regs.ps &= ~AF_CARRY;
+
+        newval = hi | lo;
+        if (((acc ^ newval) & 0x80) && !((acc ^ add) & 0x80))
+            regs.ps |= AF_OVERFLOW;
+        else
+            regs.ps &= ~AF_OVERFLOW;
+    }
+    else {
+        newval = acc + add + carry;
+        if (newval & 0x100)
+            regs.ps |= AF_CARRY;
+        else
+            regs.ps &= ~AF_CARRY;
+
+        if ((acc & 0x80) == (add & 0x80) && (acc & 0x80) != (newval & 0x80))
+            regs.ps |= AF_OVERFLOW;
+        else
+            regs.ps &= ~AF_OVERFLOW;
+    }
+
+    regs.a = uint8_t(newval);
+    UpdateNZ(regs.a);
+}
 
 //===========================================================================
 static inline void And(uint8_t val8) {
@@ -522,6 +592,39 @@ static inline void Brk() {
 }
 
 //===========================================================================
+static inline void Clc() {
+    regs.ps &= ~AF_CARRY;
+}
+
+//===========================================================================
+static inline void Cli() {
+    regs.ps &= ~AF_INTERRUPT;
+}
+
+//===========================================================================
+static inline void Eor(uint8_t val8) {
+    regs.a ^= val8;
+    UpdateNZ(regs.a);
+}
+
+//===========================================================================
+static inline uint8_t Lsr(uint8_t val8) {
+    if (val8 & 1)
+        regs.ps |= AF_CARRY;
+    else
+        regs.ps &= ~AF_CARRY;
+    regs.ps &= ~AF_SIGN;
+    val8 >>= 1;
+    UpdateZ(val8);
+    return val8;
+}
+
+//===========================================================================
+static inline void Jmp(uint16_t addr) {
+    regs.pc = addr;
+}
+
+//===========================================================================
 static inline void Jsr(uint16_t addr) {
     --regs.pc;
     Push8(regs.pc >> 8);
@@ -542,6 +645,12 @@ static inline void Php() {
 }
 
 //===========================================================================
+static inline void Pla() {
+    regs.a = Pop8();
+    UpdateNZ(regs.a);
+}
+
+//===========================================================================
 static inline uint8_t Rol(uint8_t val8) {
     uint8_t hibit = val8 >> 7;
     val8 = val8 << 1 | (regs.ps & AF_CARRY);
@@ -551,6 +660,34 @@ static inline uint8_t Rol(uint8_t val8) {
         regs.ps &= ~AF_CARRY;
     UpdateNZ(val8);
     return val8;
+}
+
+//===========================================================================
+static inline uint8_t Ror(uint8_t val8) {
+    uint8_t lobit = val8 & 1;
+    val8 = val8 >> 1 | ((regs.ps & AF_CARRY) << 7);
+    if (lobit)
+        regs.ps |= AF_CARRY;
+    else
+        regs.ps &= ~AF_CARRY;
+    UpdateNZ(val8);
+    return val8;
+}
+
+//===========================================================================
+static inline void Rti() {
+    regs.ps = Pop8();
+    regs.pc = Pop16();
+}
+
+//===========================================================================
+static inline void Rts() {
+    regs.pc = Pop16() + 1;
+}
+
+//===========================================================================
+static inline void Sec() {
+    regs.ps |= AF_CARRY;
 }
 
 //===========================================================================
@@ -574,6 +711,64 @@ int CpuStep() {
     uint8_t  val8;
 
     switch (mem[regs.pc++]) {
+        case 0x03: // invalid1
+        case 0x04:
+        case 0x07:
+        case 0x0b:
+        case 0x0c:
+        case 0x0f:
+        case 0x12:
+        case 0x13:
+        case 0x14:
+        case 0x17:
+        case 0x1a:
+        case 0x1b:
+        case 0x1c:
+        case 0x1f:
+        case 0x27:
+        case 0x23:
+        case 0x2b:
+        case 0x2f:
+        case 0x32:
+        case 0x33:
+        case 0x34:
+        case 0x37:
+        case 0x3a:
+        case 0x3b:
+        case 0x3c:
+        case 0x3f:
+        case 0x43:
+        case 0x47:
+        case 0x4b:
+        case 0x4f:
+        case 0x52:
+        case 0x53:
+        case 0x57:
+        case 0x5a:
+        case 0x5b:
+        case 0x5f:
+        case 0x63:
+        case 0x64:
+        case 0x67:
+        case 0x6b:
+        case 0x6f:
+            cycles += 1;
+            break;
+
+        case 0x02: // invalid2
+        case 0x22:
+        case 0x42:
+        case 0x44:
+        case 0x54:
+        case 0x62:
+        case 0x82:
+        case 0xc2:
+        case 0xd4:
+        case 0xe2:
+        case 0xf4:
+            cycles += 2;
+            break;
+
         case 0x00: // BRK
             Brk();
             cycles += 7;
@@ -583,15 +778,6 @@ int CpuStep() {
             val8 = Read8(addr);
             Ora(val8);
             cycles += 6;
-            break;
-        case 0x02: // invalid2
-            cycles += 2;
-            break;
-        case 0x03: // invalid1
-            cycles += 1;
-            break;
-        case 0x04: // invalid1
-            cycles += 1;
             break;
         case 0x05: // ORA (zpg)
             addr = ZeroPage();
@@ -605,9 +791,6 @@ int CpuStep() {
             val8 = Asl(val8);
             Write8(addr, val8);
             cycles += 5;
-            break;
-        case 0x07: // invalid1
-            cycles += 1;
             break;
         case 0x08: // PHP
             Php();
@@ -625,12 +808,6 @@ int CpuStep() {
             regs.a = val8;
             cycles += 2;
             break;
-        case 0x0b: // invalid1
-            cycles += 1;
-            break;
-        case 0x0c: // invalid1
-            cycles += 1;
-            break;
         case 0x0d: // ORA (abs)
             addr = Absolute();
             val8 = Read8(addr);
@@ -644,12 +821,9 @@ int CpuStep() {
             Write8(addr, val8);
             cycles += 6;
             break;
-        case 0x0f: // invalid1
-            cycles += 1;
-            break;
         case 0x10: // BPL
             addr = Relative();
-            cycles += Branch(!(regs.ps & AF_SIGN), addr);
+            Branch(!(regs.ps & AF_SIGN), addr, &cycles);
             cycles += 2;
             break;
         case 0x11: // ORA (indy)
@@ -657,15 +831,6 @@ int CpuStep() {
             val8 = Read8(addr);
             Ora(val8);
             cycles += 5;
-            break;
-        case 0x12: // invalid
-            cycles += 1;
-            break;
-        case 0x13: // invalid1
-            cycles += 1;
-            break;
-        case 0x14: // invalid1
-            cycles += 1;
             break;
         case 0x15: // ORA (zpgx)
             addr = ZeroPageX();
@@ -680,9 +845,6 @@ int CpuStep() {
             Write8(addr, val8);
             cycles += 6;
             break;
-        case 0x17: // invalid1
-            cycles += 1;
-            break;
         case 0x18: // CLC
             regs.ps &= AF_CARRY;
             cycles += 1;
@@ -692,15 +854,6 @@ int CpuStep() {
             val8 = Read8(addr);
             Ora(val8);
             cycles += 4;
-            break;
-        case 0x1a: // invalid1
-            cycles += 1;
-            break;
-        case 0x1b: // invalid1
-            cycles += 1;
-            break;
-        case 0x1c: // invalid1
-            cycles += 1;
             break;
         case 0x1d: // ORA (absx)
             addr = AbsoluteX(&cycles);
@@ -715,9 +868,6 @@ int CpuStep() {
             Write8(addr, val8);
             cycles += 7;
             break;
-        case 0x1f: // invalid1
-            cycles += 1;
-            break;
         case 0x20: // JSR (abs)
             addr = Absolute();
             Jsr(addr);
@@ -728,12 +878,6 @@ int CpuStep() {
             val8 = Read8(addr);
             And(val8);
             cycles += 6;
-            break;
-        case 0x22: // invalid2
-            cycles += 2;
-            break;
-        case 0x23: // invalid1
-            cycles += 1;
             break;
         case 0x24: // BIT (zpg)
             addr = ZeroPage();
@@ -754,9 +898,6 @@ int CpuStep() {
             Write8(addr, val8);
             cycles += 5;
             break;
-        case 0x27: // invalid1
-            cycles += 1;
-            break;
         case 0x28: // PLP
             regs.ps = Pop8();
             cycles += 4;
@@ -768,13 +909,8 @@ int CpuStep() {
             cycles += 2;
             break;
         case 0x2a: // ROL (acc)
-            val8 = regs.a;
-            val8 = Rol(val8);
-            regs.a = val8;
+            regs.a = Rol(regs.a);
             cycles += 2;
-            break;
-        case 0x2b: // invalid1
-            cycles += 1;
             break;
         case 0x2c: // BIT (abs)
             addr = Absolute();
@@ -795,12 +931,238 @@ int CpuStep() {
             Write8(addr, val8);
             cycles += 6;
             break;
-        case 0x2f: // invalid1
-            cycles += 1;
+        case 0x30: // BMI
+            addr = Relative();
+            Branch(regs.ps & AF_SIGN, addr, &cycles);
+            cycles += 2;
+            break;
+        case 0x31: // AND (indy)
+            addr = IndirectY(&cycles);
+            val8 = Read8(addr);
+            And(val8);
+            cycles += 5;
+            break;
+        case 0x35: // AND (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            And(val8);
+            cycles += 4;
+            break;
+        case 0x36: // ROL (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            val8 = Rol(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0x38: // SEC
+            Sec();
+            cycles += 2;
+            break;
+        case 0x39: // AND (absy)
+            addr = AbsoluteY(&cycles);
+            val8 = Read8(addr);
+            And(val8);
+            cycles += 4;
+            break;
+        case 0x3d: // AND (absx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
+            And(val8);
+            cycles += 4;
+            break;
+        case 0x3e: // ROL (absx)
+            addr = AbsoluteX();
+            val8 = Read8(addr);
+            val8 = Rol(val8);
+            Write8(addr, val8);
+            cycles += 7;
+            break;
+        case 0x40: // RTI
+            Rti();
+            cycles += 6;
+            break;
+        case 0x41: // EOR (indx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            Eor(val8);
+            cycles += 6;
+            break;
+        case 0x45: // EOR (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Eor(val8);
+            cycles += 3;
+            break;
+        case 0x46: // LSR (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Lsr(val8);
+            Write8(addr, val8);
+            cycles += 5;
+            break;
+        case 0x48: // PHA
+            Push8(regs.a);
+            cycles += 3;
+            break;
+        case 0x49: // EOR (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Eor(val8);
+            cycles += 2;
+            break;
+        case 0x4a: // LSR (acc)
+            regs.a = Lsr(regs.a);
+            cycles += 2;
+            break;
+        case 0x4c: // JMP (abs)
+            addr = Absolute();
+            Jmp(addr);
+            cycles += 3;
+            break;
+        case 0x4d: // EOR (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Eor(val8);
+            cycles += 4;
+            break;
+        case 0x4e: // LSR (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            val8 = Lsr(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0x50: // BVC
+            addr = Relative();
+            Branch(!(regs.ps & AF_OVERFLOW), addr, &cycles);
+            cycles += 2;
+            break;
+        case 0x51: // EOR (indy)
+            addr = IndirectY(&cycles);
+            val8 = Read8(addr);
+            Eor(val8);
+            cycles += 5;
+            break;
+        case 0x55: // EOR (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            Eor(val8);
+            cycles += 4;
+            break;
+        case 0x56: // LSR (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            val8 = Lsr(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
+        case 0x58: // CLI
+            Cli();
+            cycles += 2;
+            break;
+        case 0x59: // EOR (absy)
+            addr = AbsoluteY(&cycles);
+            val8 = Read8(addr);
+            Eor(val8);
+            cycles += 4;
+            break;
+        case 0x5c: // invalid3
+            cycles += 8;
+            break;
+        case 0x5d: // EOR (absx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
+            Eor(val8);
+            cycles += 4;
+            break;
+        case 0x5e: // LSR (absx)
+            addr = AbsoluteX();
+            val8 = Read8(addr);
+            val8 = Lsr(val8);
+            Write8(addr, val8);
+            cycles += 7;
+            break;
+        case 0x60: // RTS
+            Rts();
+            cycles += 6;
+            break;
+        case 0x61: // ADC (indx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            Adc_6502(val8);
+            cycles += 6;
+            break;
+        case 0x65: // ADC (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Adc_6502(val8);
+            cycles += 3;
+            break;
+        case 0x66: // ROR (zpg)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Ror(val8);
+            Write8(addr, val8);
+            cycles += 5;
+            break;
+        case 0x68: // PLA
+            Pla();
+            cycles += 4;
+            break;
+        case 0x69: // ADC (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Adc_6502(val8);
+            cycles += 2;
+            break;
+        case 0x6a: // ROR (acc)
+            regs.a = Ror(regs.a);
+            cycles += 2;
+            break;
+        case 0x6c: // JMP (iabs)
+            addr = Indirect_6502();
+            Jmp(addr);
+            cycles += 6;
+            break;
+        case 0x6d: // ADC (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Adc_6502(val8);
+            cycles += 4;
+            break;
+        case 0x6e: // ROR (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            val8 = Ror(val8);
+            Write8(addr, val8);
+            cycles += 7;
             break;
 
 #if 0
+            case 0x70:       REL BVS       CYC(3);  break;
+            case 0x71:       INDY ADC      CYC(5);  break;
+            case 0x72: CMOS  IND ADC       CYC(5);  break;
+            case 0x73:       INVALID1      CYC(1);  break;
+            case 0x74: CMOS  ZPGX STZ      CYC(4);  break;
+            case 0x75:       ZPGX ADC      CYC(4);  break;
+            case 0x76:       ZPGX ROR      CYC(6);  break;
+            case 0x77:       INVALID1      CYC(1);  break;
+            case 0x78:       SEI           CYC(2);  break;
+            case 0x79:       ABSY ADC      CYC(4);  break;
+            case 0x7A: CMOS  PLY           CYC(4);  break;
+            case 0x7B:       INVALID1      CYC(1);  break;
+            case 0x7C: CMOS  IABSX JMP     CYC(6);  break;
+            case 0x7D:       ABSX ADC      CYC(4);  break;
+            case 0x7E:       ABSX ROR      CYC(6);  break;
+            case 0x7F:       INVALID1      CYC(1);  break;
 #endif
+
+            case 0x81:
+                addr = AbsoluteX(&cycles);
+                Write8(addr, regs.a);
+                cycles += 6;
+                break;
     }
 
     return cycles;
@@ -837,7 +1199,7 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
             case 0x0F:       INVALID1      CYC(1);  break;
             case 0x10:       REL BPL       CYC(3);  break;
             case 0x11:       INDY ORA      CYC(5);  break;
-            case 0x12: CMOS  IZPG ORA      CYC(5);  break;
+            case 0x12: CMOS  IND ORA       CYC(5);  break;
             case 0x13:       INVALID1      CYC(1);  break;
             case 0x14: CMOS  ZPG TRB       CYC(5);  break;
             case 0x15:       ZPGX ORA      CYC(4);  break;
@@ -869,7 +1231,7 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
             case 0x2F:       INVALID1      CYC(1);  break;
             case 0x30:       REL BMI       CYC(3);  break;
             case 0x31:       INDY AND      CYC(5);  break;
-            case 0x32: CMOS  IZPG AND      CYC(5);  break;
+            case 0x32: CMOS  IND AND       CYC(5);  break;
             case 0x33:       INVALID1      CYC(1);  break;
             case 0x34: CMOS  ZPGX BIT      CYC(4);  break;
             case 0x35:       ZPGX AND      CYC(4);  break;
@@ -901,7 +1263,7 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
             case 0x4F:       INVALID1      CYC(1);  break;
             case 0x50:       REL BVC       CYC(3);  break;
             case 0x51:       INDY EOR      CYC(5);  break;
-            case 0x52: CMOS  IZPG EOR      CYC(5);  break;
+            case 0x52: CMOS  IND EOR       CYC(5);  break;
             case 0x53:       INVALID1      CYC(1);  break;
             case 0x54:       INVALID2      CYC(4);  break;
             case 0x55:       ZPGX EOR      CYC(4);  break;
@@ -933,7 +1295,7 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
             case 0x6F:       INVALID1      CYC(1);  break;
             case 0x70:       REL BVS       CYC(3);  break;
             case 0x71:       INDY ADC      CYC(5);  break;
-            case 0x72: CMOS  IZPG ADC      CYC(5);  break;
+            case 0x72: CMOS  IND ADC       CYC(5);  break;
             case 0x73:       INVALID1      CYC(1);  break;
             case 0x74: CMOS  ZPGX STZ      CYC(4);  break;
             case 0x75:       ZPGX ADC      CYC(4);  break;
@@ -965,7 +1327,7 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
             case 0x8F:       INVALID1      CYC(1);  break;
             case 0x90:       REL BCC       CYC(3);  break;
             case 0x91:       INDY STA      CYC(6);  break;
-            case 0x92: CMOS  IZPG STA      CYC(5);  break;
+            case 0x92: CMOS  IND STA       CYC(5);  break;
             case 0x93:       INVALID1      CYC(1);  break;
             case 0x94:       ZPGX STY      CYC(4);  break;
             case 0x95:       ZPGX STA      CYC(4);  break;
@@ -997,7 +1359,7 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
             case 0xAF:       INVALID1      CYC(1);  break;
             case 0xB0:       REL BCS       CYC(3);  break;
             case 0xB1:       INDY LDA      CYC(5);  break;
-            case 0xB2: CMOS  IZPG LDA      CYC(5);  break;
+            case 0xB2: CMOS  IND LDA       CYC(5);  break;
             case 0xB3:       INVALID1      CYC(1);  break;
             case 0xB4:       ZPGX LDY      CYC(4);  break;
             case 0xB5:       ZPGX LDA      CYC(4);  break;
@@ -1029,7 +1391,7 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
             case 0xCF:       INVALID1      CYC(1);  break;
             case 0xD0:       REL BNE       CYC(3);  break;
             case 0xD1:       INDY CMP      CYC(5);  break;
-            case 0xD2: CMOS  IZPG CMP      CYC(5);  break;
+            case 0xD2: CMOS  IND CMP       CYC(5);  break;
             case 0xD3:       INVALID1      CYC(1);  break;
             case 0xD4:       INVALID2      CYC(4);  break;
             case 0xD5:       ZPGX CMP      CYC(4);  break;
@@ -1061,7 +1423,7 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
             case 0xEF:       INVALID1      CYC(1);  break;
             case 0xF0:       REL BEQ       CYC(3);  break;
             case 0xF1:       INDY SBC      CYC(5);  break;
-            case 0xF2: CMOS  IZPG SBC      CYC(5);  break;
+            case 0xF2: CMOS  IND SBC       CYC(5);  break;
             case 0xF3:       INVALID1      CYC(1);  break;
             case 0xF4:       INVALID2      CYC(4);  break;
             case 0xF5:       ZPGX SBC      CYC(4);  break;
