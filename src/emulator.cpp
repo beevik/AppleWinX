@@ -26,8 +26,7 @@ static int64_t lastExecute     = 0;
 
 //===========================================================================
 static void ContinueExecution() {
-    static int cycleSurplus    = 0;
-    static int cyclesThisFrame = 0;
+    static int cycleSurplus = 0;
 
     // Check if the emulator should run at full-speed.
     bool forceFullspeed = (speed == SPEED_MAX) || KeybIsKeyDown(SDL_SCANCODE_SCROLLLOCK);
@@ -55,12 +54,7 @@ static void ContinueExecution() {
         DiskUpdatePosition(cyclesexecuted);
         JoyUpdatePosition(cyclesexecuted);
         SpkrUpdate(cyclesexecuted);
-
-        cyclesThisFrame += cyclesexecuted;
-        if (cyclesThisFrame >= 17030) {
-            cyclesThisFrame -= 17030;
-            VideoRefreshScreen();
-        }
+        VideoUpdate();
 
         // Check if fullspeed status has changed.
         if (fullSpeed) {

@@ -12,6 +12,10 @@
 #define PNG_SETJMP_NOT_SUPPORTED
 #include <png.h>
 
+constexpr int32_t CYCLES_PER_SCANLINE = 65;
+constexpr int32_t NTSC_SCANLINES      = 262;
+constexpr int32_t DISPLAY_LINES       = 192;
+
 constexpr int SCREEN_CX     = 560;
 constexpr int SCREEN_CY     = 384;
 
@@ -59,13 +63,14 @@ static uint32_t *    screenPixels;
 static fupdate       updateLower;
 static fupdate       updateUpper;
 
-static DWORD  charOffset   = 0;
-static BOOL   displayPage2 = FALSE;
-static HDC    frameDC      = (HDC)0;
-static DWORD  modeSwitches = 0;
-static BOOL   redrawFull   = TRUE;
-static HFONT  videoFont    = (HFONT)0;
-static DWORD  videoMode    = 0;
+static DWORD   charOffset     = 0;
+static BOOL    displayPage2   = FALSE;
+static HDC     frameDC        = (HDC)0;
+static int32_t frameCounter  = -1;
+static DWORD   modeSwitches   = 0;
+static BOOL    redrawFull     = TRUE;
+static HFONT   videoFont      = (HFONT)0;
+static DWORD   videoMode      = 0;
 
 static const COLORREF colorLores[16] = {
     0x000000, 0x7C0B93, 0xD3351F, 0xFF36BB, // black, red, dkblue, purple
@@ -718,11 +723,16 @@ BYTE VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
 }
 
 //===========================================================================
-BYTE VideoCheckVbl(WORD pc, BYTE address, BYTE write, BYTE value) {
-    constexpr int32_t CYCLES_PER_SCANLINE = 65;
-    constexpr int32_t NTSC_SCANLINES      = 262;
-    constexpr int32_t DISPLAY_LINES       = 192;
+void VideoUpdate() {
+    int32_t currFrame = int32_t(totalCycles / (CYCLES_PER_SCANLINE * NTSC_SCANLINES));
+    if (currFrame > frameCounter) {
+        VideoRefreshScreen();
+        frameCounter = currFrame;
+    }
+}
 
+//===========================================================================
+BYTE VideoCheckVbl(WORD pc, BYTE address, BYTE write, BYTE value) {
     int64_t frameCycle = totalCycles % (CYCLES_PER_SCANLINE * NTSC_SCANLINES);
     return MemReturnRandomData(frameCycle < (CYCLES_PER_SCANLINE * DISPLAY_LINES));
 }
