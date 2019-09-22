@@ -54,13 +54,12 @@ static void ContinueExecution() {
 
         DiskUpdatePosition(cyclesexecuted);
         JoyUpdatePosition(cyclesexecuted);
-        VideoUpdateVbl(cyclesexecuted, cyclesThisFrame >= 15000);
         SpkrUpdate(cyclesexecuted);
 
         cyclesThisFrame += cyclesexecuted;
-        if (cyclesThisFrame >= 17025) {
-            cyclesThisFrame -= 17025;
-            VideoCheckPage(TRUE);
+        if (cyclesThisFrame >= 17030) {
+            cyclesThisFrame -= 17030;
+            VideoRefreshScreen();
         }
 
         // Check if fullspeed status has changed.

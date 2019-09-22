@@ -62,13 +62,9 @@ static fupdate       updateUpper;
 static DWORD  charOffset   = 0;
 static BOOL   displayPage2 = FALSE;
 static HDC    frameDC      = (HDC)0;
-static DWORD  lastPageFlip = 0;
 static DWORD  modeSwitches = 0;
 static BOOL   redrawFull   = TRUE;
-static BOOL   refreshed    = FALSE;
-static DWORD  vblCounter   = 0;
 static HFONT  videoFont    = (HFONT)0;
-static LPBYTE videoLastMem = NULL;
 static DWORD  videoMode    = 0;
 
 static const COLORREF colorLores[16] = {
@@ -345,22 +341,6 @@ static BOOL LoadSourceLookup() {
 }
 
 //===========================================================================
-static void SetLastDrawnImage() {
-    memcpy(videoLastMem + 0x400, textMainPtr, 0x400);
-
-    if (SW_HIRES())
-        memcpy(videoLastMem + 0x2000, hiResMainPtr, 0x2000);
-
-    if (SW_DHIRES())
-        memcpy(videoLastMem, hiResAuxPtr, 0x2000);
-    else if (SW_80COL())
-        memcpy(videoLastMem, textAuxPtr, 0x400);
-
-    for (int loop = 0; loop < 256; loop++)
-        memDirty[loop] &= ~2;
-}
-
-//===========================================================================
 static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
     BYTE ch = textMainPtr[offset];
 
@@ -408,9 +388,7 @@ static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
     for (int yoffset = 0; yoffset < 0x2000; yoffset += 0x400) {
         BYTE auxval  = hiResAuxPtr[offset + yoffset];
         BYTE mainval = hiResMainPtr[offset + yoffset];
-        BOOL draw = (auxval != videoLastMem[offset + yoffset]) ||
-            (mainval != videoLastMem[offset + yoffset + 0x2000]) ||
-            redrawFull;
+        BOOL draw    = true;
         if (offset & 1) {
             BYTE thirdval = hiResMainPtr[offset + yoffset - 1];
             int value1 = ((auxval & 0x3F) << 2) | ((thirdval & 0x60) >> 5);
@@ -516,20 +494,6 @@ static void UpdateVideoMode(DWORD newMode) {
 //
 // ----- ALL GLOBALLY ACCESSIBLE FUNCTIONS ARE BELOW THIS LINE -----
 //
-
-//===========================================================================
-BOOL VideoApparentlyDirty() {
-    if (SW_MIXED() || redrawFull)
-        return TRUE;
-
-    DWORD page  = (SW_HIRES() && !SW_TEXT()) ? (0x20 << displayPage2) : (0x04 << displayPage2);
-    DWORD count = (SW_HIRES() && !SW_TEXT()) ? 0x20 : 0x04;
-    while (count--) {
-        if (memDirty[page++] & 2)
-            return TRUE;
-    }
-    return FALSE;
-}
 
 //===========================================================================
 void VideoBenchmark() {
@@ -693,7 +657,6 @@ void VideoBenchmark() {
                     cycles -= executedcycles;
                     DiskUpdatePosition(executedcycles);
                     JoyUpdatePosition(executedcycles);
-                    VideoUpdateVbl(executedcycles, 0);
                 }
             }
             if (cycle & 1)
@@ -743,30 +706,25 @@ BYTE VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
     else {
         BOOL result = 0;
         switch (address) {
-            case 0x1A: result = SW_TEXT();    break;
-            case 0x1B: result = SW_MIXED();   break;
-            case 0x1D: result = SW_HIRES();   break;
-            case 0x1E: result = charOffset;     break;
-            case 0x1F: result = SW_80COL();   break;
-            case 0x7F: result = SW_DHIRES();  break;
+            case 0x1A: result = SW_TEXT();       break;
+            case 0x1B: result = SW_MIXED();      break;
+            case 0x1D: result = SW_HIRES();      break;
+            case 0x1E: result = charOffset != 0; break;
+            case 0x1F: result = SW_80COL();      break;
+            case 0x7F: result = SW_DHIRES();     break;
         }
         return KeybGetKeycode() | (result ? 0x80 : 0);
     }
 }
 
 //===========================================================================
-void VideoCheckPage(BOOL force) {
-    //if ((displaypage2 != (SW_PAGE2() != 0)) && (force || (emulmsec - lastpageflip > 500))) {
-        displayPage2 = (SW_PAGE2() != 0);
-        VideoRefreshScreen();
-        refreshed = TRUE;
-        lastPageFlip = DWORD(totalCycles / CPU_CYCLES_PER_MS);
-    //}
-}
-
-//===========================================================================
 BYTE VideoCheckVbl(WORD pc, BYTE address, BYTE write, BYTE value) {
-    return MemReturnRandomData(vblCounter < 22);
+    constexpr int32_t CYCLES_PER_SCANLINE = 65;
+    constexpr int32_t NTSC_SCANLINES      = 262;
+    constexpr int32_t DISPLAY_LINES       = 192;
+
+    int64_t frameCycle = totalCycles % (CYCLES_PER_SCANLINE * NTSC_SCANLINES);
+    return MemReturnRandomData(frameCycle < (CYCLES_PER_SCANLINE * DISPLAY_LINES));
 }
 
 //===========================================================================
@@ -774,9 +732,7 @@ void VideoDestroy() {
     VideoReleaseFrameDC();
 
     delete[] sourceLookup;
-    delete[] videoLastMem;
     sourceLookup = NULL;
-    videoLastMem = NULL;
 
     DeleteDC(deviceDC);
     DeleteObject(deviceBitmap);
@@ -942,13 +898,6 @@ void VideoGenerateSourceFiles() {
 }
 
 //===========================================================================
-BOOL VideoHasRefreshed() {
-    BOOL result = refreshed;
-    refreshed = FALSE;
-    return result;
-}
-
-//===========================================================================
 void VideoInitialize() {
     // CREATE A FONT FOR DRAWING TEXT ABOVE THE SCREEN
     videoFont = CreateFont(
@@ -967,10 +916,6 @@ void VideoInitialize() {
         FIXED_PITCH | 4 | FF_MODERN,
         "Courier New"
     );
-
-    // CREATE A BUFFER FOR AN IMAGE OF THE LAST DRAWN MEMORY
-    videoLastMem = new BYTE[0x10000];
-    ZeroMemory(videoLastMem, 0x10000);
 
     // THE DEVICE MUST BE 32 BPP AND A SINGLE PLANE
     HWND window       = GetDesktopWindow();
@@ -1043,6 +988,7 @@ void VideoRefreshScreen() {
     }
     modeSwitches = 0;
 
+    displayPage2 = (SW_PAGE2() != 0);
     hiResAuxPtr  = MemGetAuxPtr(0x2000 << (displayPage2 ? 1 : 0));
     hiResMainPtr = MemGetMainPtr(0x2000 << (displayPage2 ? 1 : 0));
     textAuxPtr   = MemGetAuxPtr(0x400 << (displayPage2 ? 1 : 0));
@@ -1074,7 +1020,6 @@ void VideoRefreshScreen() {
     );
 
     GdiFlush();
-    SetLastDrawnImage();
     redrawFull = FALSE;
 
     if ((mode == MODE_PAUSED) || (mode == MODE_STEPPING))
@@ -1149,26 +1094,13 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
     }
 
     if (oldpage2 != SW_PAGE2()) {
-        static DWORD lastrefresh = 0;
         displayPage2 = (SW_PAGE2() != 0);
-        if (!redrawFull) {
+        if (!redrawFull)
             VideoRefreshScreen();
-            refreshed = TRUE;
-            lastrefresh  = currtime;
-        }
-        lastPageFlip = currtime;
     }
 
     if (address == 0x50)
         return VideoCheckVbl(0, 0, 0, 0);
     else
         return MemReturnRandomData(TRUE);
-}
-
-//===========================================================================
-void VideoUpdateVbl(DWORD cycles, BOOL nearrefresh) {
-    if (vblCounter)
-        vblCounter -= MIN(vblCounter, cycles >> 6);
-    else if (!nearrefresh)
-        vblCounter = 250;
 }
