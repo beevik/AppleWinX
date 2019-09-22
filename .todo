@@ -2,3 +2,901 @@ Convert from Windows SDK to SDL.
 Replace registry with config file(s).
 Convert modules to singletons.
 Move sound processing into a separate thread
+
+
+ 00 BRK 7        $00: bytes: 0 cycles: 0 _____=>_____ __ 
+ 01 ORA izx 6    $01: bytes: 2 cycles: 6 A____=>____P R_ izx
+ 02 *KIL         $02: CRASH
+ 03 *SLO izx 8   $03: bytes: 2 cycles: 8 A____=>____P RW izx
+ 04 *NOP zp 3    $04: bytes: 2 cycles: 3 _____=>_____ R_ zp
+ 05 ORA zp 3     $05: bytes: 2 cycles: 3 A____=>A___P R_ zp
+ 06 ASL zp 5     $06: bytes: 2 cycles: 5 _____=>____P RW zp
+ 07 *SLO zp 5    $07: bytes: 2 cycles: 5 A____=>A___P RW zp
+ 08 PHP 3        $08: bytes: 1 cycles: 3 ___SP=>___S_ _W 
+ 09 ORA imm 2    $09: bytes: 2 cycles: 2 _____=>A___P __ 
+ 0A ASL 2        $0A: bytes: 1 cycles: 2 A____=>A___P __ 
+ 0B *ANC imm 2   $0B: bytes: 2 cycles: 2 A____=>____P __ 
+ 0C *NOP abs 4   $0C: bytes: 3 cycles: 4 _____=>_____ R_ abs
+ 0D ORA abs 4    $0D: bytes: 3 cycles: 4 A____=>A___P R_ abs
+ 0E ASL abs 6    $0E: bytes: 3 cycles: 6 _____=>____P RW abs
+ 0F *SLO abs 6   $0F: bytes: 3 cycles: 6 A____=>A___P RW abs
+ 10 BPL rel 2*   $10: bytes: 2 cycles: 3 ____P=>_____ __ 
+ 11 ORA izy 5*   $11: bytes: 2 cycles: 5 A____=>____P R_ izy
+ 12 *KIL         $12: CRASH
+ 13 *SLO izy 8   $13: bytes: 2 cycles: 8 A____=>____P RW izy
+ 14 *NOP zpx 4   $14: bytes: 2 cycles: 4 _____=>_____ R_ zpx
+ 15 ORA zpx 4    $15: bytes: 2 cycles: 4 A____=>A___P R_ zpx
+ 16 ASL zpx 6    $16: bytes: 2 cycles: 6 _____=>____P RW zpx
+ 17 *SLO zpx 6   $17: bytes: 2 cycles: 6 A____=>A___P RW zpx
+ 18 CLC 2        $18: bytes: 1 cycles: 2 _____=>____P __ 
+ 19 ORA aby 4*   $19: bytes: 3 cycles: 4 A____=>A___P R_ absy
+ 1A *NOP 2       $1A: bytes: 1 cycles: 2 _____=>_____ __ 
+ 1B *SLO aby 7   $1B: bytes: 3 cycles: 7 A____=>A___P RW absy
+ 1C *NOP abx 4*  $1C: bytes: 3 cycles: 4 _____=>_____ R_ absx
+ 1D ORA abx 4*   $1D: bytes: 3 cycles: 4 A____=>A___P R_ absx
+ 1E ASL abx 7    $1E: bytes: 3 cycles: 7 _____=>____P RW absx
+ 1F *SLO abx 7   $1F: bytes: 3 cycles: 7 A____=>A___P RW absx
+ 20 JSR abs 6    $20: bytes: X cycles: 6 ___S_=>___S_ _W 
+ 21 AND izx 6    $21: bytes: 2 cycles: 6 _____=>A___P R_ izx
+ 22 *KIL         $22: CRASH
+ 23 *RLA izx 8   $23: bytes: 2 cycles: 8 ____P=>A___P RW izx
+ 24 BIT zp 3     $24: bytes: 2 cycles: 3 A____=>____P R_ zp
+ 25 AND zp 3     $25: bytes: 2 cycles: 3 A____=>A___P R_ zp
+ 26 ROL zp 5     $26: bytes: 2 cycles: 5 ____P=>____P RW zp
+ 27 *RLA zp 5    $27: bytes: 2 cycles: 5 A___P=>A___P RW zp
+ 28 PLP 4        $28: bytes: 1 cycles: 4 ___S_=>___SP __ 
+ 29 AND imm 2    $29: bytes: 2 cycles: 2 A____=>A___P __ 
+ 2A ROL 2        $2A: bytes: 1 cycles: 2 A___P=>A___P __ 
+ 2B *ANC imm 2   $2B: bytes: 2 cycles: 2 A____=>____P __ 
+ 2C BIT abs 4    $2C: bytes: 3 cycles: 4 A____=>____P R_ abs
+ 2D AND abs 4    $2D: bytes: 3 cycles: 4 A____=>A___P R_ abs
+ 2E ROL abs 6    $2E: bytes: 3 cycles: 6 ____P=>____P RW abs
+ 2F *RLA abs 6   $2F: bytes: 3 cycles: 6 A___P=>A___P RW abs
+ 30 BMI rel 2*   $30: bytes: 2 cycles: 2 _____=>_____ __ 
+ 31 AND izy 5*   $31: bytes: 2 cycles: 5 _____=>A___P R_ izy
+ 32 *KIL         $32: CRASH
+ 33 *RLA izy 8   $33: bytes: 2 cycles: 8 ____P=>A___P RW izy
+ 34 *NOP zpx 4   $34: bytes: 2 cycles: 4 _____=>_____ R_ zpx
+ 35 AND zpx 4    $35: bytes: 2 cycles: 4 A____=>A___P R_ zpx
+ 36 ROL zpx 6    $36: bytes: 2 cycles: 6 ____P=>____P RW zpx
+ 37 *RLA zpx 6   $37: bytes: 2 cycles: 6 A___P=>A___P RW zpx
+ 38 SEC 2        $38: bytes: 1 cycles: 2 _____=>____P __ 
+ 39 AND aby 4*   $39: bytes: 3 cycles: 4 A____=>A___P R_ absy
+ 3A *NOP 2       $3A: bytes: 1 cycles: 2 _____=>_____ __ 
+ 3B *RLA aby 7   $3B: bytes: 3 cycles: 7 A___P=>A___P RW absy
+ 3C *NOP abx 4*  $3C: bytes: 3 cycles: 4 _____=>_____ R_ absx
+ 3D AND abx 4*   $3D: bytes: 3 cycles: 4 A____=>A___P R_ absx
+ 3E ROL abx 7    $3E: bytes: 3 cycles: 7 ____P=>____P RW absx
+ 3F *RLA abx 7   $3F: bytes: 3 cycles: 7 A___P=>A___P RW absx
+ 40 RTI 6        $40: bytes: X cycles: 6 ___S_=>___SP __ 
+ 41 EOR izx 6    $41: bytes: 2 cycles: 6 A____=>____P R_ izx
+ 42 *KIL         $42: CRASH
+ 43 *SRE izx 8   $43: bytes: 2 cycles: 8 A____=>____P RW izx
+ 44 *NOP zp 3    $44: bytes: 2 cycles: 3 _____=>_____ R_ zp
+ 45 EOR zp 3     $45: bytes: 2 cycles: 3 A____=>A___P R_ zp
+ 46 LSR zp 5     $46: bytes: 2 cycles: 5 _____=>____P RW zp
+ 47 *SRE zp 5    $47: bytes: 2 cycles: 5 A____=>A___P RW zp
+ 48 PHA 3        $48: bytes: 1 cycles: 3 A__S_=>___S_ _W 
+ 49 EOR imm 2    $49: bytes: 2 cycles: 2 A____=>A___P __ 
+ 4A LSR 2        $4A: bytes: 1 cycles: 2 A____=>A___P __ 
+ 4B *ALR imm 2   $4B: bytes: 2 cycles: 2 A____=>A___P __ 
+ 4C JMP abs 3    $4C: bytes: X cycles: 3 _____=>_____ __ 
+ 4D EOR abs 4    $4D: bytes: 3 cycles: 4 A____=>A___P R_ abs
+ 4E LSR abs 6    $4E: bytes: 3 cycles: 6 _____=>____P RW abs
+ 4F *SRE abs 6   $4F: bytes: 3 cycles: 6 A____=>A___P RW abs
+ 50 BVC rel 2*   $50: bytes: 2 cycles: 3 ____P=>_____ __ 
+ 51 EOR izy 5*   $51: bytes: 2 cycles: 5 A____=>____P R_ izy
+ 52 *KIL         $52: CRASH
+ 53 *SRE izy 8   $53: bytes: 2 cycles: 8 A____=>____P RW izy
+ 54 *NOP zpx 4   $54: bytes: 2 cycles: 4 _____=>_____ R_ zpx
+ 55 EOR zpx 4    $55: bytes: 2 cycles: 4 A____=>A___P R_ zpx
+ 56 LSR zpx 6    $56: bytes: 2 cycles: 6 _____=>____P RW zpx
+ 57 *SRE zpx 6   $57: bytes: 2 cycles: 6 A____=>A___P RW zpx
+ 58 CLI 2        $58: bytes: 1 cycles: 2 _____=>____P __ 
+ 59 EOR aby 4*   $59: bytes: 3 cycles: 4 A____=>A___P R_ absy
+ 5A *NOP 2       $5A: bytes: 1 cycles: 2 _____=>_____ __ 
+ 5B *SRE aby 7   $5B: bytes: 3 cycles: 7 A____=>A___P RW absy
+ 5C *NOP abx 4*  $5C: bytes: 3 cycles: 4 _____=>_____ R_ absx
+ 5D EOR abx 4*   $5D: bytes: 3 cycles: 4 A____=>A___P R_ absx
+ 5E LSR abx 7    $5E: bytes: 3 cycles: 7 _____=>____P RW absx
+ 5F *SRE abx 7   $5F: bytes: 3 cycles: 7 A____=>A___P RW absx
+ 60 RTS 6        $60: bytes: X cycles: 6 ___S_=>___S_ __ 
+ 61 ADC izx 6    $61: bytes: 2 cycles: 6 A___P=>A___P R_ izx
+ 62 *KIL         $62: CRASH
+ 63 *RRA izx 8   $63: bytes: 2 cycles: 8 A___P=>A___P RW izx
+ 64 *NOP zp 3    $64: bytes: 2 cycles: 3 _____=>_____ R_ zp
+ 65 ADC zp 3     $65: bytes: 2 cycles: 3 A___P=>A___P R_ zp
+ 66 ROR zp 5     $66: bytes: 2 cycles: 5 ____P=>____P RW zp
+ 67 *RRA zp 5    $67: bytes: 2 cycles: 5 A___P=>A___P RW zp
+ 68 PLA 4        $68: bytes: 1 cycles: 4 ___S_=>A__SP __ 
+ 69 ADC imm 2    $69: bytes: 2 cycles: 2 A___P=>A___P __ 
+ 6A ROR 2        $6A: bytes: 1 cycles: 2 A___P=>A___P __ 
+ 6B *ARR imm 2   $6B: bytes: 2 cycles: 2 A___P=>A___P __ 
+ 6C JMP ind 5    $6C: bytes: X cycles: 5 _____=>_____ __ 
+ 6D ADC abs 4    $6D: bytes: 3 cycles: 4 A___P=>A___P R_ abs
+ 6E ROR abs 6    $6E: bytes: 3 cycles: 6 ____P=>____P RW abs
+ 6F *RRA abs 6   $6F: bytes: 3 cycles: 6 A___P=>A___P RW abs
+ 70 BVS rel 2*   $70: bytes: 2 cycles: 2 _____=>_____ __ 
+ 71 ADC izy 5*   $71: bytes: 2 cycles: 5 A___P=>A___P R_ izy
+ 72 *KIL         $72: CRASH
+ 73 *RRA izy 8   $73: bytes: 2 cycles: 8 A___P=>A___P RW izy
+ 74 *NOP zpx 4   $74: bytes: 2 cycles: 4 _____=>_____ R_ zpx
+ 75 ADC zpx 4    $75: bytes: 2 cycles: 4 A___P=>A___P R_ zpx
+ 76 ROR zpx 6    $76: bytes: 2 cycles: 6 ____P=>____P RW zpx
+ 77 *RRA zpx 6   $77: bytes: 2 cycles: 6 A___P=>A___P RW zpx
+ 78 SEI 2        $78: bytes: 1 cycles: 2 _____=>____P __ 
+ 79 ADC aby 4*   $79: bytes: 3 cycles: 4 A___P=>A___P R_ absy
+ 7A *NOP 2       $7A: bytes: 1 cycles: 2 _____=>_____ __ 
+ 7B *RRA aby 7   $7B: bytes: 3 cycles: 7 A___P=>A___P RW absy
+ 7C *NOP abx 4*  $7C: bytes: 3 cycles: 4 _____=>_____ R_ absx
+ 7D ADC abx 4*   $7D: bytes: 3 cycles: 4 A___P=>A___P R_ absx
+ 7E ROR abx 7    $7E: bytes: 3 cycles: 7 ____P=>____P RW absx
+ 7F *RRA abx 7   $7F: bytes: 3 cycles: 7 A___P=>A___P RW absx
+ 80 *NOP imm 2   $80: bytes: 2 cycles: 2 _____=>_____ __ 
+ 81 STA izx 6    $81: bytes: 2 cycles: 6 A____=>_____ RW izx
+ 82 *NOP imm 2   $82: bytes: 2 cycles: 2 _____=>_____ __ 
+ 83 *SAX izx 6   $83: bytes: 2 cycles: 6 _____=>_____ RW izx
+ 84 STY zp 3     $84: bytes: 2 cycles: 3 __Y__=>_____ _W zp
+ 85 STA zp 3     $85: bytes: 2 cycles: 3 A____=>_____ _W zp
+ 86 STX zp 3     $86: bytes: 2 cycles: 3 _X___=>_____ _W zp
+ 87 *SAX zp 3    $87: bytes: 2 cycles: 3 _____=>_____ _W zp
+ 88 DEY 2        $88: bytes: 1 cycles: 2 __Y__=>__Y_P __ 
+ 89 *NOP imm 2   $89: bytes: 2 cycles: 2 _____=>_____ __ 
+ 8A TXA 2        $8A: bytes: 1 cycles: 2 _X___=>A___P __ 
+ 8B *XAA imm 2   $8B: bytes: 2 cycles: 2 _____=>A___P __ 
+ 8C STY abs 4    $8C: bytes: 3 cycles: 4 __Y__=>_____ _W abs
+ 8D STA abs 4    $8D: bytes: 3 cycles: 4 A____=>_____ _W abs
+ 8E STX abs 4    $8E: bytes: 3 cycles: 4 _X___=>_____ _W abs
+ 8F *SAX abs 4   $8F: bytes: 3 cycles: 4 _____=>_____ _W abs
+ 90 BCC rel 2*   $90: bytes: 2 cycles: 3 ____P=>_____ __ 
+ 91 STA izy 6    $91: bytes: 2 cycles: 6 A____=>_____ RW izy
+ 92 *KIL         $92: CRASH
+ 93 *AHX izy 6   $93: bytes: 2 cycles: 6 _____=>_____ RW izy
+ 94 STY zpx 4    $94: bytes: 2 cycles: 4 __Y__=>_____ RW zpx
+ 95 STA zpx 4    $95: bytes: 2 cycles: 4 A____=>_____ RW zpx
+ 96 STX zpy 4    $96: bytes: 2 cycles: 4 _X___=>_____ RW zpy
+ 97 *SAX zpy 4   $97: bytes: 2 cycles: 4 _____=>_____ RW zpy
+ 98 TYA 2        $98: bytes: 1 cycles: 2 __Y__=>A___P __ 
+ 99 STA aby 5    $99: bytes: 3 cycles: 5 A____=>_____ RW absy
+ 9A TXS 2        $9A: bytes: X cycles: 2 _X___=>___S_ __ 
+ 9B *TAS aby 5   $9B: bytes: X cycles: 5 __Y__=>___S_ _W 
+ 9C *SHY abx 5   $9C: bytes: 3 cycles: 5 __Y__=>_____ RW absx
+ 9D STA abx 5    $9D: bytes: 3 cycles: 5 A____=>_____ RW absx
+ 9E *SHX aby 5   $9E: bytes: 3 cycles: 5 _X___=>_____ RW absy
+ 9F *AHX aby 5   $9F: bytes: 3 cycles: 5 _____=>_____ RW absy
+ A0 LDY imm 2    $A0: bytes: 2 cycles: 2 _____=>__Y_P __ 
+ A1 LDA izx 6    $A1: bytes: 2 cycles: 6 _____=>A___P R_ izx
+ A2 LDX imm 2    $A2: bytes: 2 cycles: 2 _____=>_X__P __ 
+ A3 *LAX izx 6   $A3: bytes: 2 cycles: 6 _____=>AX__P R_ izx
+ A4 LDY zp 3     $A4: bytes: 2 cycles: 3 _____=>__Y_P R_ zp
+ A5 LDA zp 3     $A5: bytes: 2 cycles: 3 _____=>A___P R_ zp
+ A6 LDX zp 3     $A6: bytes: 2 cycles: 3 _____=>_X__P R_ zp
+ A7 *LAX zp 3    $A7: bytes: 2 cycles: 3 _____=>AX__P R_ zp
+ A8 TAY 2        $A8: bytes: 1 cycles: 2 A____=>__Y_P __ 
+ A9 LDA imm 2    $A9: bytes: 2 cycles: 2 _____=>A___P __ 
+ AA TAX 2        $AA: bytes: 1 cycles: 2 A____=>_X__P __ 
+ AB *LAX imm 2   $AB: bytes: 2 cycles: 2 A____=>AX__P __ 
+ AC LDY abs 4    $AC: bytes: 3 cycles: 4 _____=>__Y_P R_ abs
+ AD LDA abs 4    $AD: bytes: 3 cycles: 4 _____=>A___P R_ abs
+ AE LDX abs 4    $AE: bytes: 3 cycles: 4 _____=>_X__P R_ abs
+ AF *LAX abs 4   $AF: bytes: 3 cycles: 4 _____=>AX__P R_ abs
+ B0 BCS rel 2*   $B0: bytes: 2 cycles: 2 _____=>_____ __ 
+ B1 LDA izy 5*   $B1: bytes: 2 cycles: 5 _____=>A___P R_ izy
+ B2 *KIL         $B2: CRASH
+ B3 *LAX izy 5*  $B3: bytes: 2 cycles: 5 _____=>AX__P R_ izy
+ B4 LDY zpx 4    $B4: bytes: 2 cycles: 4 _____=>__Y_P R_ zpx
+ B5 LDA zpx 4    $B5: bytes: 2 cycles: 4 _____=>A___P R_ zpx
+ B6 LDX zpy 4    $B6: bytes: 2 cycles: 4 _____=>_X__P R_ zpy
+ B7 *LAX zpy 4   $B7: bytes: 2 cycles: 4 _____=>AX__P R_ zpy
+ B8 CLV 2        $B8: bytes: 1 cycles: 2 _____=>____P __ 
+ B9 LDA aby 4*   $B9: bytes: 3 cycles: 4 _____=>A___P R_ absy
+ BA TSX 2        $BA: bytes: 1 cycles: 2 ___S_=>_X__P __ 
+ BB *LAS aby 4*  $BB: bytes: 3 cycles: 4 ___S_=>AX_SP R_ absy
+ BC LDY abx 4*   $BC: bytes: 3 cycles: 4 _____=>__Y_P R_ absx
+ BD LDA abx 4*   $BD: bytes: 3 cycles: 4 _____=>A___P R_ absx
+ BE LDX aby 4*   $BE: bytes: 3 cycles: 4 _____=>_X__P R_ absy
+ BF *LAX aby 4*  $BF: bytes: 3 cycles: 4 _____=>AX__P R_ absy
+ C0 CPY imm 2    $C0: bytes: 2 cycles: 2 __Y__=>____P __ 
+ C1 CMP izx 6    $C1: bytes: 2 cycles: 6 A____=>____P R_ izx
+ C2 *NOP imm 2   $C2: bytes: 2 cycles: 2 _____=>_____ __ 
+ C3 *DCP izx 8   $C3: bytes: 2 cycles: 8 A____=>____P RW izx
+ C4 CPY zp 3     $C4: bytes: 2 cycles: 3 __Y__=>____P R_ zp
+ C5 CMP zp 3     $C5: bytes: 2 cycles: 3 A____=>____P R_ zp
+ C6 DEC zp 5     $C6: bytes: 2 cycles: 5 _____=>____P RW zp
+ C7 *DCP zp 5    $C7: bytes: 2 cycles: 5 A____=>____P RW zp
+ C8 INY 2        $C8: bytes: 1 cycles: 2 __Y__=>__Y_P __ 
+ C9 CMP imm 2    $C9: bytes: 2 cycles: 2 A____=>____P __ 
+ CA DEX 2        $CA: bytes: 1 cycles: 2 _X___=>_X__P __ 
+ CB *AXS imm 2   $CB: bytes: 2 cycles: 2 _____=>_X__P __ 
+ CC CPY abs 4    $CC: bytes: 3 cycles: 4 __Y__=>____P R_ abs
+ CD CMP abs 4    $CD: bytes: 3 cycles: 4 A____=>____P R_ abs
+ CE DEC abs 6    $CE: bytes: 3 cycles: 6 _____=>____P RW abs
+ CF *DCP abs 6   $CF: bytes: 3 cycles: 6 A____=>____P RW abs
+ D0 BNE rel 2*   $D0: bytes: 2 cycles: 3 ____P=>_____ __ 
+ D1 CMP izy 5*   $D1: bytes: 2 cycles: 5 A____=>____P R_ izy
+ D2 *KIL         $D2: CRASH
+ D3 *DCP izy 8   $D3: bytes: 2 cycles: 8 A____=>____P RW izy
+ D4 *NOP zpx 4   $D4: bytes: 2 cycles: 4 _____=>_____ R_ zpx
+ D5 CMP zpx 4    $D5: bytes: 2 cycles: 4 A____=>____P R_ zpx
+ D6 DEC zpx 6    $D6: bytes: 2 cycles: 6 _____=>____P RW zpx
+ D7 *DCP zpx 6   $D7: bytes: 2 cycles: 6 A____=>____P RW zpx
+ D8 CLD 2        $D8: bytes: 1 cycles: 2 _____=>____P __ 
+ D9 CMP aby 4*   $D9: bytes: 3 cycles: 4 A____=>____P R_ absy
+ DA *NOP 2       $DA: bytes: 1 cycles: 2 _____=>_____ __ 
+ DB *DCP aby 7   $DB: bytes: 3 cycles: 7 A____=>____P RW absy
+ DC *NOP abx 4*  $DC: bytes: 3 cycles: 4 _____=>_____ R_ absx
+ DD CMP abx 4*   $DD: bytes: 3 cycles: 4 A____=>____P R_ absx
+ DE DEC abx 7    $DE: bytes: 3 cycles: 7 _____=>____P RW absx
+ DF *DCP abx 7   $DF: bytes: 3 cycles: 7 A____=>____P RW absx
+ E0 CPX imm 2    $E0: bytes: 2 cycles: 2 _X___=>____P __ 
+ E1 SBC izx 6    $E1: bytes: 2 cycles: 6 A___P=>A___P R_ izx
+ E2 *NOP imm 2   $E2: bytes: 2 cycles: 2 _____=>_____ __ 
+ E3 *ISC izx 8   $E3: bytes: 2 cycles: 8 A___P=>A___P RW izx
+ E4 CPX zp 3     $E4: bytes: 2 cycles: 3 _X___=>____P R_ zp
+ E5 SBC zp 3     $E5: bytes: 2 cycles: 3 A___P=>A___P R_ zp
+ E6 INC zp 5     $E6: bytes: 2 cycles: 5 _____=>____P RW zp
+ E7 *ISC zp 5    $E7: bytes: 2 cycles: 5 A___P=>A___P RW zp
+ E8 INX 2        $E8: bytes: 1 cycles: 2 _X___=>_X__P __ 
+ E9 SBC imm 2    $E9: bytes: 2 cycles: 2 A___P=>A___P __ 
+ EA NOP 2        $EA: bytes: 1 cycles: 2 _____=>_____ __ 
+ EB *SBC imm 2   $EB: bytes: 2 cycles: 2 A___P=>A___P __ 
+ EC CPX abs 4    $EC: bytes: 3 cycles: 4 _X___=>____P R_ abs
+ ED SBC abs 4    $ED: bytes: 3 cycles: 4 A___P=>A___P R_ abs
+ EE INC abs 6    $EE: bytes: 3 cycles: 6 _____=>____P RW abs
+ EF *ISC abs 6   $EF: bytes: 3 cycles: 6 A___P=>A___P RW abs
+ F0 BEQ rel 2*   $F0: bytes: 2 cycles: 2 _____=>_____ __ 
+ F1 SBC izy 5*   $F1: bytes: 2 cycles: 5 A___P=>A___P R_ izy
+ F2 *KIL         $F2: CRASH
+ F3 *ISC izy 8   $F3: bytes: 2 cycles: 8 A___P=>A___P RW izy
+ F4 *NOP zpx 4   $F4: bytes: 2 cycles: 4 _____=>_____ R_ zpx
+ F5 SBC zpx 4    $F5: bytes: 2 cycles: 4 A___P=>A___P R_ zpx
+ F6 INC zpx 6    $F6: bytes: 2 cycles: 6 _____=>____P RW zpx
+ F7 *ISC zpx 6   $F7: bytes: 2 cycles: 6 A___P=>A___P RW zpx
+ F8 SED 2        $F8: bytes: 1 cycles: 2 _____=>____P __ 
+ F9 SBC aby 4*   $F9: bytes: 3 cycles: 4 A___P=>A___P R_ absy
+ FA *NOP 2       $FA: bytes: 1 cycles: 2 _____=>_____ __ 
+ FB *ISC aby 7   $FB: bytes: 3 cycles: 7 A___P=>A___P RW absy
+ FC *NOP abx 4*  $FC: bytes: 3 cycles: 4 _____=>_____ R_ absx
+ FD SBC abx 4*   $FD: bytes: 3 cycles: 4 A___P=>A___P R_ absx
+ FE INC abx 7    $FE: bytes: 3 cycles: 7 _____=>____P RW absx
+ FF *ISC abx     $FF: bytes: 3 cycles: 7 A___P=>A___P RW absx
+
+ 
+              "Extra Instructions Of The 65XX Series CPU"
+
+            By: Adam Vardy (abe0084@infonet.st-johns.nf.ca)
+
+
+[File created: 22, Aug. 1995... 27, Sept. 1996]
+
+The following is a list of 65XX/85XX extra opcodes.  The operation codes 
+for the 6502 CPU fit in a single byte; out of 256 possible combinations, 
+only 151 are "legal."  This text describes the other 256-151= 105 operation 
+codes.  These opcodes are not generally recognized as part of the 6502 
+instruction set.  They are also referred to as undefined opcodes or 
+undocumented opcodes or non-standard opcodes or unofficial opcodes.  In 
+"The Commodore 64 Programmer's Reference Guide" their hexadecimal values 
+are simply marked as future expansion.  This list of opcodes was compiled 
+with help from "The Complete Inner Space Anthology" by Karl J. H. Hildon.
+
+I have marked off the beginning of the description of each opcode with a 
+few asterisks.  At times, I also included an alternate name in parenthesis. 
+All opcode values are given in hexadecimal.  These hexadecimal values are 
+listed immediately to the right of any sample code.  The lowercase letters 
+found in these examples represent the hex digits that you must provide as 
+the instruction's immediate byte value or as the instruction's destination 
+or source address.  Thus immediate values and zero page addresses are 
+referred to as 'ab'.  For absolute addressing mode the two bytes of an 
+absolute address are referred to as 'cd' and 'ab'.
+
+Execution times for all opcodes are given alongside to the very right of 
+any sample code.  A number of the opcodes described here combine the 
+operation of two regular 6502 instructions.  You can refer to a book on the 
+6502 instruction set for more information, such as which flags a particular 
+instruction affects.
+
+
+ASO    ***    (SLO)
+This opcode ASLs the contents of a memory location and then ORs the result 
+with the accumulator.  
+
+Supported modes:
+
+ASO abcd        ;0F cd ab    ;No. Cycles= 6
+ASO abcd,X      ;1F cd ab    ;            7
+ASO abcd,Y      ;1B cd ab    ;            7
+ASO ab          ;07 ab       ;            5
+ASO ab,X        ;17 ab       ;            6
+ASO (ab,X)      ;03 ab       ;            8
+ASO (ab),Y      ;13 ab       ;            8
+
+(Sub-instructions: ORA, ASL)
+
+Here is an example of how you might use this opcode:
+
+ASO $C010       ;0F 10 C0
+
+Here is the same code using equivalent instructions.
+
+ASL $C010
+ORA $C010
+
+RLA    ***
+RLA ROLs the contents of a memory location and then ANDs the result with 
+the accumulator.
+
+Supported modes:
+
+RLA abcd        ;2F cd ab    ;No. Cycles= 6
+RLA abcd,X      ;3F cd ab    ;            7
+RLA abcd,Y      ;3B cd ab    ;            7
+RLA ab          ;27 ab       ;            5
+RLA ab,X        ;37 ab       ;            6
+RLA (ab,X)      ;23 ab       ;            8
+RLA (ab),Y      ;33 ab       ;            8
+
+(Sub-instructions: AND, ROL)
+
+Here's an example of how you might write it in a program.
+
+RLA $FC,X       ;37 FC
+
+Here's the same code using equivalent instructions.
+
+ROL $FC,X
+AND $FC,X
+
+LSE    ***   (SRE)
+LSE LSRs the contents of a memory location and then EORs the result with 
+the accumulator.
+
+Supported modes:
+
+LSE abcd        ;4F cd ab    ;No. Cycles= 6
+LSE abcd,X      ;5F cd ab    ;            7
+LSE abcd,Y      ;5B cd ab    ;            7
+LSE ab          ;47 ab       ;            5
+LSE ab,X        ;57 ab       ;            6
+LSE (ab,X)      ;43 ab       ;            8
+LSE (ab),Y      ;53 ab       ;            8
+
+(Sub-instructions: EOR, LSR)
+
+Example:
+
+LSE $C100,X     ;5F 00 C1
+
+Here's the same code using equivalent instructions.
+
+LSR $C100,X
+EOR $C100,X
+
+RRA    ***
+RRA RORs the contents of a memory location and then ADCs the result with 
+the accumulator.
+
+Supported modes:
+
+RRA abcd        ;6F cd ab    ;No. Cycles= 6
+RRA abcd,X      ;7F cd ab    ;            7
+RRA abcd,Y      ;7B cd ab    ;            7
+RRA ab          ;67 ab       ;            5
+RRA ab,X        ;77 ab       ;            6
+RRA (ab,X)      ;63 ab       ;            8
+RRA (ab),Y      ;73 ab       ;            8
+
+(Sub-instructions: ADC, ROR)
+
+Example:
+
+RRA $030C       ;6F 0C 03
+
+Equivalent instructions:
+
+ROR $030C
+ADC $030C
+
+AXS    ***    (SAX)
+AXS ANDs the contents of the A and X registers (without changing the 
+contents of either register) and stores the result in memory.
+AXS does not affect any flags in the processor status register.
+
+Supported modes:
+
+AXS abcd        ;8F cd ab    ;No. Cycles= 4
+AXS ab          ;87 ab       ;            3
+AXS ab,Y        ;97 ab       ;            4
+AXS (ab,X)      ;83 ab       ;            6
+
+(Sub-instructions: STA, STX)
+
+Example:
+
+AXS $FE         ;87 FE
+
+Here's the same code using equivalent instructions.
+
+STX $FE
+PHA
+AND $FE
+STA $FE
+PLA
+
+LAX    ***
+This opcode loads both the accumulator and the X register with the contents 
+of a memory location.
+
+Supported modes:
+
+LAX abcd        ;AF cd ab    ;No. Cycles= 4
+LAX abcd,Y      ;BF cd ab    ;            4*
+LAX ab          ;A7 ab       ;*=add 1     3
+LAX ab,Y        ;B7 ab       ;if page     4
+LAX (ab,X)      ;A3 ab       ;boundary    6
+LAX (ab),Y      ;B3 ab       ;is crossed  5*
+
+(Sub-instructions: LDA, LDX)
+
+Example:
+
+LAX $8400,Y     ;BF 00 84
+
+Equivalent instructions:
+
+LDA $8400,Y
+LDX $8400,Y
+
+DCM    ***    (DCP)
+This opcode DECs the contents of a memory location and then CMPs the result 
+with the A register.
+
+Supported modes:
+
+DCM abcd        ;CF cd ab    ;No. Cycles= 6
+DCM abcd,X      ;DF cd ab    ;            7
+DCM abcd,Y      ;DB cd ab    ;            7
+DCM ab          ;C7 ab       ;            5
+DCM ab,X        ;D7 ab       ;            6
+DCM (ab,X)      ;C3 ab       ;            8
+DCM (ab),Y      ;D3 ab       ;            8
+
+(Sub-instructions: CMP, DEC)
+
+Example:
+
+DCM $FF         ;C7 FF
+
+Equivalent instructions:
+
+DEC $FF
+CMP $FF
+
+INS    ***    (ISC)
+This opcode INCs the contents of a memory location and then SBCs the result 
+from the A register.
+
+Supported modes:
+
+INS abcd        ;EF cd ab    ;No. Cycles= 6
+INS abcd,X      ;FF cd ab    ;            7
+INS abcd,Y      ;FB cd ab    ;            7
+INS ab          ;E7 ab       ;            5
+INS ab,X        ;F7 ab       ;            6
+INS (ab,X)      ;E3 ab       ;            8
+INS (ab),Y      ;F3 ab       ;            8
+
+(Sub-instructions: SBC, INC)
+
+Example:
+
+INS $FF         ;E7 FF
+
+Equivalent instructions:
+
+INC $FF
+SBC $FF
+
+ALR    ***
+This opcode ANDs the contents of the A register with an immediate value and 
+then LSRs the result.
+
+One supported mode:
+
+ALR #ab         ;4B ab       ;No. Cycles= 2
+
+Example:
+
+ALR #$FE        ;4B FE
+
+Equivalent instructions:
+
+AND #$FE
+LSR A
+
+ARR    ***
+This opcode ANDs the contents of the A register with an immediate value and 
+then RORs the result.
+
+One supported mode:
+
+ARR #ab         ;6B ab       ;No. Cycles= 2
+
+Here's an example of how you might write it in a program.
+
+ARR #$7F        ;6B 7F
+
+Here's the same code using equivalent instructions.
+
+AND #$7F
+ROR A
+
+XAA    ***
+XAA transfers the contents of the X register to the A register and then 
+ANDs the A register with an immediate value.
+
+One supported mode:
+
+XAA #ab         ;8B ab       ;No. Cycles= 2
+
+Example:
+
+XAA #$44        ;8B 44
+
+Equivalent instructions:
+
+TXA
+AND #$44
+
+OAL    ***
+This opcode ORs the A register with #$EE, ANDs the result with an immediate 
+value, and then stores the result in both A and X.
+
+One supported mode:
+
+OAL #ab         ;AB ab       ;No. Cycles= 2
+
+Here's an example of how you might use this opcode:
+
+OAL #$AA        ;AB AA
+
+Here's the same code using equivalent instructions:
+
+ORA #$EE
+AND #$AA
+TAX
+
+SAX    ***
+SAX ANDs the contents of the A and X registers (leaving the contents of A 
+intact), subtracts an immediate value, and then stores the result in X.
+... A few points might be made about the action of subtracting an immediate 
+value.  It actually works just like the CMP instruction, except that CMP 
+does not store the result of the subtraction it performs in any register.  
+This subtract operation is not affected by the state of the Carry flag, 
+though it does affect the Carry flag.  It does not affect the Overflow 
+flag.
+
+One supported mode:
+
+SAX #ab         ;CB ab       ;No. Cycles= 2
+
+Example:
+
+SAX #$5A        ;CB 5A
+
+Equivalent instructions:
+
+STA $02
+TXA
+AND $02
+SEC
+SBC #$5A
+TAX
+LDA $02
+
+Note: Memory location $02 would not be altered by the SAX opcode.
+
+NOP    ***
+NOP performs no operation.  Opcodes: 1A, 3A, 5A, 7A, DA, FA.
+Takes 2 cycles to execute.
+
+SKB    ***
+SKB stands for skip next byte.
+Opcodes: 80, 82, C2, E2, 04, 14, 34, 44, 54, 64, 74, D4, F4.
+Takes 2, 3, or 4 cycles to execute.
+
+SKW    ***
+SKW skips next word (two bytes).
+Opcodes: 0C, 1C, 3C, 5C, 7C, DC, FC.
+Takes 4 cycles to execute.
+
+To be dizzyingly precise, SKW actually performs a read operation.  It's 
+just that the value read is not stored in any register.  Further, opcode 0C 
+uses the absolute addressing mode.  The two bytes which follow it form the 
+absolute address.  All the other SKW opcodes use the absolute indexed X 
+addressing mode.  If a page boundary is crossed, the execution time of one 
+of these SKW opcodes is upped to 5 clock cycles.
+--------------------------------------------------------------------------
+
+The following opcodes were discovered and named exclusively by the author.
+(Or so it was thought before.)
+
+HLT    ***
+HLT crashes the microprocessor.  When this opcode is executed, program 
+execution ceases.  No hardware interrupts will execute either.  The author 
+has characterized this instruction as a halt instruction since this is the 
+most straightforward explanation for this opcode's behaviour.  Only a reset 
+will restart execution.  This opcode leaves no trace of any operation 
+performed!  No registers affected.
+
+Opcodes: 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2.
+
+TAS    ***
+This opcode ANDs the contents of the A and X registers (without changing 
+the contents of either register) and transfers the result to the stack 
+pointer.  It then ANDs that result with the contents of the high byte of 
+the target address of the operand +1 and stores that final result in 
+memory.  
+
+One supported mode:
+
+TAS abcd,Y      ;9B cd ab    ;No. Cycles= 5
+
+(Sub-instructions: STA, TXS)
+
+Here is an example of how you might use this opcode:
+
+TAS $7700,Y     ;9B 00 77
+
+Here is the same code using equivalent instructions.
+
+STX $02
+PHA
+AND $02
+TAX
+TXS
+AND #$78
+STA $7700,Y
+PLA
+LDX $02
+
+Note: Memory location $02 would not be altered by the TAS opcode.
+
+Above I used the phrase 'the high byte of the target address of the operand 
++1'.  By the words target address, I mean the unindexed address, the one 
+specified explicitly in the operand.  The high byte is then the second byte 
+after the opcode (ab).  So we'll shorten that phrase to AB+1.
+
+SAY    ***
+This opcode ANDs the contents of the Y register with <ab+1> and stores the 
+result in memory.
+
+One supported mode:
+
+SAY abcd,X      ;9C cd ab    ;No. Cycles= 5
+
+Example:
+
+SAY $7700,X     ;9C 00 77
+
+Equivalent instructions:
+
+PHA
+TYA
+AND #$78
+STA $7700,X
+PLA
+
+XAS    ***
+This opcode ANDs the contents of the X register with <ab+1> and stores the 
+result in memory.
+
+One supported mode:
+
+XAS abcd,Y      ;9E cd ab    ;No. Cycles= 5
+
+Example:
+
+XAS $6430,Y     ;9E 30 64
+
+Equivalent instructions:
+
+PHA
+TXA
+AND #$65
+STA $6430,Y
+PLA
+
+AXA    ***
+This opcode stores the result of A AND X AND the high byte of the target 
+address of the operand +1 in memory.
+
+Supported modes:
+
+AXA abcd,Y      ;9F cd ab    ;No. Cycles= 5
+AXA (ab),Y      ;93 ab       ;            6
+
+Example:
+
+AXA $7133,Y     ;9F 33 71
+
+Equivalent instructions:
+
+STX $02
+PHA
+AND $02
+AND #$72
+STA $7133,Y
+PLA
+LDX $02
+
+Note: Memory location $02 would not be altered by the AXA opcode.
+
+
+The following notes apply to the above four opcodes: TAS, SAY, XAS, AXA.
+
+None of these opcodes affect the accumulator, the X register, the Y 
+register, or the processor status register!
+     The author has no explanation for the complexity of these 
+instructions.  It is hard to comprehend how the microprocessor could handle 
+the convoluted sequence of events which appears to occur while executing 
+one of these opcodes.  A partial explanation for what is going on is that 
+these instructions appear to be corruptions of other instructions.  For 
+example, the opcode SAY would have been one of the addressing modes of the 
+standard instruction STY (absolute indexed X) were it not for the fact that 
+the normal operation of this instruction is impaired in this particular 
+instance.
+
+One irregularity uncovered is that sometimes the actual value is stored in 
+memory, and the AND with <ab+1> part drops off (ex. SAY becomes true STY).  
+This happens very infrequently.  The behaviour appears to be connected with 
+the video display.  For example, it never seems to occur if either the 
+screen is blanked or C128 2MHz mode is enabled.
+
+--- Imported example ---
+Here is a demo program to illustrate the above effect.  SYS 8200 to try it.  
+There is no exit, so you'll have to hit Stop-Restore to quit.  And you may 
+want to clear the screen before running it.  For contrast, there is a 
+second routine which runs during idle state display.  Use SYS 8211 for it.  
+After trying the second routine, check it out again using POKE 53269,255 to 
+enable sprites.
+
+begin 640 say->sty
+D"""B`*`@G``%Z$P,("P1T##[+!'0$/NB`*`@G``%Z-#Z3!,@
+`
+end
+
+--- Text import end ---
+
+WARNING: If the target address crosses a page boundary because of indexing, 
+the instruction may not store at the intended address.  It may end up 
+storing in zero page, or another address altogether (page=value stored). 
+Apparently certain internal 65XX registers are being overridden.  The whole 
+scheme behind this erratic behaviour is very complex and strange.  
+
+
+And continuing with the list...
+
+ANC    ***
+ANC ANDs the contents of the A register with an immediate value and then 
+moves bit 7 of A into the Carry flag.  This opcode works basically 
+identically to AND #immed. except that the Carry flag is set to the same 
+state that the Negative flag is set to.
+
+One supported mode:
+
+ANC #ab         ;2B ab       ;No. Cycles= 2
+ANC #ab         ;0B ab
+
+(Sub-instructions: AND, ROL)
+
+OPCODE 89
+Opcode 89 is another SKB instruction.  It requires 2 cycles to execute.
+
+LAS    ***
+This opcode ANDs the contents of a memory location with the contents of the 
+stack pointer register and stores the result in the accumulator, the X 
+register, and the stack pointer.  Affected flags: N Z.
+
+One supported mode:
+
+LAS abcd,Y      ;BB cd ab    ;No. Cycles= 4*
+
+OPCODE EB
+Opcode EB seems to work exactly like SBC #immediate.  Takes 2 cycles.
+
+That is the end of the list.
+
+This list is a full and complete list of all undocumented opcodes, every 
+last hex value.  It provides complete and thorough information and it also 
+corrects some incorrect information found elsewhere.  The opcodes MKA and 
+MKX (also known as TSTA and TSTX) as described in "The Complete Commodore 
+Inner Space Anthology" do not exist.  Also, it is erroneously indicated 
+there that the instructions ASO, RLA, LSE, RRA have an immediate addressing 
+mode.  (RLA #ab would be ANC #ab.)
+
+[Recent additions to this text file]
+
+Here are some other more scrutinizing observations.
+
+The opcode ARR operates more complexily than actually described in the list 
+above.  Here is a brief rundown on this.  The following assumes the decimal 
+flag is clear.  You see, the sub-instruction for ARR ($6B) is in fact ADC 
+($69), not AND.  While ADC is not performed, some of the ADC mechanics are 
+evident.  Like ADC, ARR affects the overflow flag.  The following effects 
+occur after ANDing but before RORing.  The V flag is set to the result of 
+exclusive ORing bit 7 with bit 6.  Unlike ROR, bit 0 does not go into the 
+carry flag.  The state of bit 7 is exchanged with the carry flag.  Bit 0 is 
+lost.  All of this may appear strange, but it makes sense if you consider 
+the probable internal operations of ADC itself.  
+
+SKB opcodes 82, C2, E2 may be HLTs.  Since only one source claims this, and 
+no other sources corroborate this, it must be true on very few machines.  
+On all others, these opcodes always perform no operation.
+
+LAS is suspect.  This opcode is possibly unreliable.
+
+OPCODE BIT-PATTERN: 10x0 1011
+Now it is time to discuss XAA ($8B) and OAL ($AB).  A fair bit of 
+controversy has surrounded these two opcodes.  There are two good reasons 
+for this.  1 - They are rather weird in operation.  2 - They do operate 
+differently on different machines.  Highly variable.
+
+Here is the basic operation.
+OAL
+This opcode ORs the A register with #xx, ANDs the result with an immediate 
+value, and then stores the result in both A and X.
+
+On my 128, xx may be EE,EF,FE, OR FF.  These possibilities appear to depend 
+on three factors: the X register, PC, and the previous instruction 
+executed.  Bit 0 is ORed from x, and also from PCH.  As for XAA, on my 128 
+this opcode appears to work exactly as described in the list.
+
+On my 64, OAL produces all sorts of values for xx: 00,04,06,80, etc... A 
+rough scenario I worked out to explain this is here.  The constant value EE 
+disappears entirely.  Instead of ORing with EE, the accumulator is ORed 
+with certain bits of X and also ORed with certain bits of another 
+"register" (nature unknown, whether it be the data bus, or something else).  
+However, if OAL is preceded by certain other instructions like NOP, the 
+constant value EE reappears and the foregoing does not take place.
+
+On my 64, XAA works like this.  While X is transfered to A, bit 0 and bit 4 
+are not.  Instead, these bits are ANDed with those bits from A, and the 
+result is stored in A.
+
+There may be many variations in the behaviour of both opcodes.  XAA #$00 or 
+OAL #$00 are likely quite reliable in any case.  It seems clear that the 
+video chip (i.e., VIC-II) bears responsibility for some small part of the 
+anomalousness, at least.  Beyond that, the issue is unclear.   
+
+One idea I'll just throw up in the air about why the two opcodes behave as 
+they do is this observation.  While other opcodes like 4B and 6B perform 
+AND as their first step, 8B and AB do not.  Perhaps this difference leads 
+to some internal conflict in the microprocessor.  Besides being subject to 
+"noise", the actual base operations do not vary.
+
+All of the opcodes in this list (at least up to the dividing line) use the 
+naming convention from the CCISA Anthology book.  There is another naming 
+convention used, for example in the first issue of C=Hacking.  The only 
+assembler I know of that supports undocumented opcodes is Power Assembler.  
+And it uses the same naming conventions as used here.
+
+One note on a different topic.  A small error has been pointed out in the 
+64 Programmers Reference Guide with the instruction set listing.  In the 
+last row, in the last column of the two instructions AND and ORA there 
+should be an asterisk, just as there is with ADC.  That is the indirect,Y 
+addressing mode.  In another table several pages later correct information 
+is given.
+
+(A correction:  There was one error in this document originally.  One
+addressing mode for LAX was given as LAX ab,X.  This should have been
+LAX ab,Y (B7).  Also note that Power Assembler apparently has this same
+error, likely because both it and this document derive first from the same
+source as regards these opcodes.  Coding LAX $00,X is accepted and
+produces the output B7 00.)
+
+References
+
+o  Joel Shepherd. "Extra Instructions" COMPUTE!, October 1983.
+o  Jim Butterfield. "Strange Opcodes" COMPUTE, March 1993.
+o  Raymond Quirling. "6510 Opcodes" The Transactor, March 1986.
+o  John West, Marko Mäkelä. '64doc' file, 1994/06/03.

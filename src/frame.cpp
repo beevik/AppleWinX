@@ -518,7 +518,6 @@ static LRESULT CALLBACK FrameWndProc(
                 ImageDestroy();
             }
             CommDestroy();
-            CpuDestroy();
             MemDestroy();
             SpkrDestroy();
             VideoDestroy();

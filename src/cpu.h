@@ -22,9 +22,9 @@ enum CpuType {
     CPU_TYPE_65C02,
 };
 
+extern bool      cpuKill;
 extern registers regs;
 
-void  CpuDestroy();
 int   CpuExecute(DWORD cycles, int64_t * cyclecounter);
 void  CpuInitialize();
 void  CpuSetupBenchmark();
