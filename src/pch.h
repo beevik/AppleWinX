@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <climits>
 
 #include <string>
 #include <unordered_map>

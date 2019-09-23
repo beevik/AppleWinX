@@ -16,7 +16,7 @@ static Event eventQueue[MAX_EVENTS];
 
 //===========================================================================
 bool SchedulerDequeue (int64_t elapsedCycles, Event * event) {
-    if (eventCount == 0 || eventQueue[0].cycle >= elapsedCycles)
+    if (eventCount == 0 || eventQueue[0].cycle > elapsedCycles)
         return false;
 
     *event = eventQueue[0];
@@ -60,4 +60,11 @@ bool SchedulerEnqueue(Event event) {
         index = parentIndex;
     }
     return true;
+}
+
+//===========================================================================
+int64_t SchedulerPeekTime() {
+    if (eventCount == 0)
+        return LLONG_MAX;
+    return eventQueue[0].cycle;
 }

@@ -1656,7 +1656,7 @@ static BOOL InternalSingleStep() {
     BOOL result = 0;
     _try {
         ++profiledata[mem[regs.pc]];
-        CpuExecute(stepline, &totalCycles);
+        CpuExecute(stepline, &g_cyclesEmulated);
         result = 1;
     }
     _except(EXCEPTION_EXECUTE_HANDLER) {

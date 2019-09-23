@@ -29,3 +29,4 @@ int   CpuExecute(DWORD cycles, int64_t * cyclecounter);
 void  CpuInitialize();
 void  CpuSetupBenchmark();
 void  CpuSetType(CpuType type);
+int   CpuStep6502();

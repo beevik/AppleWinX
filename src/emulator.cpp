@@ -18,14 +18,37 @@ BOOL      fullSpeed   = FALSE;
 HINSTANCE instance    = (HINSTANCE)0;
 int       mode        = MODE_LOGO;
 BOOL      restart     = FALSE;
-int64_t   totalCycles = 0;
+
+int64_t g_cyclesEmulated = 0;
 
 static int     speed           = SPEED_NORMAL;
 static double  speedMultiplier = 1.0;
 static int64_t lastExecute     = 0;
 
 //===========================================================================
-static void ContinueExecution() {
+static void AdvanceNew() {
+    // Advance the emulator until we catch up to the current time.
+    int64_t realCyclesElapsed = TimerGetCyclesElapsed();
+    while (g_cyclesEmulated < realCyclesElapsed) {
+
+        // Step the CPU until the next important event is scheduled.
+        int64_t nextEventCycle = MIN(SchedulerPeekTime(), realCyclesElapsed);
+        while (g_cyclesEmulated < nextEventCycle)
+            g_cyclesEmulated += CpuStep6502();
+
+        // Process all events scheduled to happen before or on the current
+        // cycle.
+        Event event;
+        while (SchedulerDequeue(g_cyclesEmulated, &event))
+            event.func(g_cyclesEmulated);
+    }
+
+    // Sleep until the next update (4ms later).
+    TimerSleepUs(4000);
+}
+
+//===========================================================================
+static void Advance() {
     static int cycleSurplus = 0;
 
     // Check if the emulator should run at full-speed.
@@ -47,18 +70,18 @@ static void ContinueExecution() {
 
     // Advance the emulator 1 millisecond at a time.
     for (int t = 0; t < ms; ++t) {
-        int cyclesattempted = CPU_CYCLES_PER_MS - cycleSurplus;
-        int cyclesexecuted  = CpuExecute(cyclesattempted, &totalCycles);
-        cycleSurplus = cyclesexecuted - cyclesattempted;
+        int cyclesAttempted = CPU_CYCLES_PER_MS - cycleSurplus;
+        int cyclesExecuted  = CpuExecute(cyclesAttempted, &g_cyclesEmulated);
+        cycleSurplus = cyclesExecuted - cyclesAttempted;
 
         // Process all scheduled events.
         Event event;
-        while (SchedulerDequeue(totalCycles, &event))
+        while (SchedulerDequeue(g_cyclesEmulated, &event))
             event.func(event.cycle);
 
-        DiskUpdatePosition(cyclesexecuted);
-        JoyUpdatePosition(cyclesexecuted);
-        SpkrUpdate(cyclesexecuted);
+        DiskUpdatePosition(cyclesExecuted);
+        JoyUpdatePosition(cyclesExecuted);
+        SpkrUpdate(cyclesExecuted);
 
         // Check if fullspeed status has changed.
         if (fullSpeed) {
@@ -132,7 +155,7 @@ static void MessageLoop() {
         WindowUpdate();
 
         if (mode == MODE_RUNNING)
-            ContinueExecution();
+            AdvanceNew();
         else if (mode == MODE_STEPPING)
             DebugContinueStepping();
         else if (mode == MODE_SHUTDOWN)
@@ -151,8 +174,10 @@ int GetSpeed() {
 void SetMode(int newMode) {
     if (mode == newMode)
         return;
-    if (newMode == MODE_RUNNING)
+    if (newMode == MODE_RUNNING) {
+        TimerReset(0);
         lastExecute = TimerGetMsElapsed();
+    }
     mode = newMode;
 }
 
@@ -163,6 +188,7 @@ void SetSpeed(int newSpeed) {
         speedMultiplier = 0.5 + speed * 0.05;
     else
         speedMultiplier = speed * 0.1;
+    TimerSetSpeedMultiplier(float(speedMultiplier));
 }
 
 //===========================================================================

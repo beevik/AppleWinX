@@ -21,10 +21,11 @@ constexpr int MODE_STEPPING = 4;
 constexpr int MODE_SHUTDOWN = 5;
 
 constexpr int SPEED_NORMAL  = 10;
-constexpr int SPEED_MAX     = 40;
+constexpr int SPEED_MAX     = 81;
 
-constexpr double CPU_HZ            = 1020484.32;
-constexpr DWORD  CPU_CYCLES_PER_MS = DWORD(CPU_HZ / 1000.0);
+constexpr double  CPU_HZ            = 1020484.32;
+constexpr DWORD   CPU_CYCLES_PER_MS = DWORD(CPU_HZ * 0.001);
+constexpr double  CPU_CYCLES_PER_US = CPU_HZ * 0.000001;
 
 #define  MAX(a,b)   (((a) > (b)) ? (a) : (b))
 #define  MIN(a,b)   (((a) < (b)) ? (a) : (b))
@@ -38,7 +39,8 @@ extern int          mode;
 extern char         programDir[MAX_PATH];
 extern BOOL         restart;
 extern const char * title;
-extern int64_t      totalCycles;
+
+extern int64_t      g_cyclesEmulated;
 
 int  GetSpeed();
 void SetMode(int newmode);

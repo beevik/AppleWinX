@@ -56,7 +56,7 @@ void SpkrInitialize() {
 
 //===========================================================================
 BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
-    int cyclesSince = int(totalCycles - lastToggle);
+    int cyclesSince = int(g_cyclesEmulated - lastToggle);
     int samples     = cyclesSince / 32;
 
     if (samples < audioBufSize && !fullSpeed) {
@@ -66,7 +66,7 @@ BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
     }
 
     audioSample = -audioSample;
-    lastToggle  = totalCycles;
+    lastToggle  = g_cyclesEmulated;
 
     return MemReturnRandomData(TRUE);
 }
