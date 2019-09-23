@@ -51,10 +51,14 @@ static void ContinueExecution() {
         int cyclesexecuted  = CpuExecute(cyclesattempted, &totalCycles);
         cycleSurplus = cyclesexecuted - cyclesattempted;
 
+        // Process all scheduled events.
+        Event event;
+        while (SchedulerDequeue(totalCycles, &event))
+            event.func(event.cycle);
+
         DiskUpdatePosition(cyclesexecuted);
         JoyUpdatePosition(cyclesexecuted);
         SpkrUpdate(cyclesexecuted);
-        VideoUpdate();
 
         // Check if fullspeed status has changed.
         if (fullSpeed) {

@@ -66,7 +66,6 @@ static fupdate       updateUpper;
 static DWORD   charOffset     = 0;
 static BOOL    displayPage2   = FALSE;
 static HDC     frameDC        = (HDC)0;
-static int32_t frameCounter  = -1;
 static DWORD   modeSwitches   = 0;
 static BOOL    redrawFull     = TRUE;
 static HFONT   videoFont      = (HFONT)0;
@@ -467,6 +466,12 @@ static void UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
 }
 
 //===========================================================================
+static void UpdateVideoScreen(int64_t cycle) {
+    VideoRefreshScreen();
+    SchedulerEnqueue(Event(cycle + CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen));
+}
+
+//===========================================================================
 static void UpdateVideoMode(DWORD newMode) {
     videoMode = newMode;
 
@@ -723,15 +728,6 @@ BYTE VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
 }
 
 //===========================================================================
-void VideoUpdate() {
-    int32_t currFrame = int32_t(totalCycles / (CYCLES_PER_SCANLINE * NTSC_SCANLINES));
-    if (currFrame > frameCounter) {
-        VideoRefreshScreen();
-        frameCounter = currFrame;
-    }
-}
-
-//===========================================================================
 BYTE VideoCheckVbl(WORD pc, BYTE address, BYTE write, BYTE value) {
     int64_t frameCycle = totalCycles % (CYCLES_PER_SCANLINE * NTSC_SCANLINES);
     return MemReturnRandomData(frameCycle < (CYCLES_PER_SCANLINE * DISPLAY_LINES));
@@ -973,6 +969,7 @@ void VideoInitialize() {
 
     LoadSourceLookup();
     VideoResetState();
+    SchedulerEnqueue(Event(CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen));
 }
 
 //===========================================================================

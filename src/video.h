@@ -20,7 +20,6 @@ void VideoRefreshScreen();
 void VideoReinitialize();
 void VideoReleaseFrameDC();
 void VideoResetState();
-void VideoUpdate();
 
 BYTE VideoCheckMode(WORD pc, BYTE address, BYTE write, BYTE value);
 BYTE VideoCheckVbl(WORD pc, BYTE address, BYTE write, BYTE value);

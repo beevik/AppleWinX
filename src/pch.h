@@ -39,6 +39,7 @@
 #include "keyboard.h"
 #include "memory.h"
 #include "registry.h"
+#include "scheduler.h"
 #include "speaker.h"
 #include "strings.h"
 #include "timer.h"
