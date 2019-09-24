@@ -25,15 +25,29 @@ static int     speed           = SPEED_NORMAL;
 static double  speedMultiplier = 1.0;
 static int64_t lastExecute     = 0;
 
+#if 0
+static int ad[256];
+static int adIndex = 0;
+#endif
+
 //===========================================================================
 static void AdvanceNew() {
+    // Sleep for the emulator tick.
+    TimerWait();
+
     // Advance the emulator until we catch up to the current time.
     int64_t realCyclesElapsed = TimerGetCyclesElapsed();
+#if 0
+    ad[adIndex] = int(realCyclesElapsed - g_cyclesEmulated);
+    adIndex = (adIndex + 1) & 0xff;
+#endif
+
     while (g_cyclesEmulated < realCyclesElapsed) {
 
         // Step the CPU until the next important event is scheduled.
         int64_t nextEventCycle = MIN(SchedulerPeekTime(), realCyclesElapsed);
         while (g_cyclesEmulated < nextEventCycle)
+            //g_cyclesEmulated += CpuStepTest();
             g_cyclesEmulated += CpuStep6502();
 
         // Process all events scheduled to happen before or on the current
@@ -42,9 +56,6 @@ static void AdvanceNew() {
         while (SchedulerDequeue(g_cyclesEmulated, &event))
             event.func(g_cyclesEmulated);
     }
-
-    // Sleep until the next update (4ms later).
-    TimerSleepUs(4000);
 }
 
 //===========================================================================
@@ -147,13 +158,12 @@ static void LoadConfiguration() {
     RegLoadValue("Configuration", "Emulation Speed", (DWORD *)&speed);
     RegLoadValue("Configuration", "Enhance Disk Speed", (DWORD *)&optEnhancedDisk);
     RegLoadValue("Configuration", "Monochrome Video", (DWORD *)&optMonochrome);
+    SetSpeed(speed);
 }
 
 //===========================================================================
 static void MessageLoop() {
     for (;;) {
-        WindowUpdate();
-
         if (mode == MODE_RUNNING)
             AdvanceNew();
         else if (mode == MODE_STEPPING)
@@ -162,6 +172,8 @@ static void MessageLoop() {
             break;
         else
             Sleep(1);
+
+        WindowUpdate();
     }
 }
 
@@ -206,13 +218,13 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     do {
         restart = FALSE;
         SetMode(MODE_LOGO);
+        TimerInitialize(1);
         LoadConfiguration();
         DebugInitialize();
         JoyInitialize();
         MemInitialize();
         VideoInitialize();
         FrameCreateWindow();
-        TimerInitialize(1);
 
         MessageLoop();
 

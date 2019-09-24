@@ -17,8 +17,6 @@
 
 ETimerMode g_timerMode = TIMER_MODE_NORMAL;
 
-static double s_cycleMultiplier = 1.0;
-
 
 /****************************************************************************
 *
@@ -28,11 +26,12 @@ static double s_cycleMultiplier = 1.0;
 
 #ifdef OS_WINDOWS
 
-static int64_t s_cyclesElapsed;
-static int64_t s_lastUpdateTimeUs;
+static double  s_cyclesElapsed;
+static int64_t s_lastUpdateCount;
 static int64_t s_perfFreqMs;
-static int64_t s_perfFreqUs;
+static double  s_cyclesPerTick;
 static int64_t s_startCount;
+static int64_t s_ticksPerSecond;
 static HANDLE  s_timer;
 static HANDLE  s_timerSemaphore;
 static HANDLE  s_timerThread;
@@ -69,10 +68,9 @@ static DWORD WINAPI TimerThread(LPVOID param) {
 static void UpdateElapsedCycles() {
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
-    int64_t timeUs      = counter.QuadPart / s_perfFreqUs;
-    double  cyclesSince = double(timeUs - s_lastUpdateTimeUs) * s_cycleMultiplier;
-    s_lastUpdateTimeUs = timeUs;
-    s_cyclesElapsed += int64_t(cyclesSince);
+    int64_t tickDelta = counter.QuadPart - s_lastUpdateCount;
+    s_cyclesElapsed += tickDelta * s_cyclesPerTick;
+    s_lastUpdateCount = counter.QuadPart;
 }
 
 //===========================================================================
@@ -90,8 +88,9 @@ void TimerDestroy() {
 void TimerInitialize(int periodMs) {
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
-    s_perfFreqMs = freq.QuadPart / 1000LL;
-    s_perfFreqUs = freq.QuadPart / 1000000LL;
+    s_ticksPerSecond = freq.QuadPart;
+    s_perfFreqMs     = freq.QuadPart / 1000LL;
+    s_cyclesPerTick  = CPU_HZ / s_ticksPerSecond;
 
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
@@ -109,7 +108,7 @@ void TimerInitialize(int periodMs) {
 //===========================================================================
 int64_t TimerGetCyclesElapsed() {
     UpdateElapsedCycles();
-    return s_cyclesElapsed;
+    return int64_t(s_cyclesElapsed);
 }
 
 //===========================================================================
@@ -121,11 +120,11 @@ int64_t TimerGetMsElapsed() {
 
 //===========================================================================
 void TimerReset(int64_t cyclesElapsed) {
-    s_cyclesElapsed = cyclesElapsed;
+    s_cyclesElapsed = double(cyclesElapsed);
 
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
-    s_lastUpdateTimeUs = counter.QuadPart / s_perfFreqUs;
+    s_lastUpdateCount = counter.QuadPart;
 }
 
 //===========================================================================
@@ -140,7 +139,7 @@ void TimerSetMode(ETimerMode mode) {
 //===========================================================================
 void TimerSetSpeedMultiplier(float multiplier) {
     UpdateElapsedCycles();
-    s_cycleMultiplier = double(multiplier) * CPU_CYCLES_PER_US;
+    s_cyclesPerTick = multiplier * CPU_HZ / s_ticksPerSecond;
 }
 
 //===========================================================================

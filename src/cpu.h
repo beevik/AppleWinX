@@ -30,3 +30,4 @@ void  CpuInitialize();
 void  CpuSetupBenchmark();
 void  CpuSetType(CpuType type);
 int   CpuStep6502();
+int   CpuStepTest();

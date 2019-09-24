@@ -178,13 +178,13 @@ void WindowUpdate() {
             screen->pixels,
             screenRect.w * sizeof(uint32_t)
         );
+
+        SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xff);
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+        SDL_RenderPresent(renderer);
         screenDirty = false;
     }
-
-    SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xff);
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-    SDL_RenderPresent(renderer);
 
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
