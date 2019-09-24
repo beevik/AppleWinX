@@ -37,12 +37,13 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
         case SDL_SCANCODE_F11:
         case SDL_SCANCODE_PAUSE:
             if (IsUnmodified(key.keysym.mod)) {
+                EEmulatorMode mode = GetMode();
                 switch (mode) {
-                    case MODE_RUNNING:  SetMode(MODE_PAUSED);            break;
-                    case MODE_PAUSED:   SetMode(MODE_RUNNING);           break;
-                    case MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
+                    case EMULATOR_MODE_RUNNING:  SetMode(EMULATOR_MODE_PAUSED);   break;
+                    case EMULATOR_MODE_PAUSED:   SetMode(EMULATOR_MODE_RUNNING);  break;
+                    case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
-                if ((mode != MODE_LOGO) && (mode != MODE_DEBUG))
+                if ((mode != EMULATOR_MODE_LOGO) && (mode != EMULATOR_MODE_DEBUG))
                     VideoRedrawScreen();
                 return;
             }
@@ -72,10 +73,11 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
             break;
     }
 
-    if (mode == MODE_RUNNING || mode == MODE_STEPPING) {
+    EEmulatorMode mode = GetMode();
+    if (mode == EMULATOR_MODE_RUNNING || mode == EMULATOR_MODE_STEPPING) {
         KeybQueueKeypressSdl(key.keysym);
     }
-    else if (mode == MODE_DEBUG) {
+    else if (mode == EMULATOR_MODE_DEBUG) {
         // DebugProcessCommandSdl(key.keysym);
     }
 }
@@ -190,7 +192,7 @@ void WindowUpdate() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_QUIT:
-                SetMode(MODE_SHUTDOWN);
+                SetMode(EMULATOR_MODE_SHUTDOWN);
                 return;
             case SDL_KEYDOWN:
                 ProcessEventKeyDown(event.key);

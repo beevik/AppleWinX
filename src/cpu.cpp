@@ -9,14 +9,14 @@
 #include "pch.h"
 #pragma  hdrstop
 
-constexpr BYTE AF_SIGN      = 0x80;
-constexpr BYTE AF_OVERFLOW  = 0x40;
-constexpr BYTE AF_RESERVED  = 0x20;
-constexpr BYTE AF_BREAK     = 0x10;
-constexpr BYTE AF_DECIMAL   = 0x08;
-constexpr BYTE AF_INTERRUPT = 0x04;
-constexpr BYTE AF_ZERO      = 0x02;
-constexpr BYTE AF_CARRY     = 0x01;
+constexpr uint8_t PS_CARRY     = 1 << 0;
+constexpr uint8_t PS_ZERO      = 1 << 1;
+constexpr uint8_t PS_INTERRUPT = 1 << 2;
+constexpr uint8_t PS_DECIMAL   = 1 << 3;
+constexpr uint8_t PS_BREAK     = 1 << 4;
+constexpr uint8_t PS_RESERVED  = 1 << 5;
+constexpr uint8_t PS_OVERFLOW  = 1 << 6;
+constexpr uint8_t PS_SIGN      = 1 << 7;
 
 constexpr int SHORTOPCODES = 22;
 constexpr int BENCHOPCODES = 33;
@@ -24,7 +24,7 @@ constexpr int BENCHOPCODES = 33;
 bool      cpuKill = false;
 registers regs = { 0 };
 
-static CpuType cpuType;
+static ECpuType cpuType;
 
 static const BYTE benchopcode[BENCHOPCODES] = {
     0x06, 0x16, 0x24, 0x45, 0x48, 0x65, 0x68, 0x76,
@@ -52,16 +52,16 @@ const int statestart = 50000;
 *
 ***/
 
-#define AF_TO_EF() flagc = (regs.ps & AF_CARRY);                            \
-                   flagn = (regs.ps & AF_SIGN);                             \
-                   flagv = (regs.ps & AF_OVERFLOW);                         \
-                   flagz = (regs.ps & AF_ZERO)
-#define EF_TO_AF() regs.ps = (regs.ps & ~(AF_CARRY | AF_SIGN |              \
-                                         AF_OVERFLOW | AF_ZERO))            \
-                              | (flagc ? AF_CARRY    : 0)                   \
-                              | (flagn ? AF_SIGN     : 0)                   \
-                              | (flagv ? AF_OVERFLOW : 0)                   \
-                              | (flagz ? AF_ZERO     : 0)
+#define AF_TO_EF() flagc = (regs.ps & PS_CARRY);                            \
+                   flagn = (regs.ps & PS_SIGN);                             \
+                   flagv = (regs.ps & PS_OVERFLOW);                         \
+                   flagz = (regs.ps & PS_ZERO)
+#define EF_TO_AF() regs.ps = (regs.ps & ~(PS_CARRY | PS_SIGN |              \
+                                         PS_OVERFLOW | PS_ZERO))            \
+                              | (flagc ? PS_CARRY    : 0)                   \
+                              | (flagn ? PS_SIGN     : 0)                   \
+                              | (flagv ? PS_OVERFLOW : 0)                   \
+                              | (flagz ? PS_ZERO     : 0)
 #define CMOS     if (!apple2e) { ++*cyclecounter; break; }
 #define CYC(a)   *cyclecounter += (a)
 #define POP()    (mem[regs.sp >= 0x1FF ? (regs.sp = 0x100) : ++regs.sp])
@@ -115,7 +115,7 @@ const int statestart = 50000;
 ***/
 
 #define ADC      temp = READ();                                             \
-                 if (regs.ps & AF_DECIMAL) {                                \
+                 if (regs.ps & PS_DECIMAL) {                                \
                    val    = TOBIN(regs.a)+TOBIN(temp)+(flagc != 0);         \
                    flagc  = (val > 99);                                     \
                    regs.a = TOBCD(val);                                     \
@@ -155,15 +155,15 @@ const int statestart = 50000;
 #define BRK      PUSH(regs.pc >> 8)                                         \
                  PUSH(regs.pc & 0xFF)                                       \
                  EF_TO_AF();                                                \
-                 regs.ps |= AF_BREAK;                                       \
+                 regs.ps |= PS_BREAK;                                       \
                  PUSH(regs.ps)                                              \
-                 regs.ps |= AF_INTERRUPT;                                   \
+                 regs.ps |= PS_INTERRUPT;                                   \
                  regs.pc = *(LPWORD)(mem+0xFFFE);
 #define BVC      if (!flagv) regs.pc += addr;
 #define BVS      if ( flagv) regs.pc += addr;
 #define CLC      flagc = 0;
-#define CLD      regs.ps &= ~AF_DECIMAL;
-#define CLI      regs.ps &= ~AF_INTERRUPT;
+#define CLD      regs.ps &= ~PS_DECIMAL;
+#define CLI      regs.ps &= ~PS_INTERRUPT;
 #define CLV      flagv = 0;
 #define CMP      val   = READ();                                            \
                  flagc = (regs.a >= val);                                   \
@@ -223,7 +223,7 @@ const int statestart = 50000;
                  SETNZ(regs.a);
 #define PHA      PUSH(regs.a)
 #define PHP      EF_TO_AF();                                                \
-                 regs.ps |= AF_RESERVED;                                    \
+                 regs.ps |= PS_RESERVED;                                    \
                  PUSH(regs.ps)
 #define PHX      PUSH(regs.x)
 #define PHY      PUSH(regs.y)
@@ -260,7 +260,7 @@ const int statestart = 50000;
                  regs.pc |= (((WORD)POP()) << 8);                           \
                  ++regs.pc;
 #define SBC      temp = READ();                                             \
-                 if (regs.ps & AF_DECIMAL) {                                \
+                 if (regs.ps & PS_DECIMAL) {                                \
                    val    = TOBIN(regs.a)-TOBIN(temp)-!flagc;               \
                    flagc  = (val < 0x8000);                                 \
                    regs.a = TOBCD(val);                                     \
@@ -276,8 +276,8 @@ const int statestart = 50000;
                    SETNZ(regs.a);                                           \
                  }
 #define SEC      flagc = 1;
-#define SED      regs.ps |= AF_DECIMAL;
-#define SEI      regs.ps |= AF_INTERRUPT;
+#define SED      regs.ps |= PS_DECIMAL;
+#define SEI      regs.ps |= PS_INTERRUPT;
 #define STA      WRITE(regs.a);
 #define STX      WRITE(regs.x);
 #define STY      WRITE(regs.y);
@@ -524,14 +524,9 @@ static inline void SetFlagTo(uint8_t flag, int predicate) {
 }
 
 //===========================================================================
-static inline void UpdateZ(uint8_t value) {
-    SetFlagTo(AF_ZERO, value == 0);
-}
-
-//===========================================================================
 static inline void UpdateNZ(uint8_t value) {
-    SetFlagTo(AF_SIGN, value & 0x80);
-    SetFlagTo(AF_ZERO, value == 0);
+    SetFlagTo(PS_SIGN, value & 0x80);
+    SetFlagTo(PS_ZERO, value == 0);
 }
 
 
@@ -545,9 +540,9 @@ static inline void UpdateNZ(uint8_t value) {
 static inline void Adc6502(uint8_t val8) {
     uint32_t acc   = uint32_t(regs.a);
     uint32_t add   = uint32_t(val8);
-    uint32_t carry = uint32_t(regs.ps & AF_CARRY);
+    uint32_t carry = uint32_t(regs.ps & PS_CARRY);
     uint32_t newval;
-    if (regs.ps & AF_DECIMAL) {
+    if (regs.ps & PS_DECIMAL) {
         uint32_t lo = (acc & 0x0f) + (add & 0x0f) + carry;
         uint32_t carrylo = 0;
         if (lo >= 0x0a) {
@@ -557,19 +552,19 @@ static inline void Adc6502(uint8_t val8) {
 
         uint32_t hi = (acc & 0xf0) + (add & 0xf0) + carrylo;
         if (hi >= 0xa0) {
-            SetFlag(AF_CARRY);
+            SetFlag(PS_CARRY);
             hi -= 0xa0;
         }
         else
-            ResetFlag(AF_CARRY);
+            ResetFlag(PS_CARRY);
 
         newval = hi | lo;
-        SetFlagTo(AF_OVERFLOW, ((acc ^ newval) & 0x80) && !((acc ^ add) & 0x80));
+        SetFlagTo(PS_OVERFLOW, ((acc ^ newval) & 0x80) && !((acc ^ add) & 0x80));
     }
     else {
         newval = acc + add + carry;
-        SetFlagTo(AF_CARRY, newval & 0x100);
-        SetFlagTo(AF_OVERFLOW, (acc & 0x80) == (add & 0x80) && (acc & 0x80) != (newval & 0x80));
+        SetFlagTo(PS_CARRY, newval & 0x100);
+        SetFlagTo(PS_OVERFLOW, (acc & 0x80) == (add & 0x80) && (acc & 0x80) != (newval & 0x80));
     }
 
     regs.a = uint8_t(newval);
@@ -579,16 +574,16 @@ static inline void Adc6502(uint8_t val8) {
 //===========================================================================
 static inline void Alr(uint8_t val8) {
     regs.a &= val8;
-    SetFlagTo(AF_CARRY, regs.a & 1);
+    SetFlagTo(PS_CARRY, regs.a & 1);
     regs.a >>= 1;
-    ResetFlag(AF_SIGN);
-    UpdateZ(regs.a);
+    ResetFlag(PS_SIGN);
+    SetFlagTo(PS_ZERO, !regs.a);
 }
 
 //===========================================================================
 static inline void Anc(uint8_t val8) {
     regs.a &= val8;
-    SetFlagTo(AF_CARRY, regs.a & 0x80);
+    SetFlagTo(PS_CARRY, regs.a & 0x80);
     UpdateNZ(regs.a);
 }
 
@@ -602,14 +597,14 @@ static inline void And(uint8_t val8) {
 static inline void Arr(uint8_t val8) {
     regs.a &= val8;
     uint8_t lobit = regs.a & 1;
-    regs.a = regs.a >> 1 | ((regs.ps & AF_CARRY) << 7);
-    SetFlagTo(AF_CARRY, lobit);
+    regs.a = regs.a >> 1 | ((regs.ps & PS_CARRY) << 7);
+    SetFlagTo(PS_CARRY, lobit);
     UpdateNZ(regs.a);
 }
 
 //===========================================================================
 static inline uint8_t Asl(uint8_t val8) {
-    SetFlagTo(AF_CARRY, val8 & 0x80);
+    SetFlagTo(PS_CARRY, val8 & 0x80);
     val8 <<= 1;
     UpdateNZ(val8);
     return val8;
@@ -617,36 +612,36 @@ static inline uint8_t Asl(uint8_t val8) {
 
 //===========================================================================
 static inline void Bit(uint8_t val8) {
-    UpdateZ(regs.a & val8);
-    SetFlagTo(AF_SIGN, val8 & 0x80);
-    SetFlagTo(AF_OVERFLOW, val8 & 0x40);
+    SetFlagTo(PS_ZERO, !(regs.a & val8));
+    SetFlagTo(PS_SIGN, val8 & 0x80);
+    SetFlagTo(PS_OVERFLOW, val8 & 0x40);
 }
 
 //===========================================================================
 static inline void Brk() {
     Push8(regs.pc >> 8);
     Push8(regs.pc & 0xff);
-    SetFlag(AF_BREAK);
+    SetFlag(PS_BREAK);
     Push8(regs.ps);
-    SetFlag(AF_INTERRUPT);
+    SetFlag(PS_INTERRUPT);
     regs.pc = Read16(0xfffe);
 }
 
 //===========================================================================
 static inline void Cmp(uint8_t val8) {
-    SetFlagTo(AF_CARRY, regs.a >= val8);
+    SetFlagTo(PS_CARRY, regs.a >= val8);
     UpdateNZ(regs.a - val8);
 }
 
 //===========================================================================
 static inline void Cpx(uint8_t val8) {
-    SetFlagTo(AF_CARRY, regs.x >= val8);
+    SetFlagTo(PS_CARRY, regs.x >= val8);
     UpdateNZ(regs.x - val8);
 }
 
 //===========================================================================
 static inline void Cpy(uint8_t val8) {
-    SetFlagTo(AF_CARRY, regs.y >= val8);
+    SetFlagTo(PS_CARRY, regs.y >= val8);
     UpdateNZ(regs.y - val8);
 }
 
@@ -727,10 +722,10 @@ static inline void Ldy(uint8_t val8) {
 
 //===========================================================================
 static inline uint8_t Lsr(uint8_t val8) {
-    SetFlagTo(AF_CARRY, val8 & 1);
-    ResetFlag(AF_SIGN);
+    SetFlagTo(PS_CARRY, val8 & 1);
+    ResetFlag(PS_SIGN);
     val8 >>= 1;
-    UpdateZ(val8);
+    SetFlagTo(PS_ZERO, !val8);
     return val8;
 }
 
@@ -742,7 +737,7 @@ static inline void Ora(uint8_t val8) {
 
 //===========================================================================
 static inline void Php() {
-    SetFlag(AF_RESERVED);
+    SetFlag(PS_RESERVED);
     Push8(regs.ps);
 }
 
@@ -755,9 +750,9 @@ static inline void Pla() {
 //===========================================================================
 static inline uint8_t Rla(uint8_t val8) {
     uint8_t hibit = val8 >> 7;
-    val8 = val8 << 1 | (regs.ps & AF_CARRY);
+    val8 = val8 << 1 | (regs.ps & PS_CARRY);
     val8 &= regs.a;
-    SetFlagTo(AF_CARRY, hibit);
+    SetFlagTo(PS_CARRY, hibit);
     UpdateNZ(val8);
     return val8;
 }
@@ -765,8 +760,8 @@ static inline uint8_t Rla(uint8_t val8) {
 //===========================================================================
 static inline uint8_t Rol(uint8_t val8) {
     uint8_t hibit = val8 >> 7;
-    val8 = val8 << 1 | (regs.ps & AF_CARRY);
-    SetFlagTo(AF_CARRY, hibit);
+    val8 = val8 << 1 | (regs.ps & PS_CARRY);
+    SetFlagTo(PS_CARRY, hibit);
     UpdateNZ(val8);
     return val8;
 }
@@ -774,8 +769,8 @@ static inline uint8_t Rol(uint8_t val8) {
 //===========================================================================
 static inline uint8_t Ror(uint8_t val8) {
     uint8_t lobit = val8 & 1;
-    val8 = val8 >> 1 | ((regs.ps & AF_CARRY) << 7);
-    SetFlagTo(AF_CARRY, lobit);
+    val8 = val8 >> 1 | ((regs.ps & PS_CARRY) << 7);
+    SetFlagTo(PS_CARRY, lobit);
     UpdateNZ(val8);
     return val8;
 }
@@ -783,9 +778,9 @@ static inline uint8_t Ror(uint8_t val8) {
 //===========================================================================
 static inline uint8_t Rra(uint8_t val8) {
     uint8_t lobit = val8 & 1;
-    val8 = val8 >> 1 | ((regs.ps & AF_CARRY) << 7);
+    val8 = val8 >> 1 | ((regs.ps & PS_CARRY) << 7);
     val8 &= regs.a;
-    SetFlagTo(AF_CARRY, lobit);
+    SetFlagTo(PS_CARRY, lobit);
     UpdateNZ(val8);
     return val8;
 }
@@ -805,9 +800,9 @@ static inline void Rts() {
 static inline void Sbc6502(uint8_t val8) {
     uint32_t acc   = uint32_t(regs.a);
     uint32_t sub   = uint32_t(val8);
-    uint32_t carry = uint32_t(regs.ps & AF_CARRY);
+    uint32_t carry = uint32_t(regs.ps & PS_CARRY);
     uint32_t newval;
-    if (regs.ps & AF_DECIMAL) {
+    if (regs.ps & PS_DECIMAL) {
         uint32_t lo = 0x0f + (acc & 0x0f) - (sub & 0x0f) + carry;
         uint32_t carrylo;
         if (lo < 0x10) {
@@ -821,22 +816,22 @@ static inline void Sbc6502(uint8_t val8) {
 
         uint32_t hi = 0xf0 + (acc & 0xf0) - (sub & 0xf0) + carrylo;
         if (hi < 0x100) {
-            ResetFlag(AF_CARRY);
+            ResetFlag(PS_CARRY);
             hi -= 0x60;
         }
         else {
-            SetFlag(AF_CARRY);
+            SetFlag(PS_CARRY);
             hi -= 0x100;
         }
 
         newval = hi | lo;
 
-        SetFlagTo(AF_OVERFLOW, ((acc ^ newval) & 0x80) && ((acc ^ sub) & 0x80));
+        SetFlagTo(PS_OVERFLOW, ((acc ^ newval) & 0x80) && ((acc ^ sub) & 0x80));
     }
     else {
         newval = 0xff + acc - sub + carry;
-        SetFlagTo(AF_CARRY, newval >= 0x100);
-        SetFlagTo(AF_OVERFLOW, ((acc * 0x80) != (sub & 0x80)) && ((acc & 0x80) != (newval & 0x80)));
+        SetFlagTo(PS_CARRY, newval >= 0x100);
+        SetFlagTo(PS_OVERFLOW, ((acc * 0x80) != (sub & 0x80)) && ((acc & 0x80) != (newval & 0x80)));
     }
 
     regs.a = uint8_t(newval);
@@ -845,7 +840,7 @@ static inline void Sbc6502(uint8_t val8) {
 
 //===========================================================================
 static inline uint8_t Slo(uint8_t val8) {
-    SetFlagTo(AF_CARRY, val8 & 0x80);
+    SetFlagTo(PS_CARRY, val8 & 0x80);
     val8 <<= 1;
     val8 |= regs.a;
     UpdateNZ(val8);
@@ -854,11 +849,11 @@ static inline uint8_t Slo(uint8_t val8) {
 
 //===========================================================================
 static inline uint8_t Sre(uint8_t val8) {
-    SetFlagTo(AF_CARRY, val8 & 1);
-    ResetFlag(AF_SIGN);
+    SetFlagTo(PS_CARRY, val8 & 1);
+    ResetFlag(PS_SIGN);
     val8 >>= 1;
     val8 ^= regs.a;
-    UpdateZ(val8);
+    SetFlagTo(PS_ZERO, !val8);
     return val8;
 }
 
@@ -876,14 +871,14 @@ static inline void Tay() {
 
 //===========================================================================
 static inline uint8_t Trb(uint8_t val8) {
-    UpdateZ(regs.a & val8);
+    SetFlagTo(PS_ZERO, !(regs.a & val8));
     val8 &= ~regs.a;
     return val8;
 }
 
 //===========================================================================
 static inline uint8_t Tsb(uint8_t val8) {
-    UpdateZ(val8 & regs.a);
+    SetFlagTo(PS_ZERO, !(val8 & regs.a));
     val8 |= regs.a;
     return val8;
 }
@@ -1040,7 +1035,7 @@ int CpuStep6502() {
             break;
         case 0x10: // BPL
             addr = Relative();
-            Branch(!(regs.ps & AF_SIGN), addr, &cycles);
+            Branch(!(regs.ps & PS_SIGN), addr, &cycles);
             cycles += 2;
             break;
         case 0x11: // ORA (izy)
@@ -1085,7 +1080,7 @@ int CpuStep6502() {
             cycles += 6;
             break;
         case 0x18: // CLC
-            ResetFlag(AF_CARRY);
+            ResetFlag(PS_CARRY);
             cycles += 1;
             break;
         case 0x19: // ORA (aby)
@@ -1224,7 +1219,7 @@ int CpuStep6502() {
             break;
         case 0x30: // BMI
             addr = Relative();
-            Branch(regs.ps & AF_SIGN, addr, &cycles);
+            Branch(regs.ps & PS_SIGN, addr, &cycles);
             cycles += 2;
             break;
         case 0x31: // AND (izy)
@@ -1269,7 +1264,7 @@ int CpuStep6502() {
             cycles += 6;
             break;
         case 0x38: // SEC
-            SetFlag(AF_CARRY);
+            SetFlag(PS_CARRY);
             cycles += 2;
             break;
         case 0x39: // AND (aby)
@@ -1405,7 +1400,7 @@ int CpuStep6502() {
             break;
         case 0x50: // BVC
             addr = Relative();
-            Branch(!(regs.ps & AF_OVERFLOW), addr, &cycles);
+            Branch(!(regs.ps & PS_OVERFLOW), addr, &cycles);
             cycles += 2;
             break;
         case 0x51: // EOR (izy)
@@ -1450,7 +1445,7 @@ int CpuStep6502() {
             cycles += 6;
             break;
         case 0x58: // CLI
-            ResetFlag(AF_INTERRUPT);
+            ResetFlag(PS_INTERRUPT);
             cycles += 2;
             break;
         case 0x59: // EOR (aby)
@@ -1586,7 +1581,7 @@ int CpuStep6502() {
             break;
         case 0x70: // BVS
             addr = Relative();
-            Branch(regs.ps & AF_OVERFLOW, addr, &cycles);
+            Branch(regs.ps & PS_OVERFLOW, addr, &cycles);
             cycles += 2;
             break;
         case 0x71: // ADC (izy)
@@ -1631,7 +1626,7 @@ int CpuStep6502() {
             cycles += 6;
             break;
         case 0x78: // SEI
-            SetFlag(AF_INTERRUPT);
+            SetFlag(PS_INTERRUPT);
             cycles += 2;
             break;
         case 0x79: // ADC (aby)
@@ -1725,7 +1720,7 @@ int CpuStep6502() {
             break;
         case 0x90: // BCC
             addr = Relative();
-            Branch(!(regs.ps & AF_CARRY), addr, &cycles);
+            Branch(!(regs.ps & PS_CARRY), addr, &cycles);
             cycles += 2;
             break;
         case 0x91: // STA (izy)
@@ -1836,7 +1831,7 @@ int CpuStep6502() {
             break;
         case 0xb0: // BCS
             addr = Relative();
-            Branch(regs.ps & AF_CARRY, addr, &cycles);
+            Branch(regs.ps & PS_CARRY, addr, &cycles);
             cycles += 2;
             break;
         case 0xb1: // LDA (izy)
@@ -1864,7 +1859,7 @@ int CpuStep6502() {
             cycles += 4;
             break;
         case 0xb8: // CLV
-            ResetFlag(AF_OVERFLOW);
+            ResetFlag(PS_OVERFLOW);
             cycles += 2;
             break;
         case 0xb9: // LDA (aby)
@@ -1961,7 +1956,7 @@ int CpuStep6502() {
             break;
         case 0xd0: // BNE
             addr = Relative();
-            Branch(!(regs.ps & AF_ZERO), addr, &cycles);
+            Branch(!(regs.ps & PS_ZERO), addr, &cycles);
             cycles += 2;
             break;
         case 0xd1: // CMP (izy)
@@ -1984,7 +1979,7 @@ int CpuStep6502() {
             cycles += 6;
             break;
         case 0xd8: // CLD
-            ResetFlag(AF_DECIMAL);
+            ResetFlag(PS_DECIMAL);
             cycles += 2;
             break;
         case 0xd9: // CMP (aby)
@@ -2071,7 +2066,7 @@ int CpuStep6502() {
             break;
         case 0xf0: // BEQ
             addr = Relative();
-            Branch(regs.ps & AF_ZERO, addr, &cycles);
+            Branch(regs.ps & PS_ZERO, addr, &cycles);
             cycles += 2;
             break;
         case 0xf1: // SBC (izy)
@@ -2094,7 +2089,7 @@ int CpuStep6502() {
             cycles += 6;
             break;
         case 0xf8: // SED
-            SetFlag(AF_DECIMAL);
+            SetFlag(PS_DECIMAL);
             cycles += 2;
             break;
         case 0xf9: // SBC (aby)
@@ -2696,16 +2691,16 @@ int InternalCpuExecute(DWORD attemptcycles, int64_t * cyclecounter) {
 //
 
 //===========================================================================
-int CpuExecute(DWORD cycles, int64_t * cyclecounter) {
-    static BOOL laststep = FALSE;
+int CpuExecute(int32_t cycles, int64_t * cyclecounter) {
+    static bool laststep = false;
 
     if (cycles == 0) {
-        laststep = TRUE;
+        laststep = true;
         return InternalCpuExecute(0, cyclecounter);
     }
 
     if (laststep)
-        laststep = FALSE;
+        laststep = false;
 
     return InternalCpuExecute(cycles, cyclecounter);
 }
@@ -2721,7 +2716,7 @@ void CpuInitialize() {
 }
 
 //===========================================================================
-void CpuSetType (CpuType type) {
+void CpuSetType (ECpuType type) {
     cpuType = type;
 }
 

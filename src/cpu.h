@@ -9,15 +9,15 @@
 #pragma once
 
 struct registers {
-    BYTE a;   // accumulator
-    BYTE x;   // index X
-    BYTE y;   // index Y
-    BYTE ps;  // processor status
-    WORD pc;  // program counter
-    WORD sp;  // stack pointer
+    uint8_t  a;   // accumulator
+    uint8_t  x;   // index X
+    uint8_t  y;   // index Y
+    uint8_t  ps;  // processor status
+    uint16_t pc;  // program counter
+    uint16_t sp;  // stack pointer
 };
 
-enum CpuType {
+enum ECpuType {
     CPU_TYPE_6502,
     CPU_TYPE_65C02,
 };
@@ -25,9 +25,9 @@ enum CpuType {
 extern bool      cpuKill;
 extern registers regs;
 
-int   CpuExecute(DWORD cycles, int64_t * cyclecounter);
+int   CpuExecute(int32_t cycles, int64_t * cyclecounter);
 void  CpuInitialize();
 void  CpuSetupBenchmark();
-void  CpuSetType(CpuType type);
+void  CpuSetType(ECpuType type);
 int   CpuStep6502();
 int   CpuStepTest();

@@ -814,7 +814,7 @@ void VideoDisplayMode(BOOL flashon) {
         frameDC = FrameGetDC();
 
     char * text = "        ";
-    if (mode == MODE_PAUSED) {
+    if (GetMode() == EMULATOR_MODE_PAUSED) {
         SetBkColor(frameDC, 0x000000);
         SetTextColor(frameDC, 0x00FFFFF);
         if (flashon)
@@ -1029,7 +1029,8 @@ void VideoRefreshScreen() {
     GdiFlush();
     redrawFull = FALSE;
 
-    if ((mode == MODE_PAUSED) || (mode == MODE_STEPPING))
+    EEmulatorMode mode = GetMode();
+    if ((mode == EMULATOR_MODE_PAUSED) || (mode == EMULATOR_MODE_STEPPING))
         VideoDisplayMode(TRUE);
 }
 

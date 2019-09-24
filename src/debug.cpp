@@ -664,7 +664,7 @@ static BOOL CmdColor(int argc) {
 //===========================================================================
 static BOOL CmdExtBenchmark(int argc) {
     DebugEnd();
-    SetMode(MODE_RUNNING);
+    SetMode(EMULATOR_MODE_RUNNING);
     VideoRedrawScreen();
     DWORD currtime = GetTickCount();
     while ((extbench = GetTickCount()) != currtime);
@@ -710,7 +710,7 @@ static BOOL CmdGo(int argc) {
         if (addr >= 0)
             stepuntil = addr;
     }
-    SetMode(MODE_STEPPING);
+    SetMode(EMULATOR_MODE_STEPPING);
     return FALSE;
 }
 
@@ -903,7 +903,7 @@ static BOOL CmdTrace(int argc) {
     stepline  = 0;
     stepstart = regs.pc;
     stepuntil = -1;
-    SetMode(MODE_STEPPING);
+    SetMode(EMULATOR_MODE_STEPPING);
     DebugContinueStepping();
     return FALSE;
 }
@@ -925,7 +925,7 @@ static BOOL CmdTraceLine(int argc) {
     stepline  = 1;
     stepstart = regs.pc;
     stepuntil = -1;
-    SetMode(MODE_STEPPING);
+    SetMode(EMULATOR_MODE_STEPPING);
     DebugContinueStepping();
     return FALSE;
 }
@@ -1817,7 +1817,7 @@ static void WriteProfileData() {
 void DebugBegin() {
     if (!membank)
         membank = mem;
-    SetMode(MODE_DEBUG);
+    SetMode(EMULATOR_MODE_DEBUG);
     addressmode[INVALID2].bytes = apple2e ? 2 : 1;
     addressmode[INVALID3].bytes = apple2e ? 3 : 1;
     ComputeTopOffset(regs.pc);
@@ -1846,7 +1846,7 @@ void DebugContinueStepping() {
         }
     }
     else {
-        SetMode(MODE_DEBUG);
+        SetMode(EMULATOR_MODE_DEBUG);
         if (stepstart < regs.pc && stepstart + 3 >= regs.pc)
             topoffset += addressmode[instruction[mem[topoffset]].addrmode].bytes;
         else
@@ -1963,7 +1963,7 @@ void DebugInitialize() {
 
 //===========================================================================
 void DebugProcessChar(char ch) {
-    if (mode != MODE_DEBUG)
+    if (GetMode() != EMULATOR_MODE_DEBUG)
         return;
     if (ch == ' ' && !commandstring[0][0])
         return;
@@ -1982,9 +1982,10 @@ void DebugProcessChar(char ch) {
 
 //===========================================================================
 void DebugProcessCommand(int keycode) {
-    if (mode == MODE_STEPPING && keycode == VK_ESCAPE)
+    EEmulatorMode mode = GetMode();
+    if (mode == EMULATOR_MODE_STEPPING && keycode == VK_ESCAPE)
         stepcount = 0;
-    if (mode != MODE_DEBUG)
+    if (mode != EMULATOR_MODE_DEBUG)
         return;
     if (viewingoutput) {
         DebugDisplay(TRUE);
@@ -2020,7 +2021,7 @@ void DebugProcessCommand(int keycode) {
     }
     if (needsfullrefresh)
         DebugDisplay(FALSE);
-    else if (needscmdrefresh && !viewingoutput && (mode == MODE_DEBUG || mode == MODE_STEPPING)) {
+    else if (needscmdrefresh && !viewingoutput && (mode == EMULATOR_MODE_DEBUG || mode == EMULATOR_MODE_STEPPING)) {
         HDC dc = FrameGetDC();
         while (needscmdrefresh--)
             DrawCommandLine(dc, needscmdrefresh);

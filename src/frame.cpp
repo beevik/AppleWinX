@@ -405,12 +405,17 @@ static void DrawFrameWindow(BOOL paint) {
         ReleaseDC(framewindow, dc);
 
     // DRAW THE CONTENTS OF THE EMULATED SCREEN
-    if (mode == MODE_LOGO)
-        VideoDisplayLogo();
-    else if (mode == MODE_DEBUG)
-        DebugDisplay(TRUE);
-    else
-        VideoRedrawScreen();
+    switch (GetMode()) {
+        case EMULATOR_MODE_LOGO:
+            VideoDisplayLogo();
+            break;
+        case EMULATOR_MODE_DEBUG:
+            DebugDisplay(TRUE);
+            break;
+        default:
+            VideoRedrawScreen();
+            break;
+    }
 }
 
 //===========================================================================
@@ -500,7 +505,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_CHAR:
-            if (mode == MODE_DEBUG)
+            if (GetMode() == EMULATOR_MODE_DEBUG)
                 DebugProcessChar((char)wparam);
             break;
 
@@ -511,7 +516,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_DESTROY:
-            SetMode(MODE_SHUTDOWN);
+            SetMode(EMULATOR_MODE_SHUTDOWN);
             DebugDestroy();
             if (!restart) {
                 DiskDestroy();
@@ -534,23 +539,24 @@ static LRESULT CALLBACK FrameWndProc(
                 KeybQueueKeypress((int)wparam, 0);
             else if (wparam == VK_PAUSE) {
                 SetUsingCursor(0);
+                EEmulatorMode mode = GetMode();
                 switch (mode) {
-                    case MODE_RUNNING:  SetMode(MODE_PAUSED);            break;
-                    case MODE_PAUSED:   SetMode(MODE_RUNNING);           break;
-                    case MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
+                    case EMULATOR_MODE_RUNNING:  SetMode(EMULATOR_MODE_PAUSED);   break;
+                    case EMULATOR_MODE_PAUSED:   SetMode(EMULATOR_MODE_RUNNING);  break;
+                    case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
-                if ((mode != MODE_LOGO) && (mode != MODE_DEBUG))
+                if ((mode != EMULATOR_MODE_LOGO) && (mode != EMULATOR_MODE_DEBUG))
                     VideoRedrawScreen();
             }
             else if ((wparam == VK_ESCAPE) && usingcursor)
                 SetUsingCursor(0);
-            else if (mode == MODE_RUNNING || mode == MODE_LOGO || (mode == MODE_STEPPING && wparam != VK_ESCAPE)) {
+            else if (GetMode() == EMULATOR_MODE_RUNNING || GetMode() == EMULATOR_MODE_LOGO || (GetMode() == EMULATOR_MODE_STEPPING && wparam != VK_ESCAPE)) {
                 BOOL autorep = ((lparam & 0x40000000) != 0);
                 BOOL extended = ((lparam & 0x01000000) != 0);
-                if (!JoyProcessKey((int)wparam, extended, 1, autorep) && mode != MODE_LOGO)
+                if (!JoyProcessKey((int)wparam, extended, 1, autorep) && GetMode() != EMULATOR_MODE_LOGO)
                     KeybQueueKeypress((int)wparam, extended);
             }
-            else if ((mode == MODE_DEBUG) || (mode == MODE_STEPPING))
+            else if ((GetMode() == EMULATOR_MODE_DEBUG) || (GetMode() == EMULATOR_MODE_STEPPING))
                 DebugProcessCommand((int)wparam);
             if (wparam == VK_F10) {
                 SetUsingCursor(0);
@@ -579,7 +585,7 @@ static LRESULT CALLBACK FrameWndProc(
                 else if (usingcursor)
                     JoySetButton(0, 1);
                 else if ((x < VIEWPORTCX + (VIEWPORTX << 1)) && JoyUsingMouse() &&
-                    ((mode == MODE_RUNNING) || (mode == MODE_STEPPING)))
+                    ((GetMode() == EMULATOR_MODE_RUNNING) || (GetMode() == EMULATOR_MODE_STEPPING)))
                     SetUsingCursor(1);
             }
             break;
@@ -650,7 +656,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_TIMER:
-            if (mode == MODE_PAUSED) {
+            if (GetMode() == EMULATOR_MODE_PAUSED) {
                 static DWORD counter = 0;
                 if (counter++ > 1)
                     counter = 0;
@@ -668,7 +674,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_USER + 1:
-            if (mode != MODE_LOGO)
+            if (GetMode() != EMULATOR_MODE_LOGO)
                 if (MessageBox(framewindow,
                     "Running the benchmarks will reset the state of "
                     "the emulated machine, causing you to lose any "
@@ -679,7 +685,7 @@ static LRESULT CALLBACK FrameWndProc(
                     break;
             UpdateWindow(window);
             ResetMachineState();
-            SetMode(MODE_LOGO);
+            SetMode(EMULATOR_MODE_LOGO);
             {
                 HCURSOR oldcursor = SetCursor(LoadCursor(0, IDC_WAIT));
                 VideoBenchmark();
@@ -689,7 +695,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_USER + 2:
-            if (mode != MODE_LOGO)
+            if (GetMode() != EMULATOR_MODE_LOGO)
                 if (MessageBox(framewindow,
                     "Restarting the emulator will reset the state "
                     "of the emulated machine, causing you to lose any "
@@ -786,13 +792,13 @@ static void ProcessButtonClick(int button) {
         break;
 
         case BTN_RUN:
-            if (mode == MODE_LOGO)
+            if (GetMode() == EMULATOR_MODE_LOGO)
                 DiskBoot();
-            else if (mode == MODE_RUNNING)
+            else if (GetMode() == EMULATOR_MODE_RUNNING)
                 ResetMachineState();
-            if ((mode == MODE_DEBUG) || (mode == MODE_STEPPING))
+            if ((GetMode() == EMULATOR_MODE_DEBUG) || (GetMode() == EMULATOR_MODE_STEPPING))
                 DebugEnd();
-            SetMode(MODE_RUNNING);
+            SetMode(EMULATOR_MODE_RUNNING);
             VideoRedrawScreen();
             break;
 
@@ -821,11 +827,11 @@ static void ProcessButtonClick(int button) {
             break;
 
         case BTN_DEBUG:
-            if (mode == MODE_LOGO)
+            if (GetMode() == EMULATOR_MODE_LOGO)
                 ResetMachineState();
-            if (mode == MODE_STEPPING)
+            if (GetMode() == EMULATOR_MODE_STEPPING)
                 DebugProcessCommand(VK_ESCAPE);
-            else if (mode == MODE_DEBUG)
+            else if (GetMode() == EMULATOR_MODE_DEBUG)
                 ProcessButtonClick(BTN_RUN);
             else {
                 DebugBegin();

@@ -8,17 +8,19 @@
 
 #pragma once
 
+enum EEmulatorMode {
+    EMULATOR_MODE_LOGO,
+    EMULATOR_MODE_PAUSED,
+    EMULATOR_MODE_RUNNING,
+    EMULATOR_MODE_DEBUG,
+    EMULATOR_MODE_STEPPING,
+    EMULATOR_MODE_SHUTDOWN,
+};
+
 constexpr int BUILDNUMBER   = 4;
 
 constexpr int VERSIONMAJOR  = 1;
 constexpr int VERSIONMINOR  = 11;
-
-constexpr int MODE_LOGO     = 0;
-constexpr int MODE_PAUSED   = 1;
-constexpr int MODE_RUNNING  = 2;
-constexpr int MODE_DEBUG    = 3;
-constexpr int MODE_STEPPING = 4;
-constexpr int MODE_SHUTDOWN = 5;
 
 constexpr int SPEED_NORMAL  = 10;
 constexpr int SPEED_MAX     = 81;
@@ -35,13 +37,13 @@ extern BOOL         apple2e;
 extern BOOL         autoBoot;
 extern BOOL         fullSpeed;
 extern HINSTANCE    instance;
-extern int          mode;
 extern char         programDir[MAX_PATH];
 extern BOOL         restart;
 extern const char * title;
 
 extern int64_t      g_cyclesEmulated;
 
-int  GetSpeed();
-void SetMode(int newmode);
-void SetSpeed(int speed);
+EEmulatorMode GetMode();
+int           GetSpeed();
+void          SetMode(EEmulatorMode mode);
+void          SetSpeed(int speed);

@@ -12,49 +12,39 @@
 char         programDir[MAX_PATH];
 const char * title = "Apple //e Emulator";
 
-BOOL      apple2e     = TRUE;
-BOOL      autoBoot    = FALSE;
-BOOL      fullSpeed   = FALSE;
-HINSTANCE instance    = (HINSTANCE)0;
-int       mode        = MODE_LOGO;
-BOOL      restart     = FALSE;
+BOOL          apple2e   = TRUE;
+BOOL          autoBoot  = FALSE;
+BOOL          fullSpeed = FALSE;
+HINSTANCE     instance  = (HINSTANCE)0;
+BOOL          restart   = FALSE;
 
 int64_t g_cyclesEmulated = 0;
 
-static int     speed           = SPEED_NORMAL;
-static double  speedMultiplier = 1.0;
-static int64_t lastExecute     = 0;
-
-#if 0
-static int ad[256];
-static int adIndex = 0;
-#endif
+static EEmulatorMode s_mode          = EMULATOR_MODE_LOGO;
+static int           speed           = SPEED_NORMAL;
+static double        speedMultiplier = 1.0;
+static int64_t       lastExecute     = 0;
 
 //===========================================================================
 static void AdvanceNew() {
     // Sleep for the emulator tick.
     TimerWait();
 
-    // Advance the emulator until we catch up to the current time.
-    int64_t realCyclesElapsed = TimerGetCyclesElapsed();
-#if 0
-    ad[adIndex] = int(realCyclesElapsed - g_cyclesEmulated);
-    adIndex = (adIndex + 1) & 0xff;
-#endif
+    // Advance the emulator until we catch up to the current time
+    int64_t cycles = MIN(TimerGetCyclesElapsed(), g_cyclesEmulated + 18 * CPU_CYCLES_PER_MS);
+    while (g_cyclesEmulated < cycles) {
 
-    while (g_cyclesEmulated < realCyclesElapsed) {
-
-        // Step the CPU until the next important event is scheduled.
-        int64_t nextEventCycle = MIN(SchedulerPeekTime(), realCyclesElapsed);
+        // Step the CPU until the next scheduled event.
+        int64_t nextEventCycle = MIN(SchedulerPeekTime(), cycles);
         while (g_cyclesEmulated < nextEventCycle)
             //g_cyclesEmulated += CpuStepTest();
             g_cyclesEmulated += CpuStep6502();
 
-        // Process all events scheduled to happen before or on the current
+        // Process all scheduled events happening before or on the current
         // cycle.
         Event event;
         while (SchedulerDequeue(g_cyclesEmulated, &event))
-            event.func(g_cyclesEmulated);
+            event.func(event.cycle);
     }
 }
 
@@ -164,11 +154,11 @@ static void LoadConfiguration() {
 //===========================================================================
 static void MessageLoop() {
     for (;;) {
-        if (mode == MODE_RUNNING)
+        if (s_mode == EMULATOR_MODE_RUNNING)
             AdvanceNew();
-        else if (mode == MODE_STEPPING)
+        else if (s_mode == EMULATOR_MODE_STEPPING)
             DebugContinueStepping();
-        else if (mode == MODE_SHUTDOWN)
+        else if (s_mode == EMULATOR_MODE_SHUTDOWN)
             break;
         else
             Sleep(1);
@@ -178,19 +168,24 @@ static void MessageLoop() {
 }
 
 //===========================================================================
+EEmulatorMode GetMode() {
+    return s_mode;
+}
+
+//===========================================================================
 int GetSpeed() {
     return speed;
 }
 
 //===========================================================================
-void SetMode(int newMode) {
-    if (mode == newMode)
+void SetMode(EEmulatorMode mode) {
+    if (s_mode == mode)
         return;
-    if (newMode == MODE_RUNNING) {
+    if (mode == EMULATOR_MODE_RUNNING) {
         TimerReset(0);
         lastExecute = TimerGetMsElapsed();
     }
-    mode = newMode;
+    s_mode = mode;
 }
 
 //===========================================================================
@@ -217,7 +212,7 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
 
     do {
         restart = FALSE;
-        SetMode(MODE_LOGO);
+        SetMode(EMULATOR_MODE_LOGO);
         TimerInitialize(1);
         LoadConfiguration();
         DebugInitialize();
