@@ -9,7 +9,7 @@
 #include "pch.h"
 #pragma  hdrstop
 
-DWORD serialport = 0;
+int serialPort = 0;
 
 static DWORD    baudrate         = CBR_19200;
 static BYTE     bytesize         = 8;
@@ -27,9 +27,9 @@ static void UpdateCommState();
 //===========================================================================
 static BOOL CheckComm() {
     comminactivity = 0;
-    if ((commhandle == INVALID_HANDLE_VALUE) && serialport) {
+    if ((commhandle == INVALID_HANDLE_VALUE) && serialPort) {
         char portname[8];
-        StrPrintf(portname, ARRSIZE(portname), "COM%u", serialport);
+        StrPrintf(portname, ARRSIZE(portname), "COM%u", serialPort);
         commhandle = CreateFile(
             portname,
             GENERIC_READ | GENERIC_WRITE,
@@ -177,7 +177,7 @@ BYTE CommDipSw(WORD pc, BYTE address, BYTE write, BYTE value) {
 //===========================================================================
 void CommSetSerialPort(HWND window, DWORD newserialport) {
     if (commhandle == INVALID_HANDLE_VALUE)
-        serialport = newserialport;
+        serialPort = newserialport;
     else {
         MessageBox(
             window,

@@ -25,4 +25,5 @@ int          StrPrintf(char * dest, size_t dstChars, const char * format, ...);
 char *       StrStr(char * str1, const char * str2);
 const char * StrStr(const char * str1, const char * str2);
 char *       StrTok(char * str, const char * delimiter, char ** context);
-unsigned int StrToUnsigned(char * str, char ** endPtr, int base);
+int          StrToInt(const char * str, char ** endPtr, int base);
+unsigned int StrToUnsigned(const char * str, char ** endPtr, int base);

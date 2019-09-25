@@ -31,6 +31,7 @@
 
 #include "emulator.h"
 #include "comm.h"
+#include "config.h"
 #include "cpu.h"
 #include "debug.h"
 #include "disk.h"
@@ -39,7 +40,6 @@
 #include "joystick.h"
 #include "keyboard.h"
 #include "memory.h"
-#include "registry.h"
 #include "scheduler.h"
 #include "speaker.h"
 #include "strings.h"

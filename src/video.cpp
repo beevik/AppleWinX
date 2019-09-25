@@ -84,7 +84,6 @@ static FUpdate    s_updateLower;
 static FUpdate    s_updateUpper;
 
 static DWORD      s_charOffset;
-static HFONT      s_font;
 static HDC        s_frameDC;
 static int64_t    s_lastRefreshMs;
 static DWORD      s_videoMode;
@@ -561,10 +560,8 @@ void VideoDestroy() {
 
     DeleteDC(s_deviceDC);
     DeleteObject(s_deviceBitmap);
-    DeleteObject(s_font);
     s_deviceDC     = 0;
     s_deviceBitmap = 0;
-    s_font         = 0;
 }
 
 //===========================================================================
@@ -597,30 +594,6 @@ void VideoDisplayLogo() {
 
     FrameReleaseDC(s_frameDC);
     s_frameDC = (HDC)0;
-}
-
-//===========================================================================
-void VideoDisplayMode(BOOL flashon) {
-    if (!s_frameDC)
-        s_frameDC = FrameGetDC();
-
-    char * text = "        ";
-    if (EmulatorGetMode() == EMULATOR_MODE_PAUSED) {
-        SetBkColor(s_frameDC, 0x000000);
-        SetTextColor(s_frameDC, 0x00FFFFF);
-        if (flashon)
-            text = " PAUSED ";
-    }
-    else {
-        SetBkColor(s_frameDC, 0xFFFFFF);
-        SetTextColor(s_frameDC, 0x800000);
-        text = "STEPPING";
-    }
-
-    SelectObject(s_frameDC, s_font);
-    SetTextAlign(s_frameDC, TA_LEFT | TA_TOP);
-    RECT rect { SCREEN_CX - 68, 0, SCREEN_CX, 16 };
-    ExtTextOut(s_frameDC, SCREEN_CX - 65, 0, ETO_CLIPPED | ETO_OPAQUE, &rect, text, 8, NULL);
 }
 
 //===========================================================================
@@ -700,24 +673,6 @@ void VideoInitialize() {
     s_lastRefreshMs = 0;
     s_videoMode     = 0;
 
-    // CREATE A FONT FOR DRAWING TEXT ABOVE THE SCREEN
-    s_font = CreateFont(
-        16,
-        0,
-        0,
-        0,
-        FW_MEDIUM,
-        0,
-        0,
-        0,
-        ANSI_CHARSET,
-        OUT_DEFAULT_PRECIS,
-        CLIP_DEFAULT_PRECIS,
-        DEFAULT_QUALITY,
-        FIXED_PITCH | 4 | FF_MODERN,
-        "Courier New"
-    );
-
     // THE DEVICE MUST BE 32 BPP AND A SINGLE PLANE
     HWND window       = GetDesktopWindow();
     HDC  dc           = GetDC(window);
@@ -795,10 +750,6 @@ void VideoRefreshScreen() {
     }
 
     WindowUnlockPixels();
-
-    EEmulatorMode mode = EmulatorGetMode();
-    if (mode == EMULATOR_MODE_PAUSED || mode == EMULATOR_MODE_STEPPING)
-        VideoDisplayMode(TRUE);
 
     s_lastRefreshMs = TimerGetMsElapsed();
 }

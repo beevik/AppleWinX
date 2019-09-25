@@ -11,6 +11,7 @@
 enum EAppleType {
     APPLE_TYPE_IIPLUS,
     APPLE_TYPE_IIE,
+    APPLE_TYPES
 };
 
 enum EEmulatorMode {

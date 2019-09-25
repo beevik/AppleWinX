@@ -224,6 +224,11 @@ char * StrTok(char * str, const char * delimiter, char ** context) {
 }
 
 //===========================================================================
-unsigned int StrToUnsigned(char * str, char ** endPtr, int base) {
+int StrToInt(const char * str, char ** endPtr, int base) {
+    return strtol(str, endPtr, base);
+}
+
+//===========================================================================
+unsigned int StrToUnsigned(const char * str, char ** endPtr, int base) {
     return strtoul(str, endPtr, base);
 }

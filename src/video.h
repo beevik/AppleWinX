@@ -11,7 +11,6 @@ extern BOOL g_optMonochrome;
 
 void VideoDestroy();
 void VideoDisplayLogo();
-void VideoDisplayMode(BOOL flashon);
 void VideoGenerateSourceFiles();
 void VideoInitialize();
 void VideoRefreshScreen();

@@ -8,7 +8,7 @@
 
 #pragma once
 
-extern DWORD joytype;
+extern int joyType;
 
 void JoyInitialize();
 BOOL JoyProcessKey(int virtkey, BOOL extended, BOOL down, BOOL autorep);

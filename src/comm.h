@@ -8,7 +8,7 @@
 
 #pragma once
 
-extern DWORD serialport;
+extern int serialPort;
 
 void CommDestroy();
 void CommReset();

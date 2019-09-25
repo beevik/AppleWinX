@@ -26,6 +26,11 @@ static char          s_programDir[260];
 static bool          s_restartRequested;
 static int           s_speed;
 
+static const char * s_appleTypeNames[] = {
+    "Apple ][+",
+    "Apple //e"
+};
+
 
 /****************************************************************************
 *
@@ -143,15 +148,17 @@ static void GetProgramDirectory() {
 
 //===========================================================================
 static void LoadConfiguration() {
-    DWORD speed, appleType;
-    RegLoadValue("Configuration", "Computer Emulation", &appleType);
-    RegLoadValue("Configuration", "Joystick Emulation", &joytype);
-    RegLoadValue("Configuration", "Serial Port", &serialport);
-    RegLoadValue("Configuration", "Emulation Speed", &speed);
-    RegLoadValue("Configuration", "Enhance Disk Speed", (DWORD *)&optEnhancedDisk);
-    RegLoadValue("Configuration", "Monochrome Video", (DWORD *)&g_optMonochrome);
-    EmulatorSetAppleType(appleType < 2 ? EAppleType(appleType) : APPLE_TYPE_IIE);
+    int speed, appleType, enhancedDisk, monochrome;
+    ConfigGetValue("Computer Emulation", &appleType, APPLE_TYPE_IIE);
+    ConfigGetValue("Joystick Emulation", &joyType, 0);
+    ConfigGetValue("Serial Port", &serialPort, 0);
+    ConfigGetValue("Emulation Speed", &speed, SPEED_NORMAL);
+    ConfigGetValue("Enhance Disk Speed", &enhancedDisk, 1);
+    ConfigGetValue("Monochrome Video", &monochrome, 0);
+    EmulatorSetAppleType(EAppleType(MIN(appleType, APPLE_TYPES - 1)));
     EmulatorSetSpeed((int)speed);
+    optEnhancedDisk = enhancedDisk != 0;
+    g_optMonochrome = monochrome != 0;
 }
 
 
@@ -183,9 +190,7 @@ int EmulatorGetSpeed() {
 
 //===========================================================================
 const char * EmulatorGetTitle() {
-    return s_appleType == APPLE_TYPE_IIPLUS
-        ? "Apple ][+ Emulator"
-        : "Apple //e Emulator";
+    return s_appleTypeNames[s_appleType];
 }
 
 //===========================================================================
@@ -262,6 +267,7 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
 
         EmulatorSetMode(EMULATOR_MODE_LOGO);
         EmulatorSetSpeed(SPEED_NORMAL);
+        ConfigLoad();
         LoadConfiguration();
         DebugInitialize();
         JoyInitialize();
@@ -282,6 +288,7 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         CommDestroy();
         MemDestroy();
         DebugDestroy();
+        ConfigSave();
         TimerDestroy();
     } while (s_restartRequested);
 

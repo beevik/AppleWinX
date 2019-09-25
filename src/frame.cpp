@@ -109,12 +109,12 @@ static BOOL CALLBACK ConfigDlgProc(
                         EmulatorSetSpeed(SPEED_NORMAL);
                     else
                         EmulatorSetSpeed((int)SendDlgItemMessage(window, 108, TBM_GETPOS, 0, 0));
-                    RegSaveValue("Configuration", "Computer Emulation", newcomptype);
-                    RegSaveValue("Configuration", "Joystick Emulation", joytype);
-                    RegSaveValue("Configuration", "Serial Port", serialport);
-                    RegSaveValue("Configuration", "Custom Speed", IsDlgButtonChecked(window, 107));
-                    RegSaveValue("Configuration", "Emulation Speed", EmulatorGetSpeed());
-                    RegSaveValue("Configuration", "Monochrome Video", g_optMonochrome);
+                    ConfigSetValue("Computer Emulation", (int)newcomptype);
+                    ConfigSetValue("Joystick Emulation", joyType);
+                    ConfigSetValue("Serial Port", serialPort);
+                    ConfigSetValue("Custom Speed", IsDlgButtonChecked(window, 107) ? 1 : 0);
+                    ConfigSetValue("Emulation Speed", EmulatorGetSpeed());
+                    ConfigSetValue("Monochrome Video", g_optMonochrome ? 1 : 0);
                 }
                 EndDialog(window, 1);
                 if (afterclose)
@@ -167,17 +167,17 @@ static BOOL CALLBACK ConfigDlgProc(
         case WM_INITDIALOG:
             FillComboBox(window, 101, computerchoices, EmulatorGetAppleType());
             FillComboBox(window, 105, videochoices, g_optMonochrome);
-            FillComboBox(window, 102, joystickchoices, joytype);
-            FillComboBox(window, 104, serialchoices, serialport);
+            FillComboBox(window, 102, joystickchoices, joyType);
+            FillComboBox(window, 104, serialchoices, serialPort);
             SendDlgItemMessage(window, 108, TBM_SETRANGE, 1, MAKELONG(1, 80));
             SendDlgItemMessage(window, 108, TBM_SETPAGESIZE, 0, 5);
             SendDlgItemMessage(window, 108, TBM_SETTICFREQ, 10, 0);
             SendDlgItemMessage(window, 108, TBM_SETPOS, 1, EmulatorGetSpeed());
             {
-                BOOL custom = 1;
+                int custom = 1;
                 if (EmulatorGetSpeed() == SPEED_NORMAL) {
                     custom = 0;
-                    RegLoadValue("Configuration", "Custom Speed", (DWORD *)&custom);
+                    ConfigGetValue("Custom Speed", &custom, SPEED_NORMAL);
                 }
                 CheckRadioButton(window, 106, 107, 106 + custom);
                 SetFocus(GetDlgItem(window, custom ? 108 : 106));
@@ -653,7 +653,6 @@ static LRESULT CALLBACK FrameWndProc(
                 static DWORD counter = 0;
                 if (counter++ > 1)
                     counter = 0;
-                VideoDisplayMode(counter > 0);
             }
             break;
 

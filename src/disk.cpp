@@ -369,7 +369,7 @@ BYTE DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
 void DiskSelect(int drive) {
     char directory[MAX_PATH] = "";
     char filename[MAX_PATH]  = "";
-    RegLoadString("Preferences", "Starting Directory", directory, MAX_PATH);
+    ConfigGetString("Starting Directory", directory, MAX_PATH, ".");
     OPENFILENAME ofn;
     ZeroMemory(&ofn, sizeof(OPENFILENAME));
     ofn.lStructSize = sizeof(OPENFILENAME);
@@ -389,7 +389,7 @@ void DiskSelect(int drive) {
         if (InsertDisk(drive, filename, 1)) {
             filename[ofn.nFileOffset] = 0;
             if (StrCmpI(directory, filename) != 0)
-                RegSaveString("Preferences", "Starting Directory", filename);
+                ConfigSetString("Starting Directory", filename);
         }
         else
             NotifyInvalidImage(filename);
