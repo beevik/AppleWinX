@@ -22,10 +22,9 @@ enum EEmulatorMode {
     EMULATOR_MODE_SHUTDOWN,
 };
 
-constexpr int BUILDNUMBER   = 4;
-
-constexpr int VERSIONMAJOR  = 1;
-constexpr int VERSIONMINOR  = 11;
+constexpr int VERSION_MAJOR = 1;
+constexpr int VERSION_MINOR = 11;
+constexpr int BUILD_NUMBER  = 4;
 
 constexpr int SPEED_NORMAL  = 10;
 constexpr int SPEED_MAX     = 80;

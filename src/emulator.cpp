@@ -9,17 +9,29 @@
 #include "pch.h"
 #pragma  hdrstop
 
-HINSTANCE g_instance  = (HINSTANCE)0;
+/****************************************************************************
+*
+*   Variables
+*
+***/
 
-int64_t g_cyclesEmulated = 0;
+int64_t   g_cyclesEmulated;
+HINSTANCE g_instance;
 
 static EAppleType    s_appleType;
 static bool          s_isBehind;
 static bool          s_lastFullSpeed;
 static EEmulatorMode s_mode;
-static char          s_programDir[MAX_PATH];
+static char          s_programDir[260];
 static bool          s_restartRequested;
 static int           s_speed;
+
+
+/****************************************************************************
+*
+*   Local functions
+*
+***/
 
 //===========================================================================
 static void AdvanceNormal() {
@@ -42,15 +54,16 @@ static void AdvanceNormal() {
             event.func(event.cycle);
     }
 
-    // Wait for the emulator tick (unless the emulator has fallen behind the
-    // wall clock).
+    // Delay for the next emulator tick (unless the emulator has fallen
+    // significantly behind the wall clock).
     if (!s_isBehind)
         TimerWait();
 }
 
 //===========================================================================
 static void AdvanceFullSpeed() {
-    // In full speed mode, advance 32ms worth of cycles at a time.
+    // In full speed mode, advance 32ms worth of cycles at a time without
+    // delays.
     int64_t stopCycle = g_cyclesEmulated + 32 * CPU_CYCLES_PER_MS;
     while (g_cyclesEmulated < stopCycle && TimerIsFullSpeed()) {
 
@@ -111,7 +124,7 @@ static LRESULT CALLBACK DlgProc(
 
 //===========================================================================
 static void UpdateEmulator(int64_t cycle) {
-    // Interrupt the emulator every millisecond.
+    // Interrupt the emulator once every millisecond.
     SchedulerEnqueue(Event(cycle + CPU_CYCLES_PER_MS, UpdateEmulator));
 }
 
@@ -140,6 +153,13 @@ static void LoadConfiguration() {
     EmulatorSetAppleType(appleType < 2 ? EAppleType(appleType) : APPLE_TYPE_IIE);
     EmulatorSetSpeed((int)speed);
 }
+
+
+/****************************************************************************
+*
+*   Public functions
+*
+***/
 
 //===========================================================================
 EAppleType EmulatorGetAppleType() {
@@ -181,6 +201,16 @@ void EmulatorRequestRestart() {
 //===========================================================================
 void EmulatorSetAppleType(EAppleType type) {
     s_appleType = type;
+
+    switch (s_appleType) {
+        case APPLE_TYPE_IIPLUS:
+            CpuSetType(CPU_TYPE_6502);
+            break;
+        case APPLE_TYPE_IIE:
+        default:
+            CpuSetType(CPU_TYPE_65C02);
+            break;
+    }
 }
 
 //===========================================================================
@@ -196,7 +226,7 @@ void EmulatorSetMode(EEmulatorMode mode) {
 
 //===========================================================================
 void EmulatorSetSpeed(int newSpeed) {
-    s_speed = MAX(1, newSpeed);
+    s_speed = MIN(MAX(1, newSpeed), SPEED_MAX);
     TimerSetSpeedMultiplier(s_speed * (1.0f / SPEED_NORMAL));
 }
 
@@ -233,15 +263,9 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
 
         while (s_mode != EMULATOR_MODE_SHUTDOWN) {
             switch (s_mode) {
-                case EMULATOR_MODE_RUNNING:
-                    Advance();
-                    break;
-                case EMULATOR_MODE_STEPPING:
-                    DebugContinueStepping();
-                    break;
-                default:
-                    Sleep(1);
-                    break;
+                case EMULATOR_MODE_RUNNING:  Advance();      break;
+                case EMULATOR_MODE_STEPPING: DebugAdvance(); break;
+                default:                     Sleep(1);       break;
             }
             WindowUpdate();
         }

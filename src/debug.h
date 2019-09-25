@@ -8,10 +8,8 @@
 
 #pragma once
 
-extern DWORD extbench;
-
 void DebugBegin();
-void DebugContinueStepping();
+void DebugAdvance();
 void DebugDestroy();
 void DebugDisplay(BOOL drawbackground);
 void DebugEnd();

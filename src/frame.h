@@ -8,10 +8,7 @@
 
 #pragma once
 
-constexpr int VIEWPORTX = 5;
-constexpr int VIEWPORTY = 5;
-
-extern HWND framewindow;
+extern HWND frameWindow;
 extern BOOL autoBoot;
 
 void FrameCreateWindow();

@@ -8,7 +8,12 @@
 
 #pragma once
 
-struct registers {
+enum ECpuType {
+    CPU_TYPE_6502,
+    CPU_TYPE_65C02,
+};
+
+struct CpuRegisters {
     uint8_t  a;   // accumulator
     uint8_t  x;   // index X
     uint8_t  y;   // index Y
@@ -17,17 +22,10 @@ struct registers {
     uint16_t sp;  // stack pointer
 };
 
-enum ECpuType {
-    CPU_TYPE_6502,
-    CPU_TYPE_65C02,
-};
+extern bool         cpuKill;
+extern CpuRegisters regs;
 
-extern bool      cpuKill;
-extern registers regs;
-
-int   CpuExecute(int32_t cycles, int64_t * cyclecounter);
 void  CpuInitialize();
-void  CpuSetupBenchmark();
 void  CpuSetType(ECpuType type);
 int   CpuStep6502();
 int   CpuStepTest();

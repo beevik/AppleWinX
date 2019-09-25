@@ -9,7 +9,6 @@
 
 extern BOOL g_optMonochrome;
 
-void VideoBenchmark();
 void VideoDestroy();
 void VideoDisplayLogo();
 void VideoDisplayMode(BOOL flashon);

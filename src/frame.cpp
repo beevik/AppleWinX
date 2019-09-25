@@ -9,10 +9,12 @@
 #include "pch.h"
 #pragma  hdrstop
 
-constexpr int VIEWPORTCX  = 560;
-constexpr int VIEWPORTCY  = 384;
-constexpr int BUTTONCX    = 45;
-constexpr int BUTTONCY    = 45;
+constexpr int VIEWPORT_X  = 5;
+constexpr int VIEWPORT_Y  = 5;
+constexpr int VIEWPORT_CX = 560;
+constexpr int VIEWPORT_CY = 384;
+constexpr int BUTTON_CX   = 45;
+constexpr int BUTTON_CY   = 45;
 constexpr int BUTTONS     = 8;
 
 constexpr int BTN_HELP    = 0;
@@ -44,7 +46,7 @@ static HBITMAP diskbitmap[3];
 static HBITMAP buttonbitmap[BUTTONS];
 
 BOOL autoBoot    = FALSE;
-HWND framewindow = (HWND)0;
+HWND frameWindow = (HWND)0;
 
 static HBRUSH  btnfacebrush    = (HBRUSH)0;
 static HPEN    btnfacepen      = (HPEN)0;
@@ -116,7 +118,7 @@ static BOOL CALLBACK ConfigDlgProc(
                 }
                 EndDialog(window, 1);
                 if (afterclose)
-                    PostMessage(framewindow, WM_USER + afterclose, 0, 0);
+                    PostMessage(frameWindow, WM_USER + afterclose, 0, 0);
                 break;
 
                 case IDCANCEL:
@@ -280,23 +282,23 @@ static void DrawBitmapRect(HDC dc, int x, int y, LPRECT rect, HBITMAP bitmap) {
 //===========================================================================
 static void DrawButton(HDC passdc, int number) {
     VideoReleaseFrameDC();
-    HDC dc = (passdc ? passdc : GetDC(framewindow));
-    int x = VIEWPORTCX + (VIEWPORTX << 1);
-    int y = number * BUTTONCY + 1;
+    HDC dc = (passdc ? passdc : GetDC(frameWindow));
+    int x = VIEWPORT_CX + (VIEWPORT_X << 1);
+    int y = number * BUTTON_CY + 1;
     SelectObject(dc, GetStockObject(BLACK_PEN));
     MoveToEx(dc, x, y, NULL);
-    LineTo(dc, x, y + BUTTONCY - 1);
-    LineTo(dc, x + BUTTONCX - 1, y + BUTTONCY - 1);
+    LineTo(dc, x, y + BUTTON_CY - 1);
+    LineTo(dc, x + BUTTON_CX - 1, y + BUTTON_CY - 1);
     if (number == buttondown) {
         int loop = 0;
         while (loop++ < 3)
-            Draw3dRect(dc, x + loop, y + loop - 1, x + BUTTONCX, y + BUTTONCY - 1, 0);
+            Draw3dRect(dc, x + loop, y + loop - 1, x + BUTTON_CX, y + BUTTON_CY - 1, 0);
         RECT rect = { 0,0,39,39 };
         DrawBitmapRect(dc, x + 4, y + 3, &rect, buttonbitmap[number]);
     }
     else {
-        Draw3dRect(dc, x + 1, y, x + BUTTONCX, y + BUTTONCY - 1, 1);
-        Draw3dRect(dc, x + 2, y + 1, x + BUTTONCX - 1, y + BUTTONCY - 2, 1);
+        Draw3dRect(dc, x + 1, y, x + BUTTON_CX, y + BUTTON_CY - 1, 1);
+        Draw3dRect(dc, x + 2, y + 1, x + BUTTON_CX - 1, y + BUTTON_CY - 2, 1);
         RECT rect = { 1,1,40,40 };
         DrawBitmapRect(dc, x + 3, y + 2, &rect, buttonbitmap[number]);
     }
@@ -317,7 +319,7 @@ static void DrawButton(HDC passdc, int number) {
             NULL);
     }
     if (!passdc)
-        ReleaseDC(framewindow, dc);
+        ReleaseDC(frameWindow, dc);
 }
 
 //===========================================================================
@@ -325,7 +327,7 @@ static void DrawCrosshairs(int x, int y) {
     static int lastx = 0;
     static int lasty = 0;
     VideoReleaseFrameDC();
-    HDC dc = GetDC(framewindow);
+    HDC dc = GetDC(frameWindow);
 #define LINE(x1,y1,x2,y2) MoveToEx(dc,x1,y1,NULL); LineTo(dc,x2,y2);
 
     // ERASE THE OLD CROSSHAIRS
@@ -339,12 +341,12 @@ static void DrawCrosshairs(int x, int y) {
                 case 3: // fall through
                 case 4: SelectObject(dc, btnfacepen);                 break;
             }
-            LINE(lastx - 2, VIEWPORTY - loop - 1, lastx + 3, VIEWPORTY - loop - 1);
-            LINE(VIEWPORTX - loop - 1, lasty - 2, VIEWPORTX - loop - 1, lasty + 3);
+            LINE(lastx - 2, VIEWPORT_Y - loop - 1, lastx + 3, VIEWPORT_Y - loop - 1);
+            LINE(VIEWPORT_X - loop - 1, lasty - 2, VIEWPORT_X - loop - 1, lasty + 3);
             if ((loop == 1) || (loop == 2))
                 SelectObject(dc, btnhighlightpen);
-            LINE(lastx - 2, VIEWPORTY + VIEWPORTCY + loop, lastx + 3, VIEWPORTY + VIEWPORTCY + loop);
-            LINE(VIEWPORTX + VIEWPORTCX + loop, lasty - 2, VIEWPORTX + VIEWPORTCX + loop, lasty + 3);
+            LINE(lastx - 2, VIEWPORT_Y + VIEWPORT_CY + loop, lastx + 3, VIEWPORT_Y + VIEWPORT_CY + loop);
+            LINE(VIEWPORT_X + VIEWPORT_CX + loop, lasty - 2, VIEWPORT_X + VIEWPORT_CX + loop, lasty + 3);
         }
     }
 
@@ -356,41 +358,41 @@ static void DrawCrosshairs(int x, int y) {
                 SelectObject(dc, GetStockObject(WHITE_PEN));
             else
                 SelectObject(dc, GetStockObject(BLACK_PEN));
-            LINE(x + loop - 2, VIEWPORTY - 5, x + loop - 2, VIEWPORTY);
-            LINE(x + loop - 2, VIEWPORTY + VIEWPORTCY + 4, x + loop - 2, VIEWPORTY + VIEWPORTCY - 1);
-            LINE(VIEWPORTX - 5, y + loop - 2, VIEWPORTX, y + loop - 2);
-            LINE(VIEWPORTX + VIEWPORTCX + 4, y + loop - 2, VIEWPORTX + VIEWPORTCX - 1, y + loop - 2);
+            LINE(x + loop - 2, VIEWPORT_Y - 5, x + loop - 2, VIEWPORT_Y);
+            LINE(x + loop - 2, VIEWPORT_Y + VIEWPORT_CY + 4, x + loop - 2, VIEWPORT_Y + VIEWPORT_CY - 1);
+            LINE(VIEWPORT_X - 5, y + loop - 2, VIEWPORT_X, y + loop - 2);
+            LINE(VIEWPORT_X + VIEWPORT_CX + 4, y + loop - 2, VIEWPORT_X + VIEWPORT_CX - 1, y + loop - 2);
         }
     }
 
 #undef LINE
     lastx = x;
     lasty = y;
-    ReleaseDC(framewindow, dc);
+    ReleaseDC(frameWindow, dc);
 }
 
 //===========================================================================
 static void DrawFrameWindow(BOOL paint) {
     VideoReleaseFrameDC();
     PAINTSTRUCT ps;
-    HDC dc = (paint ? BeginPaint(framewindow, &ps) : GetDC(framewindow));
+    HDC dc = (paint ? BeginPaint(frameWindow, &ps) : GetDC(frameWindow));
 
     // DRAW THE 3D BORDER AROUND THE EMULATED SCREEN
     Draw3dRect(dc,
-        VIEWPORTX - 2, VIEWPORTY - 2,
-        VIEWPORTX + VIEWPORTCX + 2, VIEWPORTY + VIEWPORTCY + 2,
+        VIEWPORT_X - 2, VIEWPORT_Y - 2,
+        VIEWPORT_X + VIEWPORT_CX + 2, VIEWPORT_Y + VIEWPORT_CY + 2,
         0);
     Draw3dRect(dc,
-        VIEWPORTX - 3, VIEWPORTY - 3,
-        VIEWPORTX + VIEWPORTCX + 3, VIEWPORTY + VIEWPORTCY + 3,
+        VIEWPORT_X - 3, VIEWPORT_Y - 3,
+        VIEWPORT_X + VIEWPORT_CX + 3, VIEWPORT_Y + VIEWPORT_CY + 3,
         0);
     SelectObject(dc, btnfacepen);
     Rectangle(dc,
-        VIEWPORTX - 4, VIEWPORTY - 4,
-        VIEWPORTX + VIEWPORTCX + 4, VIEWPORTY + VIEWPORTCY + 4);
+        VIEWPORT_X - 4, VIEWPORT_Y - 4,
+        VIEWPORT_X + VIEWPORT_CX + 4, VIEWPORT_Y + VIEWPORT_CY + 4);
     Rectangle(dc,
-        VIEWPORTX - 5, VIEWPORTY - 5,
-        VIEWPORTX + VIEWPORTCX + 5, VIEWPORTY + VIEWPORTCY + 5);
+        VIEWPORT_X - 5, VIEWPORT_Y - 5,
+        VIEWPORT_X + VIEWPORT_CX + 5, VIEWPORT_Y + VIEWPORT_CY + 5);
 
     // DRAW THE TOOLBAR BUTTONS
     int loop = BUTTONS;
@@ -401,9 +403,9 @@ static void DrawFrameWindow(BOOL paint) {
     DrawStatusArea(dc, 1);
 
     if (paint)
-        EndPaint(framewindow, &ps);
+        EndPaint(frameWindow, &ps);
     else
-        ReleaseDC(framewindow, dc);
+        ReleaseDC(frameWindow, dc);
 
     // DRAW THE CONTENTS OF THE EMULATED SCREEN
     switch (EmulatorGetMode()) {
@@ -422,15 +424,15 @@ static void DrawFrameWindow(BOOL paint) {
 //===========================================================================
 static void DrawStatusArea(HDC passdc, BOOL drawbackground) {
     VideoReleaseFrameDC();
-    HDC dc = (passdc ? passdc : GetDC(framewindow));
-    int x = VIEWPORTCX + (VIEWPORTX << 1);
-    int y = 8 * BUTTONCY + 1;
+    HDC dc = (passdc ? passdc : GetDC(frameWindow));
+    int x = VIEWPORT_CX + (VIEWPORT_X << 1);
+    int y = 8 * BUTTON_CY + 1;
 
     if (drawbackground) {
         SelectObject(dc, GetStockObject(NULL_PEN));
         SelectObject(dc, btnfacebrush);
-        Rectangle(dc, x, y, x + BUTTONCX + 2, y + 35);
-        Draw3dRect(dc, x + 1, y + 3, x + BUTTONCX, y + 31, 0);
+        Rectangle(dc, x, y, x + BUTTON_CX + 2, y + 35);
+        Draw3dRect(dc, x + 1, y + 3, x + BUTTON_CX, y + 31, 0);
         SelectObject(dc, smallfont);
         SetTextAlign(dc, TA_CENTER | TA_TOP);
         SetTextColor(dc, 0);
@@ -456,7 +458,7 @@ static void DrawStatusArea(HDC passdc, BOOL drawbackground) {
     }
 
     if (!passdc)
-        ReleaseDC(framewindow, dc);
+        ReleaseDC(frameWindow, dc);
 }
 
 //===========================================================================
@@ -510,7 +512,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_CREATE:
-            framewindow = window;
+            frameWindow = window;
             CreateGdiObjects();
             PostMessage(window, WM_USER, 0, 0);
             break;
@@ -569,13 +571,13 @@ static LRESULT CALLBACK FrameWndProc(
             if (buttondown == -1) {
                 int x = LOWORD(lparam);
                 int y = HIWORD(lparam);
-                if ((x > VIEWPORTCX + (VIEWPORTX << 1)) && (y < BUTTONS * BUTTONCY)) {
-                    DrawButton((HDC)0, buttonactive = buttondown = y / BUTTONCY);
+                if ((x > VIEWPORT_CX + (VIEWPORT_X << 1)) && (y < BUTTONS * BUTTON_CY)) {
+                    DrawButton((HDC)0, buttonactive = buttondown = y / BUTTON_CY);
                     SetCapture(window);
                 }
                 else if (usingcursor)
                     JoySetButton(0, 1);
-                else if ((x < VIEWPORTCX + (VIEWPORTX << 1)) && JoyUsingMouse() &&
+                else if ((x < VIEWPORT_CX + (VIEWPORT_X << 1)) && JoyUsingMouse() &&
                     ((EmulatorGetMode() == EMULATOR_MODE_RUNNING) || (EmulatorGetMode() == EMULATOR_MODE_STEPPING)))
                     SetUsingCursor(1);
             }
@@ -600,10 +602,10 @@ static LRESULT CALLBACK FrameWndProc(
             int x = LOWORD(lparam);
             int y = HIWORD(lparam);
             if (buttonactive != -1) {
-                int newdown = (((x > VIEWPORTCX + (VIEWPORTX << 1)) &&
-                    (x < VIEWPORTCX + (VIEWPORTX << 1) + BUTTONCX) &&
-                    (y >= buttonactive * BUTTONCY) &&
-                    (y < (buttonactive + 1) * BUTTONCY)) ? buttonactive : -1);
+                int newdown = (((x > VIEWPORT_CX + (VIEWPORT_X << 1)) &&
+                    (x < VIEWPORT_CX + (VIEWPORT_X << 1) + BUTTON_CX) &&
+                    (y >= buttonactive * BUTTON_CY) &&
+                    (y < (buttonactive + 1) * BUTTON_CY)) ? buttonactive : -1);
                 if (newdown != buttondown) {
                     buttondown = newdown;
                     DrawButton((HDC)0, buttonactive);
@@ -611,8 +613,8 @@ static LRESULT CALLBACK FrameWndProc(
             }
             else if (usingcursor) {
                 DrawCrosshairs(x, y);
-                JoySetPosition(x - VIEWPORTX, VIEWPORTCX - 4,
-                    y - VIEWPORTY, VIEWPORTCY - 4);
+                JoySetPosition(x - VIEWPORT_X, VIEWPORT_CX - 4,
+                    y - VIEWPORT_Y, VIEWPORT_CY - 4);
             }
         }
         break;
@@ -665,7 +667,7 @@ static LRESULT CALLBACK FrameWndProc(
 
         case WM_USER + 1:
             if (EmulatorGetMode() != EMULATOR_MODE_LOGO)
-                if (MessageBox(framewindow,
+                if (MessageBox(frameWindow,
                     "Running the benchmarks will reset the state of "
                     "the emulated machine, causing you to lose any "
                     "unsaved work.\n\n"
@@ -678,7 +680,6 @@ static LRESULT CALLBACK FrameWndProc(
             EmulatorSetMode(EMULATOR_MODE_LOGO);
             {
                 HCURSOR oldcursor = SetCursor(LoadCursor(0, IDC_WAIT));
-                VideoBenchmark();
                 ResetMachineState();
                 SetCursor(oldcursor);
             }
@@ -686,7 +687,7 @@ static LRESULT CALLBACK FrameWndProc(
 
         case WM_USER + 2:
             if (EmulatorGetMode() != EMULATOR_MODE_LOGO)
-                if (MessageBox(framewindow,
+                if (MessageBox(frameWindow,
                     "Restarting the emulator will reset the state "
                     "of the emulated machine, causing you to lose any "
                     "unsaved work.\n\n"
@@ -770,16 +771,15 @@ static HBITMAP LoadButtonBitmap(HINSTANCE instance, const char * bitmapname) {
 //===========================================================================
 static void ProcessButtonClick(int button) {
     switch (button) {
-
         case BTN_HELP:
-        {
-            char filename[MAX_PATH];
-            StrCopy(filename, EmulatorGetProgramDirectory(), ARRSIZE(filename));
-            StrCat(filename, "applewin.hlp", ARRSIZE(filename));
-            WinHelp(framewindow, filename, HELP_CONTENTS, 0);
-            helpquit = 1;
-        }
-        break;
+            {
+                char filename[MAX_PATH];
+                StrCopy(filename, EmulatorGetProgramDirectory(), ARRSIZE(filename));
+                StrCat(filename, "applewin.hlp", ARRSIZE(filename));
+                WinHelp(frameWindow, filename, HELP_CONTENTS, 0);
+                helpquit = TRUE;
+            }
+            break;
 
         case BTN_RUN:
             if (EmulatorGetMode() == EMULATOR_MODE_LOGO)
@@ -795,12 +795,12 @@ static void ProcessButtonClick(int button) {
         case BTN_DRIVE1:
         case BTN_DRIVE2:
             DiskSelect(button - BTN_DRIVE1);
-            DrawFrameWindow(0);
+            DrawFrameWindow(FALSE);
             break;
 
         case BTN_TOFILE:
             MessageBeep(0);
-            MessageBox(framewindow,
+            MessageBox(frameWindow,
                 "The 'Transfer To File' button is not implemented "
                 "in this release.",
                 EmulatorGetTitle(),
@@ -809,7 +809,7 @@ static void ProcessButtonClick(int button) {
 
         case BTN_TODISK:
             MessageBeep(0);
-            MessageBox(framewindow,
+            MessageBox(frameWindow,
                 "The 'Transfer To Disk Image' button is not implemented "
                 "in this release.",
                 EmulatorGetTitle(),
@@ -817,30 +817,25 @@ static void ProcessButtonClick(int button) {
             break;
 
         case BTN_DEBUG:
-            if (EmulatorGetMode() == EMULATOR_MODE_LOGO)
-                ResetMachineState();
-            if (EmulatorGetMode() == EMULATOR_MODE_STEPPING)
-                DebugProcessCommand(VK_ESCAPE);
-            else if (EmulatorGetMode() == EMULATOR_MODE_DEBUG)
-                ProcessButtonClick(BTN_RUN);
-            else {
-                DebugBegin();
+            switch (EmulatorGetMode()) {
+                case EMULATOR_MODE_LOGO:     ResetMachineState();            break;
+                case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE); break;
+                case EMULATOR_MODE_DEBUG:    ProcessButtonClick(BTN_RUN);    break;
+                default:                     DebugBegin();                   break;
             }
             break;
 
         case BTN_SETUP:
-        {
             InitCommonControls();
             DialogBox(
                 g_instance,
                 "CONFIGURATION_DIALOG",
-                framewindow,
+                frameWindow,
                 (DLGPROC)ConfigDlgProc
             );
-        }
-        break;
-
+            break;
     }
+    TimerReset();
 }
 
 //===========================================================================
@@ -858,19 +853,19 @@ static void SetUsingCursor(BOOL newvalue) {
         return;
     usingcursor = newvalue;
     if (usingcursor) {
-        SetCapture(framewindow);
+        SetCapture(frameWindow);
         RECT rect;
-        rect.left = VIEWPORTX + 2;
-        rect.top = VIEWPORTY + 2;
-        rect.right = VIEWPORTX + VIEWPORTCX - 2;
-        rect.bottom = VIEWPORTY + VIEWPORTCY - 2;
-        ClientToScreen(framewindow, (LPPOINT)& rect.left);
-        ClientToScreen(framewindow, (LPPOINT)& rect.right);
+        rect.left = VIEWPORT_X + 2;
+        rect.top = VIEWPORT_Y + 2;
+        rect.right = VIEWPORT_X + VIEWPORT_CX - 2;
+        rect.bottom = VIEWPORT_Y + VIEWPORT_CY - 2;
+        ClientToScreen(frameWindow, (LPPOINT)& rect.left);
+        ClientToScreen(frameWindow, (LPPOINT)& rect.right);
         ClipCursor(&rect);
         ShowCursor(0);
         POINT pt;
         GetCursorPos(&pt);
-        ScreenToClient(framewindow, &pt);
+        ScreenToClient(frameWindow, &pt);
         DrawCrosshairs(pt.x, pt.y);
     }
     else {
@@ -887,15 +882,15 @@ static void SetUsingCursor(BOOL newvalue) {
 
 //===========================================================================
 void FrameCreateWindow() {
-    int width = VIEWPORTCX + (VIEWPORTX << 1)
-        + BUTTONCX
+    int width = VIEWPORT_CX + (VIEWPORT_X << 1)
+        + BUTTON_CX
         + (GetSystemMetrics(SM_CXBORDER) << 1)
         + 16;
-    int height = VIEWPORTCY + (VIEWPORTY << 1)
+    int height = VIEWPORT_CY + (VIEWPORT_Y << 1)
         + GetSystemMetrics(SM_CYBORDER)
         + GetSystemMetrics(SM_CYCAPTION)
         + 16;
-    framewindow = CreateWindow(
+    frameWindow = CreateWindow(
         "APPLE2FRAME",
         EmulatorGetTitle(),
         WS_OVERLAPPED
@@ -930,9 +925,9 @@ HDC FrameGetDC() {
     clipregion = CreateRectRgn(rect.left, rect.top, rect.right, rect.bottom);
     HDC dc = GetDCEx(framewindow, clipregion, DCX_INTERSECTRGN | DCX_VALIDATE);
 #else
-    HDC dc = GetDC(framewindow);
+    HDC dc = GetDC(frameWindow);
 #endif
-    SetViewportOrgEx(dc, VIEWPORTX, VIEWPORTY, NULL);
+    SetViewportOrgEx(dc, VIEWPORT_X, VIEWPORT_Y, NULL);
     return dc;
 }
 
@@ -960,7 +955,7 @@ void FrameRegisterClass() {
 //===========================================================================
 void FrameReleaseDC(HDC dc) {
     SetViewportOrgEx(dc, 0, 0, NULL);
-    ReleaseDC(framewindow, dc);
+    ReleaseDC(frameWindow, dc);
 #ifdef CLIPVIEWPORT
     DeleteObject(clipregion);
 #endif

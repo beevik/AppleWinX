@@ -9,6 +9,12 @@
 #include "pch.h"
 #pragma  hdrstop
 
+/****************************************************************************
+*
+*   Constants and Types
+*
+***/
+
 constexpr int BREAKPOINTS     = 5;
 constexpr int COMMANDLINES    = 5;
 constexpr int COMMANDS        = 61;
@@ -72,7 +78,6 @@ static BOOL CmdPageDown(int argc);
 static BOOL CmdPageUp(int argc);
 static BOOL CmdProfile(int argc);
 static BOOL CmdRegisterSet(int argc);
-static BOOL CmdSetupBenchmark(int argc);
 static BOOL CmdTrace(int argc);
 static BOOL CmdTraceFile(int argc);
 static BOOL CmdTraceLine(int argc);
@@ -133,12 +138,10 @@ static const cmd command[COMMANDS] = {
     { "BC",           CmdBreakpointClear      },
     { "BD",           CmdBreakpointDisable    },
     { "BE",           CmdBreakpointEnable     },
-    { "BENCH",        CmdSetupBenchmark       },
     { "BPM",          CmdBreakpointAdd        },
     { "BW",           CmdBlackWhite           },
     { "COLOR",        CmdColor                },
     { "D",            CmdMemoryDump           },
-    { "EXTBENCH",     CmdExtBenchmark         },
     { "GOTO",         CmdGo                   },
     { "I",            CmdInput                },
     { "IMD",          CmdInternalMemoryDump   },
@@ -469,7 +472,12 @@ static char commandstring[COMMANDLINES][80] = {
     " "
 };
 
-DWORD extbench = 0;
+
+/****************************************************************************
+*
+*   Variables
+*
+***/
 
 static arg         argv[MAXARGS];
 static bp          breakpoint[BREAKPOINTS];
@@ -503,6 +511,13 @@ static int GetAddress(const char * symbol);
 static const char * GetSymbol(WORD address, int bytes, char * tmpbuf, int tmpbufsiz);
 static void GetTargets(int * intermediate, int * final);
 static BOOL InternalSingleStep();
+
+
+/****************************************************************************
+*
+*   Local functions
+*
+***/
 
 //===========================================================================
 static BOOL CheckBreakpoint(WORD address, BOOL memory) {
@@ -658,17 +673,6 @@ static BOOL CmdCodeDump(int argc) {
 static BOOL CmdColor(int argc) {
     colorscheme = 0;
     DebugDisplay(TRUE);
-    return FALSE;
-}
-
-//===========================================================================
-static BOOL CmdExtBenchmark(int argc) {
-    DebugEnd();
-    EmulatorSetMode(EMULATOR_MODE_RUNNING);
-    VideoRedrawScreen();
-    DWORD currtime = GetTickCount();
-    while ((extbench = GetTickCount()) != currtime);
-    KeybQueueKeypress(VK_SPACE, 0);
     return FALSE;
 }
 
@@ -860,13 +864,6 @@ static BOOL CmdProfile(int argc) {
 }
 
 //===========================================================================
-static BOOL CmdSetupBenchmark(int argc) {
-    CpuSetupBenchmark();
-    ComputeTopOffset(regs.pc);
-    return TRUE;
-}
-
-//===========================================================================
 static BOOL CmdRegisterSet(int argc) {
     if (argc == 3 && argv[1].str[0] == 'P' && argv[2].str[0] == 'L')
         regs.pc = lastpc;
@@ -904,7 +901,7 @@ static BOOL CmdTrace(int argc) {
     stepstart = regs.pc;
     stepuntil = -1;
     EmulatorSetMode(EMULATOR_MODE_STEPPING);
-    DebugContinueStepping();
+    DebugAdvance();
     return FALSE;
 }
 
@@ -926,7 +923,7 @@ static BOOL CmdTraceLine(int argc) {
     stepstart = regs.pc;
     stepuntil = -1;
     EmulatorSetMode(EMULATOR_MODE_STEPPING);
-    DebugContinueStepping();
+    DebugAdvance();
     return FALSE;
 }
 
@@ -1656,7 +1653,7 @@ static BOOL InternalSingleStep() {
     BOOL result = 0;
     _try {
         ++profiledata[mem[regs.pc]];
-        CpuExecute(stepline, &g_cyclesEmulated);
+        g_cyclesEmulated += CpuStep6502();
         result = 1;
     }
     _except(EXCEPTION_EXECUTE_HANDLER) {
@@ -1809,23 +1806,15 @@ static void WriteProfileData() {
     }
 }
 
-//
-// ----- ALL GLOBALLY ACCESSIBLE FUNCTIONS ARE BELOW THIS LINE -----
-//
+
+/****************************************************************************
+*
+*   Public functions
+*
+***/
 
 //===========================================================================
-void DebugBegin() {
-    if (!membank)
-        membank = mem;
-    EmulatorSetMode(EMULATOR_MODE_DEBUG);
-    addressmode[INVALID2].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 2 : 1;
-    addressmode[INVALID3].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 3 : 1;
-    ComputeTopOffset(regs.pc);
-    DebugDisplay(TRUE);
-}
-
-//===========================================================================
-void DebugContinueStepping() {
+void DebugAdvance() {
     static unsigned stepstaken = 0;
     if (stepcount) {
         if (tracefile)
@@ -1854,6 +1843,17 @@ void DebugContinueStepping() {
         DebugDisplay(stepstaken >= 0x10000);
         stepstaken = 0;
     }
+}
+
+//===========================================================================
+void DebugBegin() {
+    if (!membank)
+        membank = mem;
+    EmulatorSetMode(EMULATOR_MODE_DEBUG);
+    addressmode[INVALID2].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 2 : 1;
+    addressmode[INVALID3].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 3 : 1;
+    ComputeTopOffset(regs.pc);
+    DebugDisplay(TRUE);
 }
 
 //===========================================================================

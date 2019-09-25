@@ -133,7 +133,7 @@ static void NotifyInvalidImage(const char * imagefilename) {
             imagefilename
         );
     }
-    MessageBox(framewindow, buffer, EmulatorGetTitle(), MB_ICONEXCLAMATION);
+    MessageBox(frameWindow, buffer, EmulatorGetTitle(), MB_ICONEXCLAMATION);
 }
 
 //===========================================================================
@@ -373,7 +373,7 @@ void DiskSelect(int drive) {
     OPENFILENAME ofn;
     ZeroMemory(&ofn, sizeof(OPENFILENAME));
     ofn.lStructSize = sizeof(OPENFILENAME);
-    ofn.hwndOwner       = framewindow;
+    ofn.hwndOwner       = frameWindow;
     ofn.hInstance       = g_instance;
     ofn.lpstrFilter     = "All Images\0*.apl;*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
                           "Disk Images (*.bin,*.do,*.dsk,*.iie,*.nib,*.po)\0*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
@@ -394,7 +394,6 @@ void DiskSelect(int drive) {
         else
             NotifyInvalidImage(filename);
     }
-    TimerReset();
 }
 
 //===========================================================================
