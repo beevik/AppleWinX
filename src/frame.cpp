@@ -103,14 +103,14 @@ static BOOL CALLBACK ConfigDlgProc(
                     }
                     CommSetSerialPort(window, newserialport);
                     if (IsDlgButtonChecked(window, 106))
-                        SetSpeed(SPEED_NORMAL);
+                        EmulatorSetSpeed(SPEED_NORMAL);
                     else
-                        SetSpeed((int)SendDlgItemMessage(window, 108, TBM_GETPOS, 0, 0));
+                        EmulatorSetSpeed((int)SendDlgItemMessage(window, 108, TBM_GETPOS, 0, 0));
                     RegSaveValue("Configuration", "Computer Emulation", newcomptype);
                     RegSaveValue("Configuration", "Joystick Emulation", joytype);
                     RegSaveValue("Configuration", "Serial Port", serialport);
                     RegSaveValue("Configuration", "Custom Speed", IsDlgButtonChecked(window, 107));
-                    RegSaveValue("Configuration", "Emulation Speed", GetSpeed());
+                    RegSaveValue("Configuration", "Emulation Speed", EmulatorGetSpeed());
                     RegSaveValue("Configuration", "Monochrome Video", g_optMonochrome);
                 }
                 EndDialog(window, 1);
@@ -169,10 +169,10 @@ static BOOL CALLBACK ConfigDlgProc(
             SendDlgItemMessage(window, 108, TBM_SETRANGE, 1, MAKELONG(1, 80));
             SendDlgItemMessage(window, 108, TBM_SETPAGESIZE, 0, 5);
             SendDlgItemMessage(window, 108, TBM_SETTICFREQ, 10, 0);
-            SendDlgItemMessage(window, 108, TBM_SETPOS, 1, GetSpeed());
+            SendDlgItemMessage(window, 108, TBM_SETPOS, 1, EmulatorGetSpeed());
             {
                 BOOL custom = 1;
-                if (GetSpeed() == SPEED_NORMAL) {
+                if (EmulatorGetSpeed() == SPEED_NORMAL) {
                     custom = 0;
                     RegLoadValue("Configuration", "Custom Speed", (DWORD *)&custom);
                 }
@@ -405,7 +405,7 @@ static void DrawFrameWindow(BOOL paint) {
         ReleaseDC(framewindow, dc);
 
     // DRAW THE CONTENTS OF THE EMULATED SCREEN
-    switch (GetMode()) {
+    switch (EmulatorGetMode()) {
         case EMULATOR_MODE_LOGO:
             VideoDisplayLogo();
             break;
@@ -504,7 +504,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_CHAR:
-            if (GetMode() == EMULATOR_MODE_DEBUG)
+            if (EmulatorGetMode() == EMULATOR_MODE_DEBUG)
                 DebugProcessChar((char)wparam);
             break;
 
@@ -515,7 +515,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_DESTROY:
-            SetMode(EMULATOR_MODE_SHUTDOWN);
+            EmulatorSetMode(EMULATOR_MODE_SHUTDOWN);
             DeleteGdiObjects();
             PostQuitMessage(0);
             break;
@@ -529,10 +529,10 @@ static LRESULT CALLBACK FrameWndProc(
                 KeybQueueKeypress((int)wparam, 0);
             else if (wparam == VK_PAUSE) {
                 SetUsingCursor(0);
-                EEmulatorMode mode = GetMode();
+                EEmulatorMode mode = EmulatorGetMode();
                 switch (mode) {
-                    case EMULATOR_MODE_RUNNING:  SetMode(EMULATOR_MODE_PAUSED);   break;
-                    case EMULATOR_MODE_PAUSED:   SetMode(EMULATOR_MODE_RUNNING);  break;
+                    case EMULATOR_MODE_RUNNING:  EmulatorSetMode(EMULATOR_MODE_PAUSED);   break;
+                    case EMULATOR_MODE_PAUSED:   EmulatorSetMode(EMULATOR_MODE_RUNNING);  break;
                     case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
                 if ((mode != EMULATOR_MODE_LOGO) && (mode != EMULATOR_MODE_DEBUG))
@@ -540,13 +540,13 @@ static LRESULT CALLBACK FrameWndProc(
             }
             else if ((wparam == VK_ESCAPE) && usingcursor)
                 SetUsingCursor(0);
-            else if (GetMode() == EMULATOR_MODE_RUNNING || GetMode() == EMULATOR_MODE_LOGO || (GetMode() == EMULATOR_MODE_STEPPING && wparam != VK_ESCAPE)) {
+            else if (EmulatorGetMode() == EMULATOR_MODE_RUNNING || EmulatorGetMode() == EMULATOR_MODE_LOGO || (EmulatorGetMode() == EMULATOR_MODE_STEPPING && wparam != VK_ESCAPE)) {
                 BOOL autorep = ((lparam & 0x40000000) != 0);
                 BOOL extended = ((lparam & 0x01000000) != 0);
-                if (!JoyProcessKey((int)wparam, extended, 1, autorep) && GetMode() != EMULATOR_MODE_LOGO)
+                if (!JoyProcessKey((int)wparam, extended, 1, autorep) && EmulatorGetMode() != EMULATOR_MODE_LOGO)
                     KeybQueueKeypress((int)wparam, extended);
             }
-            else if ((GetMode() == EMULATOR_MODE_DEBUG) || (GetMode() == EMULATOR_MODE_STEPPING))
+            else if ((EmulatorGetMode() == EMULATOR_MODE_DEBUG) || (EmulatorGetMode() == EMULATOR_MODE_STEPPING))
                 DebugProcessCommand((int)wparam);
             if (wparam == VK_F10) {
                 SetUsingCursor(0);
@@ -575,7 +575,7 @@ static LRESULT CALLBACK FrameWndProc(
                 else if (usingcursor)
                     JoySetButton(0, 1);
                 else if ((x < VIEWPORTCX + (VIEWPORTX << 1)) && JoyUsingMouse() &&
-                    ((GetMode() == EMULATOR_MODE_RUNNING) || (GetMode() == EMULATOR_MODE_STEPPING)))
+                    ((EmulatorGetMode() == EMULATOR_MODE_RUNNING) || (EmulatorGetMode() == EMULATOR_MODE_STEPPING)))
                     SetUsingCursor(1);
             }
             break;
@@ -646,7 +646,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_TIMER:
-            if (GetMode() == EMULATOR_MODE_PAUSED) {
+            if (EmulatorGetMode() == EMULATOR_MODE_PAUSED) {
                 static DWORD counter = 0;
                 if (counter++ > 1)
                     counter = 0;
@@ -655,7 +655,6 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_USER:
-            SpkrInitialize();
             SetTimer(window, 1, 333, NULL);
             if (autoBoot) {
                 autoBoot = 0;
@@ -664,7 +663,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_USER + 1:
-            if (GetMode() != EMULATOR_MODE_LOGO)
+            if (EmulatorGetMode() != EMULATOR_MODE_LOGO)
                 if (MessageBox(framewindow,
                     "Running the benchmarks will reset the state of "
                     "the emulated machine, causing you to lose any "
@@ -675,7 +674,7 @@ static LRESULT CALLBACK FrameWndProc(
                     break;
             UpdateWindow(window);
             ResetMachineState();
-            SetMode(EMULATOR_MODE_LOGO);
+            EmulatorSetMode(EMULATOR_MODE_LOGO);
             {
                 HCURSOR oldcursor = SetCursor(LoadCursor(0, IDC_WAIT));
                 VideoBenchmark();
@@ -685,7 +684,7 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_USER + 2:
-            if (GetMode() != EMULATOR_MODE_LOGO)
+            if (EmulatorGetMode() != EMULATOR_MODE_LOGO)
                 if (MessageBox(framewindow,
                     "Restarting the emulator will reset the state "
                     "of the emulated machine, causing you to lose any "
@@ -694,7 +693,7 @@ static LRESULT CALLBACK FrameWndProc(
                     "Configuration",
                     MB_ICONQUESTION | MB_YESNO) == IDNO)
                     break;
-            restart = TRUE;
+            EmulatorRequestRestart();
             PostMessage(window, WM_CLOSE, 0, 0);
             break;
 
@@ -782,13 +781,13 @@ static void ProcessButtonClick(int button) {
         break;
 
         case BTN_RUN:
-            if (GetMode() == EMULATOR_MODE_LOGO)
+            if (EmulatorGetMode() == EMULATOR_MODE_LOGO)
                 DiskBoot();
-            else if (GetMode() == EMULATOR_MODE_RUNNING)
+            else if (EmulatorGetMode() == EMULATOR_MODE_RUNNING)
                 ResetMachineState();
-            if ((GetMode() == EMULATOR_MODE_DEBUG) || (GetMode() == EMULATOR_MODE_STEPPING))
+            if ((EmulatorGetMode() == EMULATOR_MODE_DEBUG) || (EmulatorGetMode() == EMULATOR_MODE_STEPPING))
                 DebugEnd();
-            SetMode(EMULATOR_MODE_RUNNING);
+            EmulatorSetMode(EMULATOR_MODE_RUNNING);
             VideoRedrawScreen();
             break;
 
@@ -803,7 +802,7 @@ static void ProcessButtonClick(int button) {
             MessageBox(framewindow,
                 "The 'Transfer To File' button is not implemented "
                 "in this release.",
-                title,
+                EmulatorGetTitle(),
                 MB_ICONINFORMATION | MB_SETFOREGROUND);
             break;
 
@@ -812,16 +811,16 @@ static void ProcessButtonClick(int button) {
             MessageBox(framewindow,
                 "The 'Transfer To Disk Image' button is not implemented "
                 "in this release.",
-                title,
+                EmulatorGetTitle(),
                 MB_ICONINFORMATION | MB_SETFOREGROUND);
             break;
 
         case BTN_DEBUG:
-            if (GetMode() == EMULATOR_MODE_LOGO)
+            if (EmulatorGetMode() == EMULATOR_MODE_LOGO)
                 ResetMachineState();
-            if (GetMode() == EMULATOR_MODE_STEPPING)
+            if (EmulatorGetMode() == EMULATOR_MODE_STEPPING)
                 DebugProcessCommand(VK_ESCAPE);
-            else if (GetMode() == EMULATOR_MODE_DEBUG)
+            else if (EmulatorGetMode() == EMULATOR_MODE_DEBUG)
                 ProcessButtonClick(BTN_RUN);
             else {
                 DebugBegin();
@@ -897,7 +896,7 @@ void FrameCreateWindow() {
         + 16;
     framewindow = CreateWindow(
         "APPLE2FRAME",
-        apple2e ? title : "Apple ][+ Emulator",
+        apple2e ? EmulatorGetTitle() : "Apple ][+ Emulator",
         WS_OVERLAPPED
         | WS_BORDER
         | WS_CAPTION

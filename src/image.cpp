@@ -802,7 +802,7 @@ BOOL ImageOpen (
             while (StrChr(ext + 1, '.'))
                 ext = StrChr(ext + 1, '.');
 
-              // CALL THE DETECTION FUNCTIONS IN ORDER, LOOKING FOR A MATCH
+            // CALL THE DETECTION FUNCTIONS IN ORDER, LOOKING FOR A MATCH
             DWORD possibleformat = 0xFFFFFFFF;
             int   loop = 0;
             while ((loop < IMAGETYPES) && (format == 0xFFFFFFFF)) {

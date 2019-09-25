@@ -37,10 +37,10 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
         case SDL_SCANCODE_F11:
         case SDL_SCANCODE_PAUSE:
             if (IsUnmodified(key.keysym.mod)) {
-                EEmulatorMode mode = GetMode();
+                EEmulatorMode mode = EmulatorGetMode();
                 switch (mode) {
-                    case EMULATOR_MODE_RUNNING:  SetMode(EMULATOR_MODE_PAUSED);   break;
-                    case EMULATOR_MODE_PAUSED:   SetMode(EMULATOR_MODE_RUNNING);  break;
+                    case EMULATOR_MODE_RUNNING:  EmulatorSetMode(EMULATOR_MODE_PAUSED);   break;
+                    case EMULATOR_MODE_PAUSED:   EmulatorSetMode(EMULATOR_MODE_RUNNING);  break;
                     case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
                 if ((mode != EMULATOR_MODE_LOGO) && (mode != EMULATOR_MODE_DEBUG))
@@ -77,7 +77,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
             break;
     }
 
-    EEmulatorMode mode = GetMode();
+    EEmulatorMode mode = EmulatorGetMode();
     if (mode == EMULATOR_MODE_RUNNING || mode == EMULATOR_MODE_STEPPING) {
         KeybQueueKeypressSdl(key.keysym);
     }
@@ -205,7 +205,7 @@ void WindowUpdate() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_QUIT:
-                SetMode(EMULATOR_MODE_SHUTDOWN);
+                EmulatorSetMode(EMULATOR_MODE_SHUTDOWN);
                 return;
             case SDL_KEYDOWN:
                 ProcessEventKeyDown(event.key);

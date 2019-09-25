@@ -63,23 +63,23 @@ static uint32_t * s_screenPixels;
 static FUpdate    s_updateLower;
 static FUpdate    s_updateUpper;
 
-static DWORD   s_charOffset    = 0;
-static BOOL    s_displayPage2  = FALSE;
-static HDC     s_frameDC       = (HDC)0;
-static int64_t s_lastRefreshMs = 0;
-static DWORD   s_modeSwitches  = 0;
-static BOOL    s_redrawFull    = TRUE;
-static HFONT   s_videoFont     = (HFONT)0;
-static DWORD   s_videoMode     = 0;
+static DWORD      s_charOffset    = 0;
+static BOOL       s_displayPage2  = FALSE;
+static HDC        s_frameDC       = (HDC)0;
+static int64_t    s_lastRefreshMs = 0;
+static DWORD      s_modeSwitches  = 0;
+static BOOL       s_redrawFull    = TRUE;
+static HFONT      s_videoFont     = (HFONT)0;
+static DWORD      s_videoMode     = 0;
 
-static const COLORREF s_colorLores[16] = {
+static const COLORREF s_colorLoRes[16] = {
     0x000000, 0x7C0B93, 0xD3351F, 0xFF36BB, // black, red, dkblue, purple
     0x0C7600, 0x7E7E7E, 0xE0A807, 0xFFAC9D, // dkgreen, grey, medblue, ltblue
     0x004C62, 0x1D56F9, 0x7E7E7E, 0xEC81FF, // brown, orange, grey, pink
     0x00C843, 0x16CDDC, 0x84F75D, 0xFFFFFF, // ltgreen, yellow, aqua, white
 };
 
-static const COLORREF s_colorHires[6] = {
+static const COLORREF s_colorHiRes[6] = {
     0xFF36BB, 0xE0A807, 0x00C843,   // purple, blue, green
     0x1D56F9, 0x000000, 0xFFFFFF,   // orange, black, white
 };
@@ -119,7 +119,7 @@ static void DrawDHiResSource(HDC dc) {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 2; y++) {
                 int color = (x < 4) ? (value & 0xF) : (value >> 4);
-                SetPixel(dc, SRCX_DHIRES + x, (value << 1) + y, s_colorLores[color]);
+                SetPixel(dc, SRCX_DHIRES + x, (value << 1) + y, s_colorLoRes[color]);
             }
         }
     }
@@ -130,7 +130,7 @@ static void DrawLoResSource(HDC dc) {
     for (int color = 0; color < 16; color++) {
         for (int x = 0; x < 16; x++) {
             for (int y = 0; y < 16; y++)
-                SetPixelV(dc, SRCX_LORES + x, (color << 4) + y, s_colorLores[color]);
+                SetPixelV(dc, SRCX_LORES + x, (color << 4) + y, s_colorLoRes[color]);
         }
     }
 }
@@ -164,10 +164,10 @@ static void DrawHiResSource(HDC dc) {
                         color = ((odd ^ (pixel & 1)) << 1) | hibit;
                     }
 
-                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 0, s_colorHires[color]);
-                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 0, s_colorHires[color]);
-                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 1, s_colorHires[color]);
-                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 1, s_colorHires[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 0, s_colorHiRes[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 0, s_colorHiRes[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 1, s_colorHiRes[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 1, s_colorHiRes[color]);
                 }
             }
         }
@@ -467,19 +467,6 @@ static void UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
 }
 
 //===========================================================================
-static void UpdateVideoScreen(int64_t cycle) {
-    if (TimerIsFullSpeed() || IsBehind()) {
-        // In full-speed mode, refresh the screen only 4 times per second.
-        if (TimerGetMsElapsed() - s_lastRefreshMs >= 250)
-            VideoRefreshScreen();
-    }
-    else
-        VideoRefreshScreen();
-
-    SchedulerEnqueue(Event(cycle + CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen));
-}
-
-//===========================================================================
 static void UpdateVideoMode(DWORD newMode) {
     s_videoMode = newMode;
 
@@ -506,6 +493,19 @@ static void UpdateVideoMode(DWORD newMode) {
         else
             s_updateLower = Update40ColCell;
     }
+}
+
+//===========================================================================
+static void UpdateVideoScreen(int64_t cycle) {
+    if (TimerIsFullSpeed() || EmulatorIsBehind()) {
+        // In full-speed mode, refresh the screen only 4 times per second.
+        if (TimerGetMsElapsed() - s_lastRefreshMs >= 250)
+            VideoRefreshScreen();
+    }
+    else
+        VideoRefreshScreen();
+
+    SchedulerEnqueue(Event(cycle + CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen));
 }
 
 
@@ -822,7 +822,7 @@ void VideoDisplayMode(BOOL flashon) {
         s_frameDC = FrameGetDC();
 
     char * text = "        ";
-    if (GetMode() == EMULATOR_MODE_PAUSED) {
+    if (EmulatorGetMode() == EMULATOR_MODE_PAUSED) {
         SetBkColor(s_frameDC, 0x000000);
         SetTextColor(s_frameDC, 0x00FFFFF);
         if (flashon)
@@ -1039,7 +1039,7 @@ void VideoRefreshScreen() {
     GdiFlush();
     s_redrawFull = FALSE;
 
-    EEmulatorMode mode = GetMode();
+    EEmulatorMode mode = EmulatorGetMode();
     if ((mode == EMULATOR_MODE_PAUSED) || (mode == EMULATOR_MODE_STEPPING))
         VideoDisplayMode(TRUE);
 

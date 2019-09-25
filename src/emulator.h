@@ -37,13 +37,12 @@ extern BOOL         apple2e;
 extern BOOL         autoBoot;
 extern HINSTANCE    instance;
 extern char         programDir[MAX_PATH];
-extern BOOL         restart;
-extern const char * title;
-
 extern int64_t      g_cyclesEmulated;
 
-EEmulatorMode GetMode();
-int           GetSpeed();
-bool          IsBehind();
-void          SetMode(EEmulatorMode mode);
-void          SetSpeed(int speed);
+EEmulatorMode EmulatorGetMode();
+int           EmulatorGetSpeed();
+const char *  EmulatorGetTitle();
+bool          EmulatorIsBehind();
+void          EmulatorRequestRestart();
+void          EmulatorSetMode(EEmulatorMode mode);
+void          EmulatorSetSpeed(int speed);

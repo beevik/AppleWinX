@@ -118,8 +118,8 @@ bool TimerIsFullSpeed() {
 }
 
 //===========================================================================
-void TimerReset(int64_t cyclesElapsed) {
-    s_cyclesElapsed = double(cyclesElapsed);
+void TimerReset() {
+    s_cyclesElapsed = double(g_cyclesEmulated);
 
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);

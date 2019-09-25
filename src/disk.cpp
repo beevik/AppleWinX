@@ -133,7 +133,7 @@ static void NotifyInvalidImage(const char * imagefilename) {
             imagefilename
         );
     }
-    MessageBox(framewindow, buffer, title, MB_ICONEXCLAMATION);
+    MessageBox(framewindow, buffer, EmulatorGetTitle(), MB_ICONEXCLAMATION);
 }
 
 //===========================================================================
@@ -394,6 +394,7 @@ void DiskSelect(int drive) {
         else
             NotifyInvalidImage(filename);
     }
+    TimerReset();
 }
 
 //===========================================================================

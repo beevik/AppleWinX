@@ -763,6 +763,8 @@ void MemDestroy() {
     memMain  = NULL;
     memRom   = NULL;
     mem      = NULL;
+    ZeroMemory(memShadow, MAXIMAGES * 256 * sizeof(LPBYTE));
+    ZeroMemory(memWrite, MAXIMAGES * 256 * sizeof(LPBYTE));
 }
 
 //===========================================================================
@@ -798,7 +800,7 @@ void MemInitialize() {
             GetDesktopWindow(),
             "The emulator was unable to allocate the memory it "
             "requires.  Further execution is not possible.",
-            title,
+            EmulatorGetTitle(),
             MB_ICONSTOP | MB_SETFOREGROUND
         );
         ExitProcess(1);
@@ -814,7 +816,7 @@ void MemInitialize() {
             GetDesktopWindow(),
             "The emulator was unable to load the ROM firmware"
             "into memory.  Further execution is not possible.",
-            title,
+            EmulatorGetTitle(),
             MB_ICONSTOP | MB_SETFOREGROUND
         );
         ExitProcess(1);
@@ -826,7 +828,7 @@ void MemInitialize() {
             GetDesktopWindow(),
             "The emulator was unable to load the ROM firmware"
             "into memory.  Further execution is not possible.",
-            title,
+            EmulatorGetTitle(),
             MB_ICONSTOP | MB_SETFOREGROUND
         );
         ExitProcess(1);
@@ -839,7 +841,7 @@ void MemInitialize() {
         MessageBox(
             GetDesktopWindow(),
             "Firmware ROM file was not the correct size.",
-            title,
+            EmulatorGetTitle(),
             MB_ICONSTOP | MB_SETFOREGROUND
         );
         ExitProcess(1);

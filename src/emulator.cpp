@@ -9,19 +9,18 @@
 #include "pch.h"
 #pragma  hdrstop
 
-char         programDir[MAX_PATH];
-const char * title = "Apple //e Emulator";
-
-BOOL          apple2e   = TRUE;
-BOOL          autoBoot  = FALSE;
-HINSTANCE     instance  = (HINSTANCE)0;
-BOOL          restart   = FALSE;
+char      programDir[MAX_PATH];
+BOOL      apple2e   = TRUE;
+BOOL      autoBoot  = FALSE;
+HINSTANCE instance  = (HINSTANCE)0;
 
 int64_t g_cyclesEmulated = 0;
 
+static const char *  s_title = "Apple //e Emulator";
 static bool          s_isBehind;
 static bool          s_lastFullSpeed;
 static EEmulatorMode s_mode;
+static bool          s_restartRequested;
 static int           s_speed;
 
 //===========================================================================
@@ -75,7 +74,7 @@ static void Advance() {
     // When switching back to normal speed, reset the timer.
     bool fullSpeed = TimerIsFullSpeed();
     if (s_lastFullSpeed && !fullSpeed)
-        TimerReset(g_cyclesEmulated);
+        TimerReset();
     s_lastFullSpeed = fullSpeed;
 
     if (fullSpeed)
@@ -83,59 +82,6 @@ static void Advance() {
     else
         AdvanceNormal();
 }
-
-//===========================================================================
-#if 0
-static void Advance() {
-    static int cycleSurplus = 0;
-
-    // Check if the emulator should run at full-speed.
-    bool forceFullspeed = (s_speed == SPEED_MAX) || KeybIsKeyDown(SDL_SCANCODE_SCROLLLOCK);
-    bool tmpFullspeed   = DiskIsFullSpeedEligible();
-    fullSpeed = forceFullspeed || tmpFullspeed;
-
-    // Check the actual elapsed time.
-    int64_t elapsed = TimerGetMsElapsed();
-    while (elapsed == s_lastExecuteMs && !fullSpeed) {
-        TimerWait();
-        elapsed = TimerGetMsElapsed();
-    }
-
-    // See how many milliseconds we need to simulate in order to catch up to the
-    // wall clock.  Allow up to 32ms of simulation time while catching up.
-    int msnormal = MIN(32, int((elapsed - s_lastExecuteMs) * s_speedMultiplier));
-    int ms = fullSpeed ? 32 : msnormal;
-
-    // Advance the emulator 1 millisecond at a time.
-    for (int t = 0; t < ms; ++t) {
-        int cyclesAttempted = CPU_CYCLES_PER_MS - cycleSurplus;
-        int cyclesExecuted  = CpuExecute(cyclesAttempted, &g_cyclesEmulated);
-        cycleSurplus = cyclesExecuted - cyclesAttempted;
-
-        // Process all scheduled events.
-        Event event;
-        while (SchedulerDequeue(g_cyclesEmulated, &event))
-            event.func(event.cycle);
-
-        DiskUpdatePosition(cyclesExecuted);
-        JoyUpdatePosition(cyclesExecuted);
-        SpkrUpdate(cyclesExecuted);
-
-        // Check if fullspeed status has changed.
-        if (fullSpeed) {
-            tmpFullspeed = DiskIsFullSpeedEligible();
-            fullSpeed    = forceFullspeed || tmpFullspeed;
-            if (!fullSpeed)
-                ms = msnormal;
-        }
-    }
-
-    s_lastExecuteMs = elapsed;
-
-    if (!fullSpeed)
-        TimerWait();
-}
-#endif
 
 //===========================================================================
 static LRESULT CALLBACK DlgProc(
@@ -193,38 +139,47 @@ static void LoadConfiguration() {
     RegLoadValue("Configuration", "Emulation Speed", &speed);
     RegLoadValue("Configuration", "Enhance Disk Speed", (DWORD *)&optEnhancedDisk);
     RegLoadValue("Configuration", "Monochrome Video", (DWORD *)&g_optMonochrome);
-    SetSpeed((int)speed);
+    EmulatorSetSpeed((int)speed);
 }
 
 //===========================================================================
-EEmulatorMode GetMode() {
+EEmulatorMode EmulatorGetMode() {
     return s_mode;
 }
 
 //===========================================================================
-int GetSpeed() {
+int EmulatorGetSpeed() {
     return s_speed;
 }
 
 //===========================================================================
-bool IsBehind() {
+const char * EmulatorGetTitle() {
+    return s_title;
+}
+
+//===========================================================================
+bool EmulatorIsBehind() {
     return s_isBehind;
 }
 
 //===========================================================================
-void SetMode(EEmulatorMode mode) {
+void EmulatorRequestRestart() {
+    s_restartRequested = true;
+}
+
+//===========================================================================
+void EmulatorSetMode(EEmulatorMode mode) {
     if (s_mode == mode)
         return;
 
-    if (mode == EMULATOR_MODE_RUNNING) {
-        TimerReset(g_cyclesEmulated);
-    }
+    if (mode == EMULATOR_MODE_RUNNING)
+        TimerReset();
 
     s_mode = mode;
 }
 
 //===========================================================================
-void SetSpeed(int newSpeed) {
+void EmulatorSetSpeed(int newSpeed) {
     s_speed = MAX(1, newSpeed);
     TimerSetSpeedMultiplier(s_speed * (1.0f / SPEED_NORMAL));
 }
@@ -240,18 +195,19 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         return 1;
     if (!DiskInitialize())
         return 1;
+    SpkrInitialize();
 
     do {
-        restart = FALSE;
         s_isBehind = false;
         s_lastFullSpeed = false;
+        s_restartRequested = false;
         g_cyclesEmulated = 0;
         SchedulerInitialize();
         TimerInitialize(1);
         SchedulerEnqueue(Event(CPU_CYCLES_PER_MS, UpdateEmulator));
 
-        SetMode(EMULATOR_MODE_LOGO);
-        SetSpeed(SPEED_NORMAL);
+        EmulatorSetMode(EMULATOR_MODE_LOGO);
+        EmulatorSetSpeed(SPEED_NORMAL);
         LoadConfiguration();
         DebugInitialize();
         JoyInitialize();
@@ -274,14 +230,14 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
             WindowUpdate();
         }
 
-        DebugDestroy();
+        VideoDestroy();
         CommDestroy();
         MemDestroy();
-        SpkrDestroy();
-        VideoDestroy();
+        DebugDestroy();
         TimerDestroy();
-    } while (restart);
+    } while (s_restartRequested);
 
+    SpkrDestroy();
     DiskDestroy();
     ImageDestroy();
     WindowDestroy();
