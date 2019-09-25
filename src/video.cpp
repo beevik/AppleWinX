@@ -39,51 +39,52 @@ constexpr DWORD VF_MIXED    = 0x00000010;
 constexpr DWORD VF_PAGE2    = 0x00000020;
 constexpr DWORD VF_TEXT     = 0x00000040;
 
-#define  SW_80COL()     (videoMode & VF_80COL)
-#define  SW_DHIRES()    (videoMode & VF_DHIRES)
-#define  SW_HIRES()     (videoMode & VF_HIRES)
-#define  SW_MASK2()     (videoMode & VF_MASK2)
-#define  SW_MIXED()     (videoMode & VF_MIXED)
-#define  SW_PAGE2()     (videoMode & VF_PAGE2)
-#define  SW_TEXT()      (videoMode & VF_TEXT)
+#define  SW_80COL()     (s_videoMode & VF_80COL)
+#define  SW_DHIRES()    (s_videoMode & VF_DHIRES)
+#define  SW_HIRES()     (s_videoMode & VF_HIRES)
+#define  SW_MASK2()     (s_videoMode & VF_MASK2)
+#define  SW_MIXED()     (s_videoMode & VF_MIXED)
+#define  SW_PAGE2()     (s_videoMode & VF_PAGE2)
+#define  SW_TEXT()      (s_videoMode & VF_TEXT)
 
-typedef void (* fupdate)(int x, int y, int xpixel, int ypixel, int offset);
+typedef void (* FUpdate)(int x, int y, int xpixel, int ypixel, int offset);
 
-BOOL optMonochrome = FALSE;
+BOOL g_optMonochrome = FALSE;
 
-static HBITMAP       deviceBitmap;
-static HDC           deviceDC;
-static uint32_t *    frameBuffer;
-static LPBYTE        hiResAuxPtr;
-static LPBYTE        hiResMainPtr;
-static uint32_t *    sourceLookup;
-static LPBYTE        textAuxPtr;
-static LPBYTE        textMainPtr;
-static uint32_t *    screenPixels;
-static fupdate       updateLower;
-static fupdate       updateUpper;
+static HBITMAP    s_deviceBitmap;
+static HDC        s_deviceDC;
+static uint32_t * s_frameBuffer;
+static LPBYTE     s_hiResAuxPtr;
+static LPBYTE     s_hiResMainPtr;
+static uint32_t * s_sourceLookup;
+static LPBYTE     s_textAuxPtr;
+static LPBYTE     s_textMainPtr;
+static uint32_t * s_screenPixels;
+static FUpdate    s_updateLower;
+static FUpdate    s_updateUpper;
 
-static DWORD   charOffset     = 0;
-static BOOL    displayPage2   = FALSE;
-static HDC     frameDC        = (HDC)0;
-static DWORD   modeSwitches   = 0;
-static BOOL    redrawFull     = TRUE;
-static HFONT   videoFont      = (HFONT)0;
-static DWORD   videoMode      = 0;
+static DWORD   s_charOffset    = 0;
+static BOOL    s_displayPage2  = FALSE;
+static HDC     s_frameDC       = (HDC)0;
+static int64_t s_lastRefreshMs = 0;
+static DWORD   s_modeSwitches  = 0;
+static BOOL    s_redrawFull    = TRUE;
+static HFONT   s_videoFont     = (HFONT)0;
+static DWORD   s_videoMode     = 0;
 
-static const COLORREF colorLores[16] = {
+static const COLORREF s_colorLores[16] = {
     0x000000, 0x7C0B93, 0xD3351F, 0xFF36BB, // black, red, dkblue, purple
     0x0C7600, 0x7E7E7E, 0xE0A807, 0xFFAC9D, // dkgreen, grey, medblue, ltblue
     0x004C62, 0x1D56F9, 0x7E7E7E, 0xEC81FF, // brown, orange, grey, pink
     0x00C843, 0x16CDDC, 0x84F75D, 0xFFFFFF, // ltgreen, yellow, aqua, white
 };
 
-static const COLORREF colorHires[6] = {
+static const COLORREF s_colorHires[6] = {
     0xFF36BB, 0xE0A807, 0x00C843,   // purple, blue, green
     0x1D56F9, 0x000000, 0xFFFFFF,   // orange, black, white
 };
 
-struct pngReadState {
+struct PngReadState {
     const uint8_t * data;
     size_t          bytesTotal;
     size_t          bytesRead;
@@ -98,9 +99,9 @@ static void BitBltCell(
     int srcx,
     int srcy
 ) {
-    const uint32_t * src  = sourceLookup + SRC_CX * srcy + srcx;
-    uint32_t *       dst1 = frameBuffer + SCREEN_CX * (SCREEN_CY - 1 - dsty) + dstx;
-    uint32_t *       dst2 = screenPixels + SCREEN_CX * dsty + dstx;
+    const uint32_t * src  = s_sourceLookup + SRC_CX * srcy + srcx;
+    uint32_t *       dst1 = s_frameBuffer + SCREEN_CX * (SCREEN_CY - 1 - dsty) + dstx;
+    uint32_t *       dst2 = s_screenPixels + SCREEN_CX * dsty + dstx;
     for (int y = 0; y < ysize; ++y) {
         for (int x = xsize - 1; x >= 0; x--) {
             dst1[x] = src[x];
@@ -118,7 +119,7 @@ static void DrawDHiResSource(HDC dc) {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 2; y++) {
                 int color = (x < 4) ? (value & 0xF) : (value >> 4);
-                SetPixel(dc, SRCX_DHIRES + x, (value << 1) + y, colorLores[color]);
+                SetPixel(dc, SRCX_DHIRES + x, (value << 1) + y, s_colorLores[color]);
             }
         }
     }
@@ -129,7 +130,7 @@ static void DrawLoResSource(HDC dc) {
     for (int color = 0; color < 16; color++) {
         for (int x = 0; x < 16; x++) {
             for (int y = 0; y < 16; y++)
-                SetPixelV(dc, SRCX_LORES + x, (color << 4) + y, colorLores[color]);
+                SetPixelV(dc, SRCX_LORES + x, (color << 4) + y, s_colorLores[color]);
         }
     }
 }
@@ -163,10 +164,10 @@ static void DrawHiResSource(HDC dc) {
                         color = ((odd ^ (pixel & 1)) << 1) | hibit;
                     }
 
-                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 0, colorHires[color]);
-                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 0, colorHires[color]);
-                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 1, colorHires[color]);
-                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 1, colorHires[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 0, s_colorHires[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 0, s_colorHires[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 0, y + 1, s_colorHires[color]);
+                    SetPixelV(dc, SRCX_HIRES + coloffs + x + adj + 1, y + 1, s_colorHires[color]);
                 }
             }
         }
@@ -257,7 +258,7 @@ static void DrawTextSource(HDC dc) {
 
 //===========================================================================
 static void LoadImageData(png_structp read, png_bytep buf, size_t bytes) {
-    pngReadState * state = (pngReadState *)png_get_io_ptr(read);
+    PngReadState * state = (PngReadState *)png_get_io_ptr(read);
     memcpy(buf, state->data + state->bytesRead, bytes);
     state->bytesRead += bytes;
 }
@@ -278,7 +279,7 @@ static BOOL LoadPngImage(
     if (!resource)
         return FALSE;
 
-    pngReadState state;
+    PngReadState state;
     state.data       = (const uint8_t *)LockResource(resource);
     state.bytesTotal = SizeofResource(NULL, handle);
     state.bytesRead  = 0;
@@ -332,21 +333,21 @@ static BOOL LoadPngImage(
 
 //===========================================================================
 static BOOL LoadSourceLookup() {
-    if (!sourceLookup)
+    if (!s_sourceLookup)
         return FALSE;
 
     return LoadPngImage(
-        optMonochrome ? "SOURCE_MONO" : "SOURCE_COLOR",
+        g_optMonochrome ? "SOURCE_MONO" : "SOURCE_COLOR",
         SRC_CX,
         SRC_CY,
-        sourceLookup,
+        s_sourceLookup,
         0
     );
 }
 
 //===========================================================================
 static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
-    BYTE ch = textMainPtr[offset];
+    BYTE ch = s_textMainPtr[offset];
 
     // Handle flashing text (1.87Hz blink rate)
     constexpr DWORD BLINK_PERIOD = (DWORD)(CPU_CYCLES_PER_MS * 1000.0 / 1.87);
@@ -365,36 +366,36 @@ static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
         xpixel, ypixel,
         14, 16,
         SRCX_40COL + ((ch & 0x0F) << 4),
-        (ch & 0xF0) + charOffset
+        (ch & 0xF0) + s_charOffset
     );
 }
 
 //===========================================================================
 static void Update80ColCell(int x, int y, int xpixel, int ypixel, int offset) {
-    BYTE auxval  = textAuxPtr[offset];
-    BYTE mainval = textMainPtr[offset];
+    BYTE auxval  = s_textAuxPtr[offset];
+    BYTE mainval = s_textMainPtr[offset];
     BitBltCell(
         xpixel, ypixel,
         7, 16,
         SRCX_80COL + ((auxval & 15) << 3),
-        ((auxval >> 4) << 4) + charOffset
+        ((auxval >> 4) << 4) + s_charOffset
     );
     BitBltCell(
         xpixel + 7, ypixel,
         7, 16,
         SRCX_80COL + ((mainval & 15) << 3),
-        ((mainval >> 4) << 4) + charOffset
+        ((mainval >> 4) << 4) + s_charOffset
     );
 }
 
 //===========================================================================
 static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
     for (int yoffset = 0; yoffset < 0x2000; yoffset += 0x400) {
-        BYTE auxval  = hiResAuxPtr[offset + yoffset];
-        BYTE mainval = hiResMainPtr[offset + yoffset];
+        BYTE auxval  = s_hiResAuxPtr[offset + yoffset];
+        BYTE mainval = s_hiResMainPtr[offset + yoffset];
         BOOL draw    = true;
         if (offset & 1) {
-            BYTE thirdval = hiResMainPtr[offset + yoffset - 1];
+            BYTE thirdval = s_hiResMainPtr[offset + yoffset - 1];
             int value1 = ((auxval & 0x3F) << 2) | ((thirdval & 0x60) >> 5);
             int value2 = ((mainval & 0x7F) << 1) | ((auxval & 0x40) >> 6);
             BitBltCell(
@@ -411,7 +412,7 @@ static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
             );
         }
         else {
-            BYTE thirdval = hiResAuxPtr[offset + yoffset + 1];
+            BYTE thirdval = s_hiResAuxPtr[offset + yoffset + 1];
             int value1 = (auxval & 0x7F) | ((mainval & 1) << 7);
             int value2 = ((mainval & 0x7E) >> 1) | ((thirdval & 3) << 6);
             BitBltCell(
@@ -432,7 +433,7 @@ static void UpdateDHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
 
 //===========================================================================
 static void UpdateLoResCell(int x, int y, int xpixel, int ypixel, int offset) {
-    BYTE val = textMainPtr[offset];
+    BYTE val = s_textMainPtr[offset];
     BitBltCell(
         xpixel, ypixel,
         14, 8,
@@ -450,9 +451,9 @@ static void UpdateLoResCell(int x, int y, int xpixel, int ypixel, int offset) {
 //===========================================================================
 static void UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
     for (int yoffset = 0; yoffset < 0x2000; yoffset += 0x400) {
-        BYTE prev = (x > 0) ? hiResMainPtr[offset + yoffset - 1] : 0;
-        BYTE curr = hiResMainPtr[offset + yoffset];
-        BYTE next = (x < 39) ? hiResMainPtr[offset + yoffset + 1] : 0;
+        BYTE prev = (x > 0) ? s_hiResMainPtr[offset + yoffset - 1] : 0;
+        BYTE curr = s_hiResMainPtr[offset + yoffset];
+        BYTE next = (x < 39) ? s_hiResMainPtr[offset + yoffset + 1] : 0;
         const int c1 = (x > 0  && (prev & 64)) ? 1 : 0;
         const int c2 = (x < 39 && (next & 1))  ? 1 : 0;
         const int coloroffs = c1 << 6 | c2 << 5;
@@ -467,36 +468,43 @@ static void UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
 
 //===========================================================================
 static void UpdateVideoScreen(int64_t cycle) {
-    VideoRefreshScreen();
+    if (TimerIsFullSpeed() || IsBehind()) {
+        // In full-speed mode, refresh the screen only 4 times per second.
+        if (TimerGetMsElapsed() - s_lastRefreshMs >= 250)
+            VideoRefreshScreen();
+    }
+    else
+        VideoRefreshScreen();
+
     SchedulerEnqueue(Event(cycle + CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen));
 }
 
 //===========================================================================
 static void UpdateVideoMode(DWORD newMode) {
-    videoMode = newMode;
+    s_videoMode = newMode;
 
     if (SW_TEXT()) {
         if (SW_80COL())
-            updateUpper = Update80ColCell;
+            s_updateUpper = Update80ColCell;
         else
-            updateUpper = Update40ColCell;
+            s_updateUpper = Update40ColCell;
     }
     else if SW_HIRES() {
         if (SW_DHIRES() && SW_80COL())
-            updateUpper = UpdateDHiResCell;
+            s_updateUpper = UpdateDHiResCell;
         else
-            updateUpper = UpdateHiResCell;
+            s_updateUpper = UpdateHiResCell;
     }
     else {
-        updateUpper = UpdateLoResCell;
+        s_updateUpper = UpdateLoResCell;
     }
 
-    updateLower = updateUpper;
+    s_updateLower = s_updateUpper;
     if (SW_MIXED()) {
         if (SW_80COL())
-            updateLower = Update80ColCell;
+            s_updateLower = Update80ColCell;
         else
-            updateLower = Update40ColCell;
+            s_updateLower = Update40ColCell;
     }
 }
 
@@ -525,7 +533,7 @@ void VideoBenchmark() {
     DWORD totaltextfps = 0;
     {
         UpdateVideoMode(VF_TEXT);
-        modeSwitches = 0;
+        s_modeSwitches = 0;
         FillMemory(mem + 0x400, 0x400, 0x14);
         VideoRedrawScreen();
 
@@ -551,7 +559,7 @@ void VideoBenchmark() {
     DWORD totalhiresfps = 0;
     {
         UpdateVideoMode(VF_HIRES);
-        modeSwitches = 0;
+        s_modeSwitches = 0;
         FillMemory(mem + 0x2000, 0x2000, 0x14);
         VideoRedrawScreen();
 
@@ -719,7 +727,7 @@ BYTE VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
             case 0x1A: result = SW_TEXT();       break;
             case 0x1B: result = SW_MIXED();      break;
             case 0x1D: result = SW_HIRES();      break;
-            case 0x1E: result = charOffset != 0; break;
+            case 0x1E: result = s_charOffset != 0; break;
             case 0x1F: result = SW_80COL();      break;
             case 0x7F: result = SW_DHIRES();     break;
         }
@@ -737,39 +745,39 @@ BYTE VideoCheckVbl(WORD pc, BYTE address, BYTE write, BYTE value) {
 void VideoDestroy() {
     VideoReleaseFrameDC();
 
-    delete[] sourceLookup;
-    sourceLookup = NULL;
+    delete[] s_sourceLookup;
+    s_sourceLookup = NULL;
 
-    DeleteDC(deviceDC);
-    DeleteObject(deviceBitmap);
-    DeleteObject(videoFont);
-    deviceDC     = (HDC)0;
-    deviceBitmap = (HBITMAP)0;
-    videoFont    = (HFONT)0;
+    DeleteDC(s_deviceDC);
+    DeleteObject(s_deviceBitmap);
+    DeleteObject(s_videoFont);
+    s_deviceDC     = (HDC)0;
+    s_deviceBitmap = (HBITMAP)0;
+    s_videoFont    = (HFONT)0;
 }
 
 //===========================================================================
 void VideoDisplayLogo() {
-    screenPixels = WindowLockPixels();
-    LoadPngImage("LOGO", SCREEN_CX, SCREEN_CY, screenPixels, LOADPNG_CONVERT_RGB);
+    s_screenPixels = WindowLockPixels();
+    LoadPngImage("LOGO", SCREEN_CX, SCREEN_CY, s_screenPixels, LOADPNG_CONVERT_RGB);
     WindowUnlockPixels();
 
-    if (!frameDC)
-        frameDC = FrameGetDC();
+    if (!s_frameDC)
+        s_frameDC = FrameGetDC();
 
     BOOL success = LoadPngImage(
         "LOGO",
         SCREEN_CX,
         SCREEN_CY,
-        frameBuffer,
+        s_frameBuffer,
         LOADPNG_CONVERT_RGB | LOADPNG_BOTTOM_UP
     );
     if (success) {
         BitBlt(
-            frameDC,
+            s_frameDC,
             0, 0,
             SCREEN_CX, SCREEN_CY,
-            deviceDC,
+            s_deviceDC,
             0, 0,
             SRCCOPY
         );
@@ -793,43 +801,43 @@ void VideoDisplayLogo() {
         VARIABLE_PITCH | 4 | FF_SWISS,
         "Arial"
     );
-    HFONT oldfont = (HFONT)SelectObject(frameDC, font);
-    SetTextAlign(frameDC, TA_RIGHT | TA_TOP);
-    SetBkMode(frameDC, TRANSPARENT);
+    HFONT oldfont = (HFONT)SelectObject(s_frameDC, font);
+    SetTextAlign(s_frameDC, TA_RIGHT | TA_TOP);
+    SetBkMode(s_frameDC, TRANSPARENT);
     char version[16];
     StrPrintf(version, ARRSIZE(version), "Version %d.%d", VERSIONMAJOR, VERSIONMINOR);
-    SetTextColor(frameDC, 0x2727D2);
-    TextOut(frameDC, 540, 358, version, StrLen(version));
-    SetTextAlign(frameDC, TA_RIGHT | TA_TOP);
-    SelectObject(frameDC, oldfont);
+    SetTextColor(s_frameDC, 0x2727D2);
+    TextOut(s_frameDC, 540, 358, version, StrLen(version));
+    SetTextAlign(s_frameDC, TA_RIGHT | TA_TOP);
+    SelectObject(s_frameDC, oldfont);
     DeleteObject(font);
 
-    FrameReleaseDC(frameDC);
-    frameDC = (HDC)0;
+    FrameReleaseDC(s_frameDC);
+    s_frameDC = (HDC)0;
 }
 
 //===========================================================================
 void VideoDisplayMode(BOOL flashon) {
-    if (!frameDC)
-        frameDC = FrameGetDC();
+    if (!s_frameDC)
+        s_frameDC = FrameGetDC();
 
     char * text = "        ";
     if (GetMode() == EMULATOR_MODE_PAUSED) {
-        SetBkColor(frameDC, 0x000000);
-        SetTextColor(frameDC, 0x00FFFFF);
+        SetBkColor(s_frameDC, 0x000000);
+        SetTextColor(s_frameDC, 0x00FFFFF);
         if (flashon)
             text = " PAUSED ";
     }
     else {
-        SetBkColor(frameDC, 0xFFFFFF);
-        SetTextColor(frameDC, 0x800000);
+        SetBkColor(s_frameDC, 0xFFFFFF);
+        SetTextColor(s_frameDC, 0x800000);
         text = "STEPPING";
     }
 
-    SelectObject(frameDC, videoFont);
-    SetTextAlign(frameDC, TA_LEFT | TA_TOP);
+    SelectObject(s_frameDC, s_videoFont);
+    SetTextAlign(s_frameDC, TA_LEFT | TA_TOP);
     RECT rect { SCREEN_CX - 68, 0, SCREEN_CX, 16 };
-    ExtTextOut(frameDC, SCREEN_CX - 65, 0, ETO_CLIPPED | ETO_OPAQUE, &rect, text, 8, NULL);
+    ExtTextOut(s_frameDC, SCREEN_CX - 65, 0, ETO_CLIPPED | ETO_OPAQUE, &rect, text, 8, NULL);
 }
 
 //===========================================================================
@@ -864,7 +872,7 @@ void VideoGenerateSourceFiles() {
         }
         DeleteDC(memdc);
         ReleaseDC(window, dc);
-        GetBitmapBits(bitmap, SRC_CX * SRC_CY * sizeof(uint32_t), sourceLookup);
+        GetBitmapBits(bitmap, SRC_CX * SRC_CY * sizeof(uint32_t), s_sourceLookup);
         DeleteObject(bitmap);
         DeleteObject(brush);
 
@@ -893,7 +901,7 @@ void VideoGenerateSourceFiles() {
 
         png_write_info(write, info);
 
-        const uint32_t * row = sourceLookup;
+        const uint32_t * row = s_sourceLookup;
         for (int y = 0; y < SRC_CY; y++, row += SRC_CX)
             png_write_row(write, (png_bytep)row);
 
@@ -906,7 +914,7 @@ void VideoGenerateSourceFiles() {
 //===========================================================================
 void VideoInitialize() {
     // CREATE A FONT FOR DRAWING TEXT ABOVE THE SCREEN
-    videoFont = CreateFont(
+    s_videoFont = CreateFont(
         16,
         0,
         0,
@@ -945,93 +953,97 @@ void VideoInitialize() {
 
     // CREATE A BIT BUFFER FOR THE SOURCE LOOKUP
     int sourcedwords = SRC_CX * SRC_CY;
-    sourceLookup = new uint32_t[sourcedwords];
-    ZeroMemory(sourceLookup, sourcedwords * sizeof(uint32_t));
+    s_sourceLookup = new uint32_t[sourcedwords];
+    ZeroMemory(s_sourceLookup, sourcedwords * sizeof(uint32_t));
 
     // CREATE THE DEVICE DEPENDENT BITMAP AND DEVICE CONTEXT
     {
         HWND window = GetDesktopWindow();
         HDC  dc = GetDC(window);
-        frameBuffer = NULL;
-        deviceBitmap = CreateDIBSection(
+        s_frameBuffer = NULL;
+        s_deviceBitmap = CreateDIBSection(
             dc,
             framebufferinfo,
             DIB_RGB_COLORS,
-            (LPVOID *)&frameBuffer,
+            (LPVOID *)&s_frameBuffer,
             0,
             0
         );
-        deviceDC = CreateCompatibleDC(dc);
+        s_deviceDC = CreateCompatibleDC(dc);
         ReleaseDC(window, dc);
-        SelectObject(deviceDC, deviceBitmap);
+        SelectObject(s_deviceDC, s_deviceBitmap);
     }
     delete[] framebufferinfo;
 
     LoadSourceLookup();
     VideoResetState();
+
+    s_lastRefreshMs = TimerGetMsElapsed();
     SchedulerEnqueue(Event(CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen));
 }
 
 //===========================================================================
 void VideoRedrawScreen() {
-    redrawFull = TRUE;
+    s_redrawFull = TRUE;
     VideoRefreshScreen();
 }
 
 //===========================================================================
 void VideoRefreshScreen() {
-    if (!frameDC)
-        frameDC = FrameGetDC();
+    if (!s_frameDC)
+        s_frameDC = FrameGetDC();
 
     // IF THE MODE HAS BEEN SWITCHED MORE THAN TWICE IN THE LAST FRAME, THE
     // PROGRAM IS PROBABLY TRYING TO DO A FLASHING EFFECT, SO JUST FLASH THE
     // SCREEN WHITE AND RETURN
-    if (modeSwitches > 2) {
-        modeSwitches = 0;
-        SelectObject(frameDC, GetStockObject(WHITE_BRUSH));
-        SelectObject(frameDC, GetStockObject(WHITE_PEN));
-        Rectangle(frameDC, 0, 0, SCREEN_CX, SCREEN_CY);
+    if (s_modeSwitches > 2) {
+        s_modeSwitches = 0;
+        SelectObject(s_frameDC, GetStockObject(WHITE_BRUSH));
+        SelectObject(s_frameDC, GetStockObject(WHITE_PEN));
+        Rectangle(s_frameDC, 0, 0, SCREEN_CX, SCREEN_CY);
         return;
     }
-    modeSwitches = 0;
+    s_modeSwitches = 0;
 
-    displayPage2 = (SW_PAGE2() != 0);
-    hiResAuxPtr  = MemGetAuxPtr(0x2000 << (displayPage2 ? 1 : 0));
-    hiResMainPtr = MemGetMainPtr(0x2000 << (displayPage2 ? 1 : 0));
-    textAuxPtr   = MemGetAuxPtr(0x400 << (displayPage2 ? 1 : 0));
-    textMainPtr  = MemGetMainPtr(0x400 << (displayPage2 ? 1 : 0));
-    screenPixels = WindowLockPixels();
+    s_displayPage2 = (SW_PAGE2() != 0);
+    s_hiResAuxPtr  = MemGetAuxPtr(0x2000 << (s_displayPage2 ? 1 : 0));
+    s_hiResMainPtr = MemGetMainPtr(0x2000 << (s_displayPage2 ? 1 : 0));
+    s_textAuxPtr   = MemGetAuxPtr(0x400 << (s_displayPage2 ? 1 : 0));
+    s_textMainPtr  = MemGetMainPtr(0x400 << (s_displayPage2 ? 1 : 0));
+    s_screenPixels = WindowLockPixels();
 
     int y      = 0;
     int ypixel = 0;
     for (; y < 20; y++, ypixel += 16) {
         int offset = ((y & 7) << 7) + ((y >> 3) * 40);
         for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14)
-            updateUpper(x, y, xpixel, ypixel, offset + x);
+            s_updateUpper(x, y, xpixel, ypixel, offset + x);
     }
     for (; y < 24; y++, ypixel += 16) {
         int offset = ((y & 7) << 7) + ((y >> 3) * 40);
         for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14)
-            updateLower(x, y, xpixel, ypixel, offset + x);
+            s_updateLower(x, y, xpixel, ypixel, offset + x);
     }
 
     WindowUnlockPixels();
 
     BitBlt(
-        frameDC,
+        s_frameDC,
         0, 0,
         SCREEN_CX, SCREEN_CY,
-        deviceDC,
+        s_deviceDC,
         0, 0,
         SRCCOPY
     );
 
     GdiFlush();
-    redrawFull = FALSE;
+    s_redrawFull = FALSE;
 
     EEmulatorMode mode = GetMode();
     if ((mode == EMULATOR_MODE_PAUSED) || (mode == EMULATOR_MODE_STEPPING))
         VideoDisplayMode(TRUE);
+
+    s_lastRefreshMs = TimerGetMsElapsed();
 }
 
 //===========================================================================
@@ -1041,33 +1053,33 @@ void VideoReinitialize() {
 
 //===========================================================================
 void VideoReleaseFrameDC() {
-    if (frameDC) {
-        FrameReleaseDC(frameDC);
-        frameDC = (HDC)0;
+    if (s_frameDC) {
+        FrameReleaseDC(s_frameDC);
+        s_frameDC = (HDC)0;
     }
 }
 
 //===========================================================================
 void VideoResetState() {
-    charOffset     = 0;
-    displayPage2 = FALSE;
-    redrawFull   = FALSE;
+    s_charOffset     = 0;
+    s_displayPage2 = FALSE;
+    s_redrawFull   = FALSE;
     UpdateVideoMode(VF_TEXT);
 }
 
 //===========================================================================
 BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
     DWORD oldpage2  = SW_PAGE2();
-    DWORD oldmodeex = charOffset | (videoMode & ~(VF_MASK2 | VF_PAGE2));
+    DWORD oldmodeex = s_charOffset | (s_videoMode & ~(VF_MASK2 | VF_PAGE2));
 
-    DWORD newmode = videoMode;
+    DWORD newmode = s_videoMode;
     switch (address) {
         case 0x00: newmode &= ~VF_MASK2;   break;
         case 0x01: newmode |= VF_MASK2;    break;
         case 0x0C: newmode &= ~VF_80COL;   break;
         case 0x0D: newmode |= VF_80COL;    break;
-        case 0x0E: charOffset = 0;         break;
-        case 0x0F: charOffset = 256;       break;
+        case 0x0E: s_charOffset = 0;         break;
+        case 0x0F: s_charOffset = 256;       break;
         case 0x50: newmode &= ~VF_TEXT;    break;
         case 0x51: newmode |= VF_TEXT;     break;
         case 0x52: newmode &= ~VF_MIXED;   break;
@@ -1084,16 +1096,16 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
 
     UpdateVideoMode(newmode);
 
-    DWORD newmodeex = charOffset | (videoMode & ~(VF_MASK2 | VF_PAGE2));
+    DWORD newmodeex = s_charOffset | (s_videoMode & ~(VF_MASK2 | VF_PAGE2));
     if (oldmodeex != newmodeex) {
         if ((SW_80COL() != 0) == (SW_DHIRES() != 0))
-            modeSwitches++;
-        redrawFull = TRUE;
+            s_modeSwitches++;
+        s_redrawFull = TRUE;
     }
 
     DWORD currtime = DWORD(g_cyclesEmulated / CPU_CYCLES_PER_MS);
 
-    if (fullSpeed && oldpage2 && !SW_PAGE2()) {
+    if (TimerIsFullSpeed() && oldpage2 && !SW_PAGE2()) {
         static DWORD lasttime = 0;
         if (currtime - lasttime >= 20)
             lasttime = currtime;
@@ -1102,8 +1114,8 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
     }
 
     if (oldpage2 != SW_PAGE2()) {
-        displayPage2 = (SW_PAGE2() != 0);
-        if (!redrawFull)
+        s_displayPage2 = (SW_PAGE2() != 0);
+        if (!s_redrawFull)
             VideoRefreshScreen();
     }
 

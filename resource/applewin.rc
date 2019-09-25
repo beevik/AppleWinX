@@ -102,19 +102,20 @@ BEGIN
     LTEXT           "Calibrating emulator; please wait...",-1,30,17,118,8
 END
 
-CONFIGURATION_DIALOG DIALOG 0, 0, 210, 175
+CONFIGURATION_DIALOG DIALOGEX 0, 0, 210, 175
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Configuration"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     GROUPBOX        "Emulation Speed Control",-1,5,85,200,85
-    CONTROL         "Use &Authentic Machine Speed",106,"Button",BS_AUTORADIOBUTTON,15,96,115,10
-    CONTROL         "Select C&ustom Speed (in MHz)",107,"Button",BS_AUTORADIOBUTTON,15,108,120,10
-    CONTROL         "Generic2",108,"msctls_trackbar32",TBS_AUTOTICKS | WS_TABSTOP,25,120,160,15
-    CTEXT           "0.5",121,23,135,20,10
-    CTEXT           "1.0",122,59,135,20,10
-    CTEXT           "2.0",123,96,135,20,10
-    RTEXT           "Fastest",124,150,135,29,10
+    CONTROL         "Use &Authentic Machine Speed (1 MHz)",106,"Button",BS_AUTORADIOBUTTON,15,96,135,10
+    CONTROL         "Select C&ustom Speed (MHz)",107,"Button",BS_AUTORADIOBUTTON,15,108,120,10
+    CONTROL         "Generic2",108,"msctls_trackbar32",WS_TABSTOP,25,120,160,15
+    LTEXT           "0.1",121,28,135,15,10
+    CTEXT           "1.0",122,40,135,20,10
+    CTEXT           "2.0",123,59,135,20,10
+    CTEXT           "4.0",124,96,135,20,10
+    RTEXT           "8.0",125,165,135,16,10
     PUSHBUTTON      "&Benchmark Emulator",111,15,149,85,15
     PUSHBUTTON      "&Recalibrate Emulator",112,110,149,85,15
     DEFPUSHBUTTON   "OK",1,155,6,50,15
@@ -149,11 +150,11 @@ DISK_ICON               ICON                    "disk.ico"
 // IMAGE
 //
 
-SOURCE_COLOR        IMAGE                   "sourcecolor.png"
+SOURCE_COLOR            IMAGE                   "sourcecolor.png"
 
-SOURCE_MONO         IMAGE                   "sourcemono.png"
+SOURCE_MONO             IMAGE                   "sourcemono.png"
 
-LOGO                IMAGE                   "applewinx.png"
+LOGO                    IMAGE                   "applewinx.png"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -161,9 +162,9 @@ LOGO                IMAGE                   "applewinx.png"
 // ROM
 //
 
-APPLE2_ROM          ROM                     "apple2.rom"
+APPLE2_ROM              ROM                     "apple2.rom"
 
-APPLE2E_ROM         ROM                     "apple2e.rom"
+APPLE2E_ROM             ROM                     "apple2e.rom"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -171,9 +172,37 @@ APPLE2E_ROM         ROM                     "apple2e.rom"
 // SYMBOLS
 //
 
-APPLE2E_SYM         SYMBOLS                 "apple2e.sym"
+APPLE2E_SYM             SYMBOLS                 "apple2e.sym"
 
 
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    "CALIBRATION_DIALOG", DIALOG
+    BEGIN
+    END
+
+    "CONFIGURATION_DIALOG", DIALOG
+    BEGIN
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+CONFIGURATION_DIALOG AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////

@@ -26,15 +26,16 @@ ETimerMode g_timerMode = TIMER_MODE_NORMAL;
 
 #ifdef OS_WINDOWS
 
-static double  s_cyclesElapsed;
-static int64_t s_lastUpdateCount;
-static int64_t s_perfFreqMs;
-static double  s_cyclesPerTick;
-static int64_t s_startCount;
-static int64_t s_ticksPerSecond;
-static HANDLE  s_timer;
-static HANDLE  s_timerSemaphore;
-static HANDLE  s_timerThread;
+static double   s_cyclesElapsed;
+static int64_t  s_lastUpdateCount;
+static int64_t  s_perfFreqMs;
+static double   s_cyclesPerTick;
+static uint32_t s_fullSpeedBits;
+static int64_t  s_startCount;
+static int64_t  s_ticksPerSecond;
+static HANDLE   s_timer;
+static HANDLE   s_timerSemaphore;
+static HANDLE   s_timerThread;
 
 struct TimerThreadInit {
     int periodMs;
@@ -62,7 +63,6 @@ static DWORD WINAPI TimerThread(LPVOID param) {
 
     return 0;
 }
-
 
 //===========================================================================
 static void UpdateElapsedCycles() {
@@ -106,16 +106,15 @@ void TimerInitialize(int periodMs) {
 }
 
 //===========================================================================
-int64_t TimerGetCyclesElapsed() {
-    UpdateElapsedCycles();
-    return int64_t(s_cyclesElapsed);
-}
-
-//===========================================================================
 int64_t TimerGetMsElapsed() {
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
     return int64_t(counter.QuadPart - s_startCount) / s_perfFreqMs;
+}
+
+//===========================================================================
+bool TimerIsFullSpeed() {
+    return s_fullSpeedBits != 0;
 }
 
 //===========================================================================
@@ -145,6 +144,20 @@ void TimerSetSpeedMultiplier(float multiplier) {
 //===========================================================================
 void TimerSleepUs(int us) {
     Sleep(us / 1000);
+}
+
+//===========================================================================
+void TimerUpdateFullSpeedSetting(EFullSpeedSetting reason, bool on) {
+    if (on)
+        s_fullSpeedBits |= (1 << reason);
+    else
+        s_fullSpeedBits &= ~(1 << reason);
+}
+
+//===========================================================================
+int64_t TimerUpdateElapsedCycles() {
+    UpdateElapsedCycles();
+    return int64_t(s_cyclesElapsed);
 }
 
 //===========================================================================

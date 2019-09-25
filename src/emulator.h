@@ -23,7 +23,7 @@ constexpr int VERSIONMAJOR  = 1;
 constexpr int VERSIONMINOR  = 11;
 
 constexpr int SPEED_NORMAL  = 10;
-constexpr int SPEED_MAX     = 81;
+constexpr int SPEED_MAX     = 80;
 
 constexpr double  CPU_HZ            = 1020484.32;
 constexpr DWORD   CPU_CYCLES_PER_MS = DWORD(CPU_HZ * 0.001);
@@ -35,7 +35,6 @@ constexpr double  CPU_CYCLES_PER_US = CPU_HZ * 0.000001;
 
 extern BOOL         apple2e;
 extern BOOL         autoBoot;
-extern BOOL         fullSpeed;
 extern HINSTANCE    instance;
 extern char         programDir[MAX_PATH];
 extern BOOL         restart;
@@ -45,5 +44,6 @@ extern int64_t      g_cyclesEmulated;
 
 EEmulatorMode GetMode();
 int           GetSpeed();
+bool          IsBehind();
 void          SetMode(EEmulatorMode mode);
 void          SetSpeed(int speed);

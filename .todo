@@ -1,7 +1,6 @@
 Convert from Windows SDK to SDL.
 Replace registry with config file(s).
 Convert modules to singletons.
-Move sound processing into a separate thread
 
 
  00 BRK 7        $00: bytes: 0 cycles: 0 _____=>_____ __ 

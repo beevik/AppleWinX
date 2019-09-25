@@ -96,8 +96,8 @@ static BOOL CALLBACK ConfigDlgProc(
                         afterclose = 0;
                         return 0;
                     }
-                    if (optMonochrome != newvidtype) {
-                        optMonochrome = newvidtype;
+                    if (g_optMonochrome != newvidtype) {
+                        g_optMonochrome = newvidtype;
                         VideoReinitialize();
                         VideoRedrawScreen();
                     }
@@ -111,7 +111,7 @@ static BOOL CALLBACK ConfigDlgProc(
                     RegSaveValue("Configuration", "Serial Port", serialport);
                     RegSaveValue("Configuration", "Custom Speed", IsDlgButtonChecked(window, 107));
                     RegSaveValue("Configuration", "Emulation Speed", GetSpeed());
-                    RegSaveValue("Configuration", "Monochrome Video", optMonochrome);
+                    RegSaveValue("Configuration", "Monochrome Video", g_optMonochrome);
                 }
                 EndDialog(window, 1);
                 if (afterclose)
@@ -163,10 +163,10 @@ static BOOL CALLBACK ConfigDlgProc(
 
         case WM_INITDIALOG:
             FillComboBox(window, 101, computerchoices, apple2e);
-            FillComboBox(window, 105, videochoices, optMonochrome);
+            FillComboBox(window, 105, videochoices, g_optMonochrome);
             FillComboBox(window, 102, joystickchoices, joytype);
             FillComboBox(window, 104, serialchoices, serialport);
-            SendDlgItemMessage(window, 108, TBM_SETRANGE, 1, MAKELONG(0, 40));
+            SendDlgItemMessage(window, 108, TBM_SETRANGE, 1, MAKELONG(1, 80));
             SendDlgItemMessage(window, 108, TBM_SETPAGESIZE, 0, 5);
             SendDlgItemMessage(window, 108, TBM_SETTICFREQ, 10, 0);
             SendDlgItemMessage(window, 108, TBM_SETPOS, 1, GetSpeed());
@@ -461,9 +461,8 @@ static void DrawStatusArea(HDC passdc, BOOL drawbackground) {
 //===========================================================================
 static void EnableTrackbar(HWND window, BOOL enable) {
     EnableWindow(GetDlgItem(window, 108), enable);
-    int loop = 120;
-    while (loop++ < 124)
-        EnableWindow(GetDlgItem(window, loop), enable);
+    for (int id = 120; id <= 125; ++id)
+        EnableWindow(GetDlgItem(window, id), enable);
 }
 
 //===========================================================================
@@ -517,15 +516,6 @@ static LRESULT CALLBACK FrameWndProc(
 
         case WM_DESTROY:
             SetMode(EMULATOR_MODE_SHUTDOWN);
-            DebugDestroy();
-            if (!restart) {
-                DiskDestroy();
-                ImageDestroy();
-            }
-            CommDestroy();
-            MemDestroy();
-            SpkrDestroy();
-            VideoDestroy();
             DeleteGdiObjects();
             PostQuitMessage(0);
             break;

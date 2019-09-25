@@ -20,4 +20,5 @@ struct Event {
 
 bool    SchedulerDequeue (int64_t elapsedCycles, Event * event);
 bool    SchedulerEnqueue(Event event);
+void    SchedulerInitialize();
 int64_t SchedulerPeekTime();

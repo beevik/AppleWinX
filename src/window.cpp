@@ -49,6 +49,10 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
             }
             break;
 
+        case SDL_SCANCODE_HOME:
+            TimerUpdateFullSpeedSetting(FULL_SPEED_SETTING_KEYDOWN, true);
+            break;
+
         case SDL_SCANCODE_1:
             if (IsCtrlOnly(key.keysym.mod)) {
                 SDL_SetWindowFullscreen(window, 0);
@@ -79,6 +83,15 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
     }
     else if (mode == EMULATOR_MODE_DEBUG) {
         // DebugProcessCommandSdl(key.keysym);
+    }
+}
+
+//===========================================================================
+static void ProcessEventKeyUp(const SDL_KeyboardEvent & key)  {
+    switch (key.keysym.scancode) {
+        case SDL_SCANCODE_HOME:
+            TimerUpdateFullSpeedSetting(FULL_SPEED_SETTING_KEYDOWN, false);
+            break;
     }
 }
 
@@ -196,6 +209,9 @@ void WindowUpdate() {
                 return;
             case SDL_KEYDOWN:
                 ProcessEventKeyDown(event.key);
+                break;
+            case SDL_KEYUP:
+                ProcessEventKeyUp(event.key);
                 break;
         }
     }

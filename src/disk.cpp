@@ -182,6 +182,15 @@ static void WriteTrack(int drive) {
     fptr->trackImageDirty = 0;
 }
 
+//===========================================================================
+static void UpdateFloppyMotorOn(BOOL on) {
+    if (on == floppyMotorOn)
+        return;
+    floppyMotorOn = on;
+    TimerUpdateFullSpeedSetting(FULL_SPEED_SETTING_DISK_MOTOR_ON, floppyMotorOn && optEnhancedDisk);
+}
+
+
 //
 // ----- ALL GLOBALLY ACCESSIBLE FUNCTIONS ARE BELOW THIS LINE -----
 //
@@ -191,12 +200,12 @@ void DiskBoot() {
     // THIS FUNCTION RELOADS A PROGRAM IMAGE IF ONE IS LOADED IN DRIVE ONE.
     // IF A DISK IMAGE OR NO IMAGE IS LOADED IN DRIVE ONE, IT DOES NOTHING.
     if (floppyDrive[0].imageHandle && ImageBoot(floppyDrive[0].imageHandle))
-        floppyMotorOn = FALSE;
+        UpdateFloppyMotorOn(FALSE);
 }
 
 //===========================================================================
 BYTE DiskControlMotor(WORD, BYTE address, BYTE, BYTE) {
-    floppyMotorOn = (address & 1) != 0;
+    UpdateFloppyMotorOn((address & 1) != 0);
     return MemReturnRandomData(TRUE);
 }
 

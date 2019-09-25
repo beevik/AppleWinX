@@ -7,7 +7,7 @@
 ***/
 
 
-extern BOOL optMonochrome;
+extern BOOL g_optMonochrome;
 
 void VideoBenchmark();
 void VideoDestroy();

@@ -59,7 +59,7 @@ BYTE SpkrToggle(WORD, BYTE address, BYTE write, BYTE) {
     int cyclesSince = int(g_cyclesEmulated - lastToggle);
     int samples     = cyclesSince / 32;
 
-    if (samples < audioBufSize && !fullSpeed) {
+    if (samples < audioBufSize && !TimerIsFullSpeed()) {
         for (int i = 0; i < samples; i++)
             audioBuf[i] = audioSample;
         SDL_QueueAudio(audioDevice, audioBuf, samples);

@@ -11,34 +11,34 @@
 
 constexpr int MAX_EVENTS = 15;
 
-static int   eventCount = 0;
-static Event eventQueue[MAX_EVENTS];
+static int   s_eventCount = 0;
+static Event s_eventQueue[MAX_EVENTS];
 
 //===========================================================================
 bool SchedulerDequeue (int64_t elapsedCycles, Event * event) {
-    if (eventCount == 0 || eventQueue[0].cycle > elapsedCycles)
+    if (s_eventCount == 0 || s_eventQueue[0].cycle > elapsedCycles)
         return false;
 
-    *event = eventQueue[0];
+    *event = s_eventQueue[0];
 
     int index = 0;
-    eventQueue[index] = eventQueue[--eventCount];
-    while (index < eventCount) {
+    s_eventQueue[index] = s_eventQueue[--s_eventCount];
+    while (index < s_eventCount) {
         int leftIndex  = index * 2 + 1;
         int rightIndex = leftIndex + 1;
         int newIndex;
-        if (eventQueue[index].cycle > eventQueue[leftIndex].cycle) {
-            if (eventQueue[leftIndex].cycle < eventQueue[rightIndex].cycle)
+        if (leftIndex < s_eventCount && s_eventQueue[index].cycle > s_eventQueue[leftIndex].cycle) {
+            if (rightIndex >= s_eventCount || s_eventQueue[leftIndex].cycle < s_eventQueue[rightIndex].cycle)
                 newIndex = leftIndex;
             else
                 newIndex = rightIndex;
         }
-        else if (eventQueue[index].cycle > eventQueue[rightIndex].cycle)
+        else if (rightIndex < s_eventCount && s_eventQueue[index].cycle > s_eventQueue[rightIndex].cycle)
             newIndex = rightIndex;
         else
             break;
 
-        std::swap(eventQueue[index], eventQueue[newIndex]);
+        std::swap(s_eventQueue[index], s_eventQueue[newIndex]);
         index = newIndex;
     }
 
@@ -47,24 +47,29 @@ bool SchedulerDequeue (int64_t elapsedCycles, Event * event) {
 
 //===========================================================================
 bool SchedulerEnqueue(Event event) {
-    if (eventCount >= MAX_EVENTS)
+    if (s_eventCount >= MAX_EVENTS)
         return false;
 
-    int index = eventCount++;
-    eventQueue[index] = event;
+    int index = s_eventCount++;
+    s_eventQueue[index] = event;
     while (index > 0) {
         int parentIndex = index / 2;
-        if (eventQueue[parentIndex].cycle <= eventQueue[index].cycle)
+        if (s_eventQueue[parentIndex].cycle <= s_eventQueue[index].cycle)
             break;
-        std::swap(eventQueue[parentIndex], eventQueue[index]);
+        std::swap(s_eventQueue[parentIndex], s_eventQueue[index]);
         index = parentIndex;
     }
     return true;
 }
 
 //===========================================================================
+void SchedulerInitialize() {
+    s_eventCount = 0;
+}
+
+//===========================================================================
 int64_t SchedulerPeekTime() {
-    if (eventCount == 0)
+    if (s_eventCount == 0)
         return LLONG_MAX;
-    return eventQueue[0].cycle;
+    return s_eventQueue[0].cycle;
 }
