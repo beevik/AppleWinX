@@ -43,6 +43,7 @@ static HBITMAP capsbitmap[2];
 static HBITMAP diskbitmap[3];
 static HBITMAP buttonbitmap[BUTTONS];
 
+BOOL autoBoot    = FALSE;
 HWND framewindow = (HWND)0;
 
 static HBRUSH  btnfacebrush    = (HBRUSH)0;
@@ -78,11 +79,11 @@ static BOOL CALLBACK ConfigDlgProc(
 
                 case IDOK:
                 {
-                    BOOL  newcomptype   = (BOOL)SendDlgItemMessage(window, 101, CB_GETCURSEL, 0, 0);
+                    DWORD newcomptype   = (DWORD)SendDlgItemMessage(window, 101, CB_GETCURSEL, 0, 0);
                     BOOL  newvidtype    = (BOOL)SendDlgItemMessage(window, 105, CB_GETCURSEL, 0, 0);
                     DWORD newjoytype    = (DWORD)SendDlgItemMessage(window, 102, CB_GETCURSEL, 0, 0);
                     DWORD newserialport = (DWORD)SendDlgItemMessage(window, 104, CB_GETCURSEL, 0, 0);
-                    if (newcomptype != apple2e)
+                    if (newcomptype != (DWORD)EmulatorGetAppleType())
                         if (MessageBox(window,
                             "You have changed the emulated computer "
                             "type.  This change will not take effect "
@@ -162,7 +163,7 @@ static BOOL CALLBACK ConfigDlgProc(
             break;
 
         case WM_INITDIALOG:
-            FillComboBox(window, 101, computerchoices, apple2e);
+            FillComboBox(window, 101, computerchoices, EmulatorGetAppleType());
             FillComboBox(window, 105, videochoices, g_optMonochrome);
             FillComboBox(window, 102, joystickchoices, joytype);
             FillComboBox(window, 104, serialchoices, serialport);
@@ -209,19 +210,19 @@ static BOOL CALLBACK ConfigDlgProc(
 //===========================================================================
 static void CreateGdiObjects() {
     ZeroMemory(buttonbitmap, BUTTONS * sizeof(HBITMAP));
-    buttonbitmap[BTN_HELP] = LoadButtonBitmap(instance, "HELP_BUTTON");
-    buttonbitmap[BTN_RUN] = LoadButtonBitmap(instance, "RUN_BUTTON");
-    buttonbitmap[BTN_DRIVE1] = LoadButtonBitmap(instance, "DRIVE1_BUTTON");
-    buttonbitmap[BTN_DRIVE2] = LoadButtonBitmap(instance, "DRIVE2_BUTTON");
-    buttonbitmap[BTN_TOFILE] = LoadButtonBitmap(instance, "TOFILE_BUTTON");
-    buttonbitmap[BTN_TODISK] = LoadButtonBitmap(instance, "TODISK_BUTTON");
-    buttonbitmap[BTN_DEBUG] = LoadButtonBitmap(instance, "DEBUG_BUTTON");
-    buttonbitmap[BTN_SETUP] = LoadButtonBitmap(instance, "SETUP_BUTTON");
-    capsbitmap[0] = LoadButtonBitmap(instance, "CAPSOFF_BITMAP");
-    capsbitmap[1] = LoadButtonBitmap(instance, "CAPSON_BITMAP");
-    diskbitmap[0] = LoadButtonBitmap(instance, "DISKOFF_BITMAP");
-    diskbitmap[1] = LoadButtonBitmap(instance, "DISKREAD_BITMAP");
-    diskbitmap[2] = LoadButtonBitmap(instance, "DISKWRITE_BITMAP");
+    buttonbitmap[BTN_HELP] = LoadButtonBitmap(g_instance, "HELP_BUTTON");
+    buttonbitmap[BTN_RUN] = LoadButtonBitmap(g_instance, "RUN_BUTTON");
+    buttonbitmap[BTN_DRIVE1] = LoadButtonBitmap(g_instance, "DRIVE1_BUTTON");
+    buttonbitmap[BTN_DRIVE2] = LoadButtonBitmap(g_instance, "DRIVE2_BUTTON");
+    buttonbitmap[BTN_TOFILE] = LoadButtonBitmap(g_instance, "TOFILE_BUTTON");
+    buttonbitmap[BTN_TODISK] = LoadButtonBitmap(g_instance, "TODISK_BUTTON");
+    buttonbitmap[BTN_DEBUG] = LoadButtonBitmap(g_instance, "DEBUG_BUTTON");
+    buttonbitmap[BTN_SETUP] = LoadButtonBitmap(g_instance, "SETUP_BUTTON");
+    capsbitmap[0] = LoadButtonBitmap(g_instance, "CAPSOFF_BITMAP");
+    capsbitmap[1] = LoadButtonBitmap(g_instance, "CAPSON_BITMAP");
+    diskbitmap[0] = LoadButtonBitmap(g_instance, "DISKOFF_BITMAP");
+    diskbitmap[1] = LoadButtonBitmap(g_instance, "DISKREAD_BITMAP");
+    diskbitmap[2] = LoadButtonBitmap(g_instance, "DISKWRITE_BITMAP");
     btnfacebrush = CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
     btnfacepen = CreatePen(PS_SOLID, 1, GetSysColor(COLOR_BTNFACE));
     btnhighlightpen = CreatePen(PS_SOLID, 1, GetSysColor(COLOR_BTNHIGHLIGHT));
@@ -447,7 +448,7 @@ static void DrawStatusArea(HDC passdc, BOOL drawbackground) {
         DrawBitmapRect(dc, x + 30, y + 8, &rect, diskbitmap[drive2]);
     }
 
-    if (apple2e) {
+    if (EmulatorGetAppleType() == APPLE_TYPE_IIE) {
         RECT rect = { 0,0,30,8 };
         BOOL caps = 0;
         KeybGetCapsStatus(&caps);
@@ -497,7 +498,7 @@ static LRESULT CALLBACK FrameWndProc(
             if (helpquit) {
                 helpquit = 0;
                 char filename[MAX_PATH];
-                StrCopy(filename, programDir, ARRSIZE(filename));
+                StrCopy(filename, EmulatorGetProgramDirectory(), ARRSIZE(filename));
                 StrCat(filename, "applewin.hlp", ARRSIZE(filename));
                 WinHelp(window, filename, HELP_QUIT, 0);
             }
@@ -657,7 +658,7 @@ static LRESULT CALLBACK FrameWndProc(
         case WM_USER:
             SetTimer(window, 1, 333, NULL);
             if (autoBoot) {
-                autoBoot = 0;
+                autoBoot = FALSE;
                 ProcessButtonClick(BTN_RUN);
             }
             break;
@@ -773,7 +774,7 @@ static void ProcessButtonClick(int button) {
         case BTN_HELP:
         {
             char filename[MAX_PATH];
-            StrCopy(filename, programDir, ARRSIZE(filename));
+            StrCopy(filename, EmulatorGetProgramDirectory(), ARRSIZE(filename));
             StrCat(filename, "applewin.hlp", ARRSIZE(filename));
             WinHelp(framewindow, filename, HELP_CONTENTS, 0);
             helpquit = 1;
@@ -831,7 +832,7 @@ static void ProcessButtonClick(int button) {
         {
             InitCommonControls();
             DialogBox(
-                instance,
+                g_instance,
                 "CONFIGURATION_DIALOG",
                 framewindow,
                 (DLGPROC)ConfigDlgProc
@@ -896,7 +897,7 @@ void FrameCreateWindow() {
         + 16;
     framewindow = CreateWindow(
         "APPLE2FRAME",
-        apple2e ? EmulatorGetTitle() : "Apple ][+ Emulator",
+        EmulatorGetTitle(),
         WS_OVERLAPPED
         | WS_BORDER
         | WS_CAPTION
@@ -909,7 +910,7 @@ void FrameCreateWindow() {
         height,
         HWND_DESKTOP,
         (HMENU)0,
-        instance,
+        g_instance,
         NULL
     );
 }
@@ -947,12 +948,12 @@ void FrameRegisterClass() {
     wndclass.cbSize        = sizeof(WNDCLASSEX);
     wndclass.style         = CS_OWNDC | CS_BYTEALIGNCLIENT;
     wndclass.lpfnWndProc   = FrameWndProc;
-    wndclass.hInstance     = instance;
-    wndclass.hIcon         = LoadIcon(instance, "APPLEWIN_ICON");
+    wndclass.hInstance     = g_instance;
+    wndclass.hIcon         = LoadIcon(g_instance, "APPLEWIN_ICON");
     wndclass.hCursor       = LoadCursor(0, IDC_ARROW);
     wndclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
     wndclass.lpszClassName = "APPLE2FRAME";
-    wndclass.hIconSm       = (HICON)LoadImageA(instance, "APPLEWIN_ICON", 1, 16, 16, 0);
+    wndclass.hIconSm       = (HICON)LoadImageA(g_instance, "APPLEWIN_ICON", 1, 16, 16, 0);
     RegisterClassExA(&wndclass);
 }
 

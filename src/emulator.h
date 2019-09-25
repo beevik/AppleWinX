@@ -8,6 +8,11 @@
 
 #pragma once
 
+enum EAppleType {
+    APPLE_TYPE_IIPLUS,
+    APPLE_TYPE_IIE,
+};
+
 enum EEmulatorMode {
     EMULATOR_MODE_LOGO,
     EMULATOR_MODE_PAUSED,
@@ -33,16 +38,16 @@ constexpr double  CPU_CYCLES_PER_US = CPU_HZ * 0.000001;
 #define  MIN(a,b)   (((a) < (b)) ? (a) : (b))
 #define  ARRSIZE(x) (sizeof(x) / sizeof(x[0]))
 
-extern BOOL         apple2e;
-extern BOOL         autoBoot;
-extern HINSTANCE    instance;
-extern char         programDir[MAX_PATH];
-extern int64_t      g_cyclesEmulated;
+extern int64_t   g_cyclesEmulated;
+extern HINSTANCE g_instance;
 
+EAppleType    EmulatorGetAppleType();
 EEmulatorMode EmulatorGetMode();
+const char *  EmulatorGetProgramDirectory();
 int           EmulatorGetSpeed();
 const char *  EmulatorGetTitle();
 bool          EmulatorIsBehind();
 void          EmulatorRequestRestart();
+void          EmulatorSetAppleType(EAppleType type);
 void          EmulatorSetMode(EEmulatorMode mode);
 void          EmulatorSetSpeed(int speed);

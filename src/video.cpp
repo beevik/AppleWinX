@@ -207,7 +207,7 @@ static void DrawMonoHiResSource(HDC dc) {
 //===========================================================================
 static void DrawMonoTextSource(HDC dc) {
     HDC     memdc = CreateCompatibleDC(dc);
-    HBITMAP bitmap = LoadBitmap(instance, "CHARSET40");
+    HBITMAP bitmap = LoadBitmap(g_instance, "CHARSET40");
     SelectObject(memdc, bitmap);
     BitBlt(
         dc,
@@ -233,7 +233,7 @@ static void DrawMonoTextSource(HDC dc) {
 //===========================================================================
 static void DrawTextSource(HDC dc) {
     HDC     memdc = CreateCompatibleDC(dc);
-    HBITMAP bitmap = LoadBitmap(instance, "CHARSET40");
+    HBITMAP bitmap = LoadBitmap(g_instance, "CHARSET40");
     SelectObject(memdc, bitmap);
     BitBlt(
         dc,
@@ -271,7 +271,7 @@ static BOOL LoadPngImage(
     LPVOID  buf,
     DWORD   flags
 ) {
-    HRSRC handle = FindResourceA(instance, name, "IMAGE");
+    HRSRC handle = FindResourceA(g_instance, name, "IMAGE");
     if (!handle)
         return FALSE;
 
@@ -705,7 +705,7 @@ void VideoBenchmark() {
             (unsigned)totaltextfps,
             (unsigned)(totalmhz10 / 10),
             (unsigned)(totalmhz10 % 10),
-            apple2e ? "" : " (6502)",
+            EmulatorGetAppleType() == APPLE_TYPE_IIE ? " (65C02)" : " (6502)",
             (unsigned)realisticfps
         );
         MessageBox(
@@ -877,7 +877,7 @@ void VideoGenerateSourceFiles() {
         DeleteObject(brush);
 
         char filename[MAX_PATH];
-        StrPrintf(filename, ARRSIZE(filename), "%ssource%s.png", programDir, mono ? "mono" : "color");
+        StrPrintf(filename, ARRSIZE(filename), "%ssource%s.png", EmulatorGetProgramDirectory(), mono ? "mono" : "color");
 
         FILE * fp = fopen(filename, "wb");
         if (!fp)

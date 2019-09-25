@@ -809,8 +809,8 @@ void MemInitialize() {
     ZeroMemory(memImage, imageByes);
 
     // READ THE APPLE FIRMWARE ROMS INTO THE ROM IMAGE
-    LPCSTR resourceName = apple2e ? "APPLE2E_ROM" : "APPLE2_ROM";
-    HRSRC handle = FindResourceA(instance, resourceName, "ROM");
+    LPCSTR resourceName = EmulatorGetAppleType() == APPLE_TYPE_IIE ? "APPLE2E_ROM" : "APPLE2_ROM";
+    HRSRC handle = FindResourceA(g_instance, resourceName, "ROM");
     if (!handle) {
         MessageBox(
             GetDesktopWindow(),
@@ -917,7 +917,7 @@ BYTE MemSetPaging(WORD pc, BYTE address, BYTE write, BYTE value) {
             memMode |= MF_HIGHRAM;
         lastWriteRam = writeram;
     }
-    else if (apple2e)
+    else if (EmulatorGetAppleType() == APPLE_TYPE_IIE) {
         switch (address) {
             case 0x00: memMode &= ~MF_80STORE;    break;
             case 0x01: memMode |= MF_80STORE;    break;
@@ -936,6 +936,7 @@ BYTE MemSetPaging(WORD pc, BYTE address, BYTE write, BYTE value) {
             case 0x56: memMode &= ~MF_HIRES;      break;
             case 0x57: memMode |= MF_HIRES;      break;
         }
+    }
 
     // IF THE EMULATED PROGRAM HAS JUST UPDATE THE MEMORY WRITE MODE AND IS
     // ABOUT TO UPDATE THE MEMORY READ MODE, HOLD OFF ON ANY PROCESSING UNTIL

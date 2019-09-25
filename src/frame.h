@@ -12,6 +12,7 @@ constexpr int VIEWPORTX = 5;
 constexpr int VIEWPORTY = 5;
 
 extern HWND framewindow;
+extern BOOL autoBoot;
 
 void FrameCreateWindow();
 HDC  FrameGetDC();

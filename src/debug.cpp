@@ -733,7 +733,7 @@ static BOOL CmdInput(int argc) {
 //===========================================================================
 static BOOL CmdInternalMemoryDump(int argc) {
     char filename[MAX_PATH];
-    StrCopy(filename, programDir, ARRSIZE(filename));
+    StrCopy(filename, EmulatorGetProgramDirectory(), ARRSIZE(filename));
     StrCat(filename, "memory.bin", ARRSIZE(filename));
 
     FILE * fp = fopen(filename, "wb");
@@ -913,7 +913,7 @@ static BOOL CmdTraceFile(int argc) {
     if (tracefile)
         fclose(tracefile);
     char filename[MAX_PATH];
-    StrCopy(filename, programDir, ARRSIZE(filename));
+    StrCopy(filename, EmulatorGetProgramDirectory(), ARRSIZE(filename));
     StrCat(filename, (argc && argv[1].str[0]) ? argv[1].str : "trace.txt", ARRSIZE(filename));
     tracefile = fopen(filename, "wt");
     return FALSE;
@@ -1780,7 +1780,7 @@ static void ParseSymbolData(LPBYTE data, DWORD bytes) {
 //===========================================================================
 static void WriteProfileData() {
     char filename[MAX_PATH];
-    StrCopy(filename, programDir, ARRSIZE(filename));
+    StrCopy(filename, EmulatorGetProgramDirectory(), ARRSIZE(filename));
     StrCat(filename, "Profile.txt", ARRSIZE(filename));
     FILE * file = fopen(filename, "wt");
     if (file) {
@@ -1818,8 +1818,8 @@ void DebugBegin() {
     if (!membank)
         membank = mem;
     EmulatorSetMode(EMULATOR_MODE_DEBUG);
-    addressmode[INVALID2].bytes = apple2e ? 2 : 1;
-    addressmode[INVALID3].bytes = apple2e ? 3 : 1;
+    addressmode[INVALID2].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 2 : 1;
+    addressmode[INVALID3].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 3 : 1;
     ComputeTopOffset(regs.pc);
     DebugDisplay(TRUE);
 }
@@ -1932,7 +1932,7 @@ void DebugInitialize() {
         watch[loop] = -1;
 
     // READ IN THE SYMBOL TABLE
-    HRSRC handle = FindResourceA(instance, "APPLE2E_SYM", "SYMBOLS");
+    HRSRC handle = FindResourceA(g_instance, "APPLE2E_SYM", "SYMBOLS");
     if (handle) {
         HGLOBAL resource = LoadResource(NULL, handle);
         if (resource) {

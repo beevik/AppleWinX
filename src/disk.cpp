@@ -300,7 +300,7 @@ BOOL DiskInitialize() {
             *ptr = '\0';
     }
     else {
-        StrCopy(imagefilename, programDir, ARRSIZE(imagefilename));
+        StrCopy(imagefilename, EmulatorGetProgramDirectory(), ARRSIZE(imagefilename));
         StrCat(imagefilename, "master.dsk", ARRSIZE(imagefilename));
     }
 
@@ -374,7 +374,7 @@ void DiskSelect(int drive) {
     ZeroMemory(&ofn, sizeof(OPENFILENAME));
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner       = framewindow;
-    ofn.hInstance       = instance;
+    ofn.hInstance       = g_instance;
     ofn.lpstrFilter     = "All Images\0*.apl;*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
                           "Disk Images (*.bin,*.do,*.dsk,*.iie,*.nib,*.po)\0*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
                           "All Files\0*.*\0";

@@ -283,13 +283,13 @@ bool KeybIsKeyDown(SDL_Scancode scancode) {
 
 //===========================================================================
 void KeybQueueKeypress(int virtkey, BOOL extended) {
-    if ((virtkey == VK_CAPITAL) && apple2e) {
+    if (virtkey == VK_CAPITAL && EmulatorGetAppleType() == APPLE_TYPE_IIE) {
         capsLock = (GetKeyState(VK_CAPITAL) & 1);
         FrameRefreshStatus();
     }
     if (((virtkey == VK_CANCEL) || (virtkey == VK_F12)) &&
-        ((!apple2e) || (GetKeyState(VK_CONTROL) < 0))) {
-        if (apple2e)
+        ((EmulatorGetAppleType() != APPLE_TYPE_IIE) || (GetKeyState(VK_CONTROL) < 0))) {
+        if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
             MemResetPaging();
         regs.pc = *(LPWORD)(mem + 0xFFFC);
     }
@@ -297,7 +297,7 @@ void KeybQueueKeypress(int virtkey, BOOL extended) {
         return;
     int ctrl = (GetKeyState(VK_CONTROL) < 0);
     int shift = (GetKeyState(VK_SHIFT) < 0);
-    if ((virtkey >= 'A') && (virtkey <= 'Z') && (capsLock || !apple2e))
+    if ((virtkey >= 'A') && (virtkey <= 'Z') && (capsLock || EmulatorGetAppleType() != APPLE_TYPE_IIE))
         shift = 1;
     keyCode = asciiCode[virtkey & 0x7F][ctrl | (shift << 1)];
     keyWaiting = (keyCode != 0);
@@ -306,14 +306,14 @@ void KeybQueueKeypress(int virtkey, BOOL extended) {
 //===========================================================================
 void KeybQueueKeypressSdl(const SDL_Keysym & sym) {
     // Use system's actual capsLock state to update emulator capsLock state.
-    if (sym.scancode == SDL_SCANCODE_CAPSLOCK && apple2e) {
+    if (sym.scancode == SDL_SCANCODE_CAPSLOCK && EmulatorGetAppleType() == APPLE_TYPE_IIE) {
         capsLock =  (SDL_GetModState() & KMOD_CAPS) ? TRUE : FALSE;
         FrameRefreshStatus();
     }
 
     // ctrl-shift-backspace is the same as ctrl-apple-reset.
     if (sym.scancode == SDL_SCANCODE_BACKSPACE && (sym.mod & KMOD_CTRL) && (sym.mod & KMOD_SHIFT)) {
-        if (apple2e)
+        if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
             MemResetPaging();
         regs.pc = *(LPWORD)(mem + 0xFFFC);
     }
@@ -324,7 +324,7 @@ void KeybQueueKeypressSdl(const SDL_Keysym & sym) {
     int scancode = sym.scancode;
     int ctrl  = (sym.mod & KMOD_CTRL) ? 1 : 0;
     int shift = (sym.mod & KMOD_SHIFT) ? 1 : 0;
-    if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z && (capsLock || !apple2e))
+    if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z && (capsLock || EmulatorGetAppleType() != APPLE_TYPE_IIE))
         shift = 1;
     if (scancode >= SDL_SCANCODE_KP_1 && scancode <= SDL_SCANCODE_KP_0) {
         if (SDL_GetModState() & KMOD_NUM)

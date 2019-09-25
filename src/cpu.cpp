@@ -62,7 +62,7 @@ const int statestart = 50000;
                               | (flagn ? PS_SIGN     : 0)                   \
                               | (flagv ? PS_OVERFLOW : 0)                   \
                               | (flagz ? PS_ZERO     : 0)
-#define CMOS     if (!apple2e) { ++*cyclecounter; break; }
+#define CMOS     if (EmulatorGetAppleType() != APPLE_TYPE_IIE) { ++*cyclecounter; break; }
 #define CYC(a)   *cyclecounter += (a)
 #define POP()    (mem[regs.sp >= 0x1FF ? (regs.sp = 0x100) : ++regs.sp])
 #define PUSH(a)  mem[regs.sp--] = (a);                                      \
@@ -119,7 +119,7 @@ const int statestart = 50000;
                    val    = TOBIN(regs.a)+TOBIN(temp)+(flagc != 0);         \
                    flagc  = (val > 99);                                     \
                    regs.a = TOBCD(val);                                     \
-                   if (apple2e)                                             \
+                   if (EmulatorGetAppleType() == APPLE_TYPE_IIE)            \
                      SETNZ(regs.a);                                         \
                  }                                                          \
                  else {                                                     \
@@ -264,7 +264,7 @@ const int statestart = 50000;
                    val    = TOBIN(regs.a)-TOBIN(temp)-!flagc;               \
                    flagc  = (val < 0x8000);                                 \
                    regs.a = TOBCD(val);                                     \
-                   if (apple2e)                                             \
+                   if (EmulatorGetAppleType() == APPLE_TYPE_IIE)            \
                      SETNZ(regs.a);                                         \
                  }                                                          \
                  else {                                                     \
@@ -302,8 +302,8 @@ const int statestart = 50000;
 #define TYA      regs.a = regs.y;                                           \
                  SETNZ(regs.a);
 #define INVALID1
-#define INVALID2 if (apple2e) ++regs.pc;
-#define INVALID3 if (apple2e) regs.pc += 2;
+#define INVALID2 if (EmulatorGetAppleType() == APPLE_TYPE_IIE) ++regs.pc;
+#define INVALID3 if (EmulatorGetAppleType() == APPLE_TYPE_IIE) regs.pc += 2;
 
 
 /****************************************************************************
