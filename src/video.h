@@ -14,7 +14,6 @@ void VideoDisplayLogo();
 void VideoDisplayMode(BOOL flashon);
 void VideoGenerateSourceFiles();
 void VideoInitialize();
-void VideoRedrawScreen();
 void VideoRefreshScreen();
 void VideoReinitialize();
 void VideoReleaseFrameDC();

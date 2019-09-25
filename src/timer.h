@@ -19,6 +19,7 @@ enum EFullSpeedSetting {
 
 extern ETimerMode g_timerMode;
 
+void    TimerBenchmarkRecord(int timeUs);
 int64_t TimerBenchmarkStart();
 int     TimerBenchmarkStop(int64_t handle); // returns elapsed microseconds
 void    TimerDestroy();

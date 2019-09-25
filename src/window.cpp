@@ -9,6 +9,12 @@
 #include "pch.h"
 #pragma  hdrstop
 
+/****************************************************************************
+*
+*   Variables
+*
+***/
+
 static SDL_Renderer * s_renderer;
 static SDL_Texture *  s_texture;
 static SDL_Surface *  s_screen;
@@ -17,9 +23,18 @@ static SDL_Window *   s_window;
 
 static SDL_Rect s_screenRect { 0, 0, 560, 384 };
 
+
+/****************************************************************************
+*
+*   Local functions
+*
+***/
+
+static void StartEmulator();
+
 //===========================================================================
-static inline bool IsCtrlOnly(uint16_t mod) {
-    return (mod & KMOD_CTRL) != 0 && (mod & (KMOD_ALT | KMOD_SHIFT)) == 0;
+static inline bool IsAltOnly(uint16_t mod) {
+    return (mod & KMOD_ALT) != 0 && (mod & (KMOD_CTRL | KMOD_SHIFT)) == 0;
 }
 
 //===========================================================================
@@ -34,7 +49,28 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
             KeybQueueKeypressSdl(key.keysym);
             return;
 
-        case SDL_SCANCODE_F11:
+        case SDL_SCANCODE_F2:
+            StartEmulator();
+            break;
+
+        case SDL_SCANCODE_F3:
+            DiskSelect(0);
+            break;
+
+        case SDL_SCANCODE_F4:
+            DiskSelect(1);
+            break;
+
+        case SDL_SCANCODE_F5:
+            switch (EmulatorGetMode()) {
+                case EMULATOR_MODE_LOGO:     EmulatorReset();                break;
+                case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE); break;
+                case EMULATOR_MODE_DEBUG:    StartEmulator();                break;
+                default:                     DebugBegin();                   break;
+            }
+            break;
+
+        case SDL_SCANCODE_F10:
         case SDL_SCANCODE_PAUSE:
             if (IsUnmodified(key.keysym.mod)) {
                 EEmulatorMode mode = EmulatorGetMode();
@@ -44,7 +80,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
                     case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
                 if ((mode != EMULATOR_MODE_LOGO) && (mode != EMULATOR_MODE_DEBUG))
-                    VideoRedrawScreen();
+                    VideoRefreshScreen();
                 return;
             }
             break;
@@ -54,7 +90,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
             break;
 
         case SDL_SCANCODE_1:
-            if (IsCtrlOnly(key.keysym.mod)) {
+            if (IsAltOnly(key.keysym.mod)) {
                 SDL_SetWindowFullscreen(s_window, 0);
                 SDL_SetWindowSize(s_window, s_screenRect.w, s_screenRect.h);
                 return;
@@ -62,7 +98,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
             break;
 
         case SDL_SCANCODE_2:
-            if (IsCtrlOnly(key.keysym.mod)) {
+            if (IsAltOnly(key.keysym.mod)) {
                 SDL_SetWindowFullscreen(s_window, 0);
                 SDL_SetWindowSize(s_window, 2 * s_screenRect.w, 2 * s_screenRect.h);
                 return;
@@ -70,7 +106,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
             break;
 
         case SDL_SCANCODE_3:
-            if (IsCtrlOnly(key.keysym.mod)) {
+            if (IsAltOnly(key.keysym.mod)) {
                 SDL_SetWindowFullscreen(s_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
                 return;
             }
@@ -94,6 +130,31 @@ static void ProcessEventKeyUp(const SDL_KeyboardEvent & key)  {
             break;
     }
 }
+
+//===========================================================================
+static void StartEmulator() {
+    switch (EmulatorGetMode()) {
+        case EMULATOR_MODE_LOGO:
+            DiskBoot();
+            break;
+        case EMULATOR_MODE_RUNNING:
+            EmulatorReset();
+            break;
+        case EMULATOR_MODE_DEBUG:
+        case EMULATOR_MODE_STEPPING:
+            DebugEnd();
+            break;
+    }
+
+    EmulatorSetMode(EMULATOR_MODE_RUNNING);
+    VideoRefreshScreen();
+}
+
+/****************************************************************************
+*
+*   Public functions
+*
+***/
 
 //===========================================================================
 void WindowDestroy() {
@@ -181,19 +242,18 @@ uint32_t * WindowLockPixels() {
 
 //===========================================================================
 void WindowUnlockPixels() {
+    SDL_UpdateTexture(
+        s_texture,
+        &s_screenRect,
+        s_screen->pixels,
+        s_screenRect.w * sizeof(uint32_t)
+    );
     s_screenDirty = true;
 }
 
 //===========================================================================
 void WindowUpdate() {
     if (s_screenDirty) {
-        SDL_UpdateTexture(
-            s_texture,
-            &s_screenRect,
-            s_screen->pixels,
-            s_screenRect.w * sizeof(uint32_t)
-        );
-
         SDL_SetRenderDrawColor(s_renderer, 0x00, 0x00, 0x00, 0xff);
         SDL_RenderClear(s_renderer);
         SDL_RenderCopy(s_renderer, s_texture, nullptr, nullptr);

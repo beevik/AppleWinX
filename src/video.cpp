@@ -12,6 +12,7 @@
 #define PNG_SETJMP_NOT_SUPPORTED
 #include <png.h>
 
+
 /****************************************************************************
 *
 *   Constants and Types
@@ -82,14 +83,11 @@ static uint32_t * s_screenPixels;
 static FUpdate    s_updateLower;
 static FUpdate    s_updateUpper;
 
-static DWORD      s_charOffset    = 0;
-static BOOL       s_displayPage2  = FALSE;
-static HDC        s_frameDC       = (HDC)0;
-static int64_t    s_lastRefreshMs = 0;
-static DWORD      s_modeSwitches  = 0;
-static BOOL       s_redrawFull    = TRUE;
-static HFONT      s_videoFont     = (HFONT)0;
-static DWORD      s_videoMode     = 0;
+static DWORD      s_charOffset;
+static HFONT      s_font;
+static HDC        s_frameDC;
+static int64_t    s_lastRefreshMs;
+static DWORD      s_videoMode;
 
 static const COLORREF s_colorLoRes[16] = {
     0x000000, 0x7C0B93, 0xD3351F, 0xFF36BB, // black, red, dkblue, purple
@@ -110,7 +108,6 @@ static const COLORREF s_colorHiRes[6] = {
 *
 ***/
 
-
 //===========================================================================
 static void BitBltCell(
     int dstx,
@@ -120,16 +117,12 @@ static void BitBltCell(
     int srcx,
     int srcy
 ) {
-    const uint32_t * src  = s_sourceLookup + SRC_CX * srcy + srcx;
-    uint32_t *       dst1 = s_frameBuffer + SCREEN_CX * (SCREEN_CY - 1 - dsty) + dstx;
-    uint32_t *       dst2 = s_screenPixels + SCREEN_CX * dsty + dstx;
+    const uint32_t * src = s_sourceLookup + SRC_CX * srcy + srcx;
+    uint32_t *       dst = s_screenPixels + SCREEN_CX * dsty + dstx;
     for (int y = 0; y < ysize; ++y) {
-        for (int x = xsize - 1; x >= 0; x--) {
-            dst1[x] = src[x];
-            dst2[x] = src[x];
-        }
-        dst1 -= SCREEN_CX;
-        dst2 += SCREEN_CX;
+        for (int x = xsize - 1; x >= 0; x--)
+            dst[x] = src[x];
+        dst += SCREEN_CX;
         src += SRC_CX;
     }
 }
@@ -540,18 +533,17 @@ static void UpdateVideoScreen(int64_t cycle) {
 BYTE VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
     if (address == 0x7F)
         return MemReturnRandomData(SW_DHIRES());
-    else {
-        bool result = false;
-        switch (address) {
-            case 0x1A: result = SW_TEXT();       break;
-            case 0x1B: result = SW_MIXED();      break;
-            case 0x1D: result = SW_HIRES();      break;
-            case 0x1E: result = s_charOffset != 0; break;
-            case 0x1F: result = SW_80COL();      break;
-            case 0x7F: result = SW_DHIRES();     break;
-        }
-        return KeybGetKeycode() | (result ? 0x80 : 0);
+
+    bool result;
+    switch (address) {
+        case 0x1A: result = SW_TEXT();         break;
+        case 0x1B: result = SW_MIXED();        break;
+        case 0x1D: result = SW_HIRES();        break;
+        case 0x1E: result = s_charOffset != 0; break;
+        case 0x1F: result = SW_80COL();        break;
+        default:   result = false;             break;
     }
+    return KeybGetKeycode() | (result ? 0x80 : 0);
 }
 
 //===========================================================================
@@ -569,10 +561,10 @@ void VideoDestroy() {
 
     DeleteDC(s_deviceDC);
     DeleteObject(s_deviceBitmap);
-    DeleteObject(s_videoFont);
-    s_deviceDC     = (HDC)0;
-    s_deviceBitmap = (HBITMAP)0;
-    s_videoFont    = (HFONT)0;
+    DeleteObject(s_font);
+    s_deviceDC     = 0;
+    s_deviceBitmap = 0;
+    s_font         = 0;
 }
 
 //===========================================================================
@@ -603,34 +595,6 @@ void VideoDisplayLogo() {
         GdiFlush();
     }
 
-    // DRAW THE VERSION NUMBER
-    HFONT font = CreateFont(
-        -20,
-        0,
-        0,
-        0,
-        FW_NORMAL,
-        0,
-        0,
-        0,
-        ANSI_CHARSET,
-        OUT_DEFAULT_PRECIS,
-        CLIP_DEFAULT_PRECIS,
-        DEFAULT_QUALITY,
-        VARIABLE_PITCH | 4 | FF_SWISS,
-        "Arial"
-    );
-    HFONT oldfont = (HFONT)SelectObject(s_frameDC, font);
-    SetTextAlign(s_frameDC, TA_RIGHT | TA_TOP);
-    SetBkMode(s_frameDC, TRANSPARENT);
-    char version[16];
-    StrPrintf(version, ARRSIZE(version), "Version %d.%d", VERSION_MAJOR, VERSION_MINOR);
-    SetTextColor(s_frameDC, 0x2727D2);
-    TextOut(s_frameDC, 540, 358, version, StrLen(version));
-    SetTextAlign(s_frameDC, TA_RIGHT | TA_TOP);
-    SelectObject(s_frameDC, oldfont);
-    DeleteObject(font);
-
     FrameReleaseDC(s_frameDC);
     s_frameDC = (HDC)0;
 }
@@ -653,7 +617,7 @@ void VideoDisplayMode(BOOL flashon) {
         text = "STEPPING";
     }
 
-    SelectObject(s_frameDC, s_videoFont);
+    SelectObject(s_frameDC, s_font);
     SetTextAlign(s_frameDC, TA_LEFT | TA_TOP);
     RECT rect { SCREEN_CX - 68, 0, SCREEN_CX, 16 };
     ExtTextOut(s_frameDC, SCREEN_CX - 65, 0, ETO_CLIPPED | ETO_OPAQUE, &rect, text, 8, NULL);
@@ -732,10 +696,12 @@ void VideoGenerateSourceFiles() {
 
 //===========================================================================
 void VideoInitialize() {
-    s_videoMode = 0;
+    s_charOffset    = 0;
+    s_lastRefreshMs = 0;
+    s_videoMode     = 0;
 
     // CREATE A FONT FOR DRAWING TEXT ABOVE THE SCREEN
-    s_videoFont = CreateFont(
+    s_font = CreateFont(
         16,
         0,
         0,
@@ -756,26 +722,26 @@ void VideoInitialize() {
     HWND window       = GetDesktopWindow();
     HDC  dc           = GetDC(window);
     int  planes       = GetDeviceCaps(dc, PLANES);
-    int  bitsperpixel = planes * GetDeviceCaps(dc, BITSPIXEL);
+    int  bitsPerPixel = planes * GetDeviceCaps(dc, BITSPIXEL);
     ReleaseDC(window, dc);
-    if (bitsperpixel != 32 && planes != 1)
+    if (bitsPerPixel != 32 && planes != 1)
         return;
 
     // CREATE A BITMAPINFO STRUCTURE FOR THE FRAME BUFFER
-    int framebuffersize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
-    BITMAPINFO * framebufferinfo = (BITMAPINFO *)new BYTE[framebuffersize];
-    ZeroMemory(framebufferinfo, framebuffersize);
-    framebufferinfo->bmiHeader.biSize     = sizeof(BITMAPINFOHEADER);
-    framebufferinfo->bmiHeader.biWidth    = SCREEN_CX;
-    framebufferinfo->bmiHeader.biHeight   = SCREEN_CY;
-    framebufferinfo->bmiHeader.biPlanes   = 1;
-    framebufferinfo->bmiHeader.biBitCount = 32;
-    framebufferinfo->bmiHeader.biClrUsed  = 256;
+    int infoSize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
+    BITMAPINFO * frameBufferInfo = (BITMAPINFO *)new BYTE[infoSize];
+    ZeroMemory(frameBufferInfo, infoSize);
+    frameBufferInfo->bmiHeader.biSize     = sizeof(BITMAPINFOHEADER);
+    frameBufferInfo->bmiHeader.biWidth    = SCREEN_CX;
+    frameBufferInfo->bmiHeader.biHeight   = SCREEN_CY;
+    frameBufferInfo->bmiHeader.biPlanes   = 1;
+    frameBufferInfo->bmiHeader.biBitCount = 32;
+    frameBufferInfo->bmiHeader.biClrUsed  = 256;
 
     // CREATE A BIT BUFFER FOR THE SOURCE LOOKUP
-    int sourcedwords = SRC_CX * SRC_CY;
-    s_sourceLookup = new uint32_t[sourcedwords];
-    ZeroMemory(s_sourceLookup, sourcedwords * sizeof(uint32_t));
+    int sourceDwords = SRC_CX * SRC_CY;
+    s_sourceLookup = new uint32_t[sourceDwords];
+    ZeroMemory(s_sourceLookup, sourceDwords * sizeof(uint32_t));
 
     // CREATE THE DEVICE DEPENDENT BITMAP AND DEVICE CONTEXT
     {
@@ -784,7 +750,7 @@ void VideoInitialize() {
         s_frameBuffer = NULL;
         s_deviceBitmap = CreateDIBSection(
             dc,
-            framebufferinfo,
+            frameBufferInfo,
             DIB_RGB_COLORS,
             (LPVOID *)&s_frameBuffer,
             0,
@@ -794,7 +760,7 @@ void VideoInitialize() {
         ReleaseDC(window, dc);
         SelectObject(s_deviceDC, s_deviceBitmap);
     }
-    delete[] framebufferinfo;
+    delete[] frameBufferInfo;
 
     LoadSourceLookup();
     VideoResetState();
@@ -804,33 +770,15 @@ void VideoInitialize() {
 }
 
 //===========================================================================
-void VideoRedrawScreen() {
-    s_redrawFull = TRUE;
-    VideoRefreshScreen();
-}
-
-//===========================================================================
 void VideoRefreshScreen() {
     if (!s_frameDC)
         s_frameDC = FrameGetDC();
 
-    // IF THE MODE HAS BEEN SWITCHED MORE THAN TWICE IN THE LAST FRAME, THE
-    // PROGRAM IS PROBABLY TRYING TO DO A FLASHING EFFECT, SO JUST FLASH THE
-    // SCREEN WHITE AND RETURN
-    if (s_modeSwitches > 2) {
-        s_modeSwitches = 0;
-        SelectObject(s_frameDC, GetStockObject(WHITE_BRUSH));
-        SelectObject(s_frameDC, GetStockObject(WHITE_PEN));
-        Rectangle(s_frameDC, 0, 0, SCREEN_CX, SCREEN_CY);
-        return;
-    }
-    s_modeSwitches = 0;
-
-    s_displayPage2 = SW_PAGE2();
-    s_hiResAuxPtr  = MemGetAuxPtr(0x2000 << (s_displayPage2 ? 1 : 0));
-    s_hiResMainPtr = MemGetMainPtr(0x2000 << (s_displayPage2 ? 1 : 0));
-    s_textAuxPtr   = MemGetAuxPtr(0x400 << (s_displayPage2 ? 1 : 0));
-    s_textMainPtr  = MemGetMainPtr(0x400 << (s_displayPage2 ? 1 : 0));
+    int shift = SW_PAGE2() ? 1 : 0;
+    s_hiResAuxPtr  = MemGetAuxPtr(0x2000 << shift);
+    s_hiResMainPtr = MemGetMainPtr(0x2000 << shift);
+    s_textAuxPtr   = MemGetAuxPtr(0x400 << shift);
+    s_textMainPtr  = MemGetMainPtr(0x400 << shift);
     s_screenPixels = WindowLockPixels();
 
     int y      = 0;
@@ -848,20 +796,8 @@ void VideoRefreshScreen() {
 
     WindowUnlockPixels();
 
-    BitBlt(
-        s_frameDC,
-        0, 0,
-        SCREEN_CX, SCREEN_CY,
-        s_deviceDC,
-        0, 0,
-        SRCCOPY
-    );
-
-    GdiFlush();
-    s_redrawFull = FALSE;
-
     EEmulatorMode mode = EmulatorGetMode();
-    if ((mode == EMULATOR_MODE_PAUSED) || (mode == EMULATOR_MODE_STEPPING))
+    if (mode == EMULATOR_MODE_PAUSED || mode == EMULATOR_MODE_STEPPING)
         VideoDisplayMode(TRUE);
 
     s_lastRefreshMs = TimerGetMsElapsed();
@@ -882,63 +818,38 @@ void VideoReleaseFrameDC() {
 
 //===========================================================================
 void VideoResetState() {
-    s_charOffset     = 0;
-    s_displayPage2 = FALSE;
-    s_redrawFull   = FALSE;
+    s_charOffset = 0;
     UpdateVideoMode(VF_TEXT);
 }
 
 //===========================================================================
 BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
-    BOOL  oldpage2  = SW_PAGE2();
-    DWORD oldmodeex = s_charOffset | (s_videoMode & ~(VF_MASK2 | VF_PAGE2));
-
-    DWORD newmode = s_videoMode;
+    bool  wasPage2 = SW_PAGE2();
+    DWORD newMode  = s_videoMode;
     switch (address) {
-        case 0x00: newmode &= ~VF_MASK2;   break;
-        case 0x01: newmode |= VF_MASK2;    break;
-        case 0x0C: newmode &= ~VF_80COL;   break;
-        case 0x0D: newmode |= VF_80COL;    break;
+        case 0x00: newMode &= ~VF_MASK2;   break;
+        case 0x01: newMode |=  VF_MASK2;   break;
+        case 0x0C: newMode &= ~VF_80COL;   break;
+        case 0x0D: newMode |=  VF_80COL;   break;
         case 0x0E: s_charOffset = 0;       break;
         case 0x0F: s_charOffset = 256;     break;
-        case 0x50: newmode &= ~VF_TEXT;    break;
-        case 0x51: newmode |= VF_TEXT;     break;
-        case 0x52: newmode &= ~VF_MIXED;   break;
-        case 0x53: newmode |= VF_MIXED;    break;
-        case 0x54: newmode &= ~VF_PAGE2;   break;
-        case 0x55: newmode |= VF_PAGE2;    break;
-        case 0x56: newmode &= ~VF_HIRES;   break;
-        case 0x57: newmode |= VF_HIRES;    break;
-        case 0x5E: newmode |= VF_DHIRES;   break;
-        case 0x5F: newmode &= ~VF_DHIRES;  break;
+        case 0x50: newMode &= ~VF_TEXT;    break;
+        case 0x51: newMode |=  VF_TEXT;    break;
+        case 0x52: newMode &= ~VF_MIXED;   break;
+        case 0x53: newMode |=  VF_MIXED;   break;
+        case 0x54: newMode &= ~VF_PAGE2;   break;
+        case 0x55: newMode |=  VF_PAGE2;   break;
+        case 0x56: newMode &= ~VF_HIRES;   break;
+        case 0x57: newMode |=  VF_HIRES;   break;
+        case 0x5E: newMode |=  VF_DHIRES;  break;
+        case 0x5F: newMode &= ~VF_DHIRES;  break;
     }
-    if (newmode & VF_MASK2)
-        newmode &= ~VF_PAGE2;
+    if (newMode & VF_MASK2)
+        newMode &= ~VF_PAGE2;
+    UpdateVideoMode(newMode);
 
-    UpdateVideoMode(newmode);
-
-    DWORD newmodeex = s_charOffset | (s_videoMode & ~(VF_MASK2 | VF_PAGE2));
-    if (oldmodeex != newmodeex) {
-        if (SW_80COL() == SW_DHIRES())
-            s_modeSwitches++;
-        s_redrawFull = TRUE;
-    }
-
-    DWORD currtime = DWORD(g_cyclesEmulated / CPU_CYCLES_PER_MS);
-
-    if (TimerIsFullSpeed() && oldpage2 && !SW_PAGE2()) {
-        static DWORD lasttime = 0;
-        if (currtime - lasttime >= 20)
-            lasttime = currtime;
-        else
-            oldpage2 = SW_PAGE2();
-    }
-
-    if (oldpage2 != SW_PAGE2()) {
-        s_displayPage2 = SW_PAGE2();
-        if (!s_redrawFull)
-            VideoRefreshScreen();
-    }
+    if (wasPage2 != SW_PAGE2())
+        VideoRefreshScreen();
 
     if (address == 0x50)
         return VideoCheckVbl(0, 0, 0, 0);

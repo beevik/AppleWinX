@@ -929,7 +929,7 @@ static BOOL CmdTraceLine(int argc) {
 
 //===========================================================================
 static BOOL CmdViewOutput(int argc) {
-    VideoRedrawScreen();
+    VideoRefreshScreen();
     viewingoutput = TRUE;
     return FALSE;
 }
@@ -1827,12 +1827,8 @@ void DebugAdvance() {
             stepcount--;
     }
     if (stepcount) {
-        if ((++stepstaken & 0xFFFF) == 0) {
-            if (stepstaken == 0x10000)
-                VideoRedrawScreen();
-            else
-                VideoRefreshScreen();
-        }
+        if ((++stepstaken & 0xFFFF) == 0)
+            VideoRefreshScreen();
     }
     else {
         EmulatorSetMode(EMULATOR_MODE_DEBUG);

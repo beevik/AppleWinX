@@ -47,6 +47,7 @@ int           EmulatorGetSpeed();
 const char *  EmulatorGetTitle();
 bool          EmulatorIsBehind();
 void          EmulatorRequestRestart();
+void          EmulatorReset();
 void          EmulatorSetAppleType(EAppleType type);
 void          EmulatorSetMode(EEmulatorMode mode);
 void          EmulatorSetSpeed(int speed);

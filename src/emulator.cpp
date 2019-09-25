@@ -199,6 +199,15 @@ void EmulatorRequestRestart() {
 }
 
 //===========================================================================
+void EmulatorReset() {
+    MemReset();
+    DiskBoot();
+    VideoResetState();
+    CommReset();
+    JoyReset();
+}
+
+//===========================================================================
 void EmulatorSetAppleType(EAppleType type) {
     s_appleType = type;
 

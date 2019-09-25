@@ -17,6 +17,9 @@
 
 ETimerMode g_timerMode = TIMER_MODE_NORMAL;
 
+static int s_benchmarks[256];
+static int s_benchmarkIndex;
+
 
 /****************************************************************************
 *
@@ -88,6 +91,12 @@ static void UpdateElapsedCycles() {
 ***/
 
 //===========================================================================
+void TimerBenchmarkRecord(int timeUs) {
+    s_benchmarks[s_benchmarkIndex] = timeUs;
+    s_benchmarkIndex = (s_benchmarkIndex + 1) % ARRSIZE(s_benchmarks);
+}
+
+//===========================================================================
 int64_t TimerBenchmarkStart() {
     LARGE_INTEGER count;
     QueryPerformanceCounter(&count);
@@ -115,6 +124,9 @@ void TimerDestroy() {
 
 //===========================================================================
 void TimerInitialize(int periodMs) {
+    s_benchmarkIndex = 0;
+    ZeroMemory(s_benchmarks, sizeof(s_benchmarks));
+
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
     s_ticksPerSecond = freq.QuadPart;

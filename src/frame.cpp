@@ -102,7 +102,7 @@ static BOOL CALLBACK ConfigDlgProc(
                     if (g_optMonochrome != newvidtype) {
                         g_optMonochrome = newvidtype;
                         VideoReinitialize();
-                        VideoRedrawScreen();
+                        VideoRefreshScreen();
                     }
                     CommSetSerialPort(window, newserialport);
                     if (IsDlgButtonChecked(window, 106))
@@ -416,7 +416,7 @@ static void DrawFrameWindow(BOOL paint) {
             DebugDisplay(TRUE);
             break;
         default:
-            VideoRedrawScreen();
+            VideoRefreshScreen();
             break;
     }
 }
@@ -539,7 +539,7 @@ static LRESULT CALLBACK FrameWndProc(
                     case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
                 if ((mode != EMULATOR_MODE_LOGO) && (mode != EMULATOR_MODE_DEBUG))
-                    VideoRedrawScreen();
+                    VideoRefreshScreen();
             }
             else if ((wparam == VK_ESCAPE) && usingcursor)
                 SetUsingCursor(0);
@@ -789,7 +789,7 @@ static void ProcessButtonClick(int button) {
             if ((EmulatorGetMode() == EMULATOR_MODE_DEBUG) || (EmulatorGetMode() == EMULATOR_MODE_STEPPING))
                 DebugEnd();
             EmulatorSetMode(EMULATOR_MODE_RUNNING);
-            VideoRedrawScreen();
+            VideoRefreshScreen();
             break;
 
         case BTN_DRIVE1:

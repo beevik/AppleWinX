@@ -1,12 +1,17 @@
-Convert from Windows SDK to SDL.
+Remove non-SDL video and frame code.
 Replace registry with config file(s).
 Convert modules to singletons.
-Configure CpuType based on AppleType.
 Remove global variables.
 Remove or hide Windows-only hinstance.
 Create a platform-agnostic resource loading module.
 Write linux/mac timer code.
 Fix restart code (SDL audio crash)
+
+
+    int64_t handle = TimerBenchmarkStart();
+    int elapsedUs = TimerBenchmarkStop(handle);
+    TimerBenchmarkRecord(elapsedUs);
+
 
  00 BRK 7        $00: bytes: 0 cycles: 0 _____=>_____ __
  01 ORA izx 6    $01: bytes: 2 cycles: 6 A____=>____P R_ izx
