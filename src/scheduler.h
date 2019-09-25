@@ -19,6 +19,6 @@ struct Event {
 };
 
 bool    SchedulerDequeue (int64_t elapsedCycles, Event * event);
-bool    SchedulerEnqueue(Event event);
+bool    SchedulerEnqueue(int64_t cycle, FEvent func);
 void    SchedulerInitialize();
 int64_t SchedulerPeekTime();

@@ -12,6 +12,12 @@
 #define PNG_SETJMP_NOT_SUPPORTED
 #include <png.h>
 
+/****************************************************************************
+*
+*   Constants and Types
+*
+***/
+
 constexpr int32_t CYCLES_PER_SCANLINE = 65;
 constexpr int32_t NTSC_SCANLINES      = 262;
 constexpr int32_t DISPLAY_LINES       = 192;
@@ -31,23 +37,36 @@ constexpr int SRC_CY        = 512;
 constexpr DWORD LOADPNG_CONVERT_RGB = 1 << 0;
 constexpr DWORD LOADPNG_BOTTOM_UP   = 1 << 1;
 
-constexpr DWORD VF_80COL    = 0x00000001;
-constexpr DWORD VF_DHIRES   = 0x00000002;
-constexpr DWORD VF_HIRES    = 0x00000004;
-constexpr DWORD VF_MASK2    = 0x00000008;
-constexpr DWORD VF_MIXED    = 0x00000010;
-constexpr DWORD VF_PAGE2    = 0x00000020;
-constexpr DWORD VF_TEXT     = 0x00000040;
+constexpr DWORD VF_80COL    = 1 << 0;
+constexpr DWORD VF_DHIRES   = 1 << 1;
+constexpr DWORD VF_HIRES    = 1 << 2;
+constexpr DWORD VF_MASK2    = 1 << 3;
+constexpr DWORD VF_MIXED    = 1 << 4;
+constexpr DWORD VF_PAGE2    = 1 << 5;
+constexpr DWORD VF_TEXT     = 1 << 6;
 
-#define  SW_80COL()     (s_videoMode & VF_80COL)
-#define  SW_DHIRES()    (s_videoMode & VF_DHIRES)
-#define  SW_HIRES()     (s_videoMode & VF_HIRES)
-#define  SW_MASK2()     (s_videoMode & VF_MASK2)
-#define  SW_MIXED()     (s_videoMode & VF_MIXED)
-#define  SW_PAGE2()     (s_videoMode & VF_PAGE2)
-#define  SW_TEXT()      (s_videoMode & VF_TEXT)
+#define  SW_80COL()    ((s_videoMode & VF_80COL)  != 0)
+#define  SW_DHIRES()   ((s_videoMode & VF_DHIRES) != 0)
+#define  SW_HIRES()    ((s_videoMode & VF_HIRES)  != 0)
+#define  SW_MASK2()    ((s_videoMode & VF_MASK2)  != 0)
+#define  SW_MIXED()    ((s_videoMode & VF_MIXED)  != 0)
+#define  SW_PAGE2()    ((s_videoMode & VF_PAGE2)  != 0)
+#define  SW_TEXT()     ((s_videoMode & VF_TEXT)   != 0)
 
 typedef void (* FUpdate)(int x, int y, int xpixel, int ypixel, int offset);
+
+struct PngReadState {
+    const uint8_t * data;
+    size_t          bytesTotal;
+    size_t          bytesRead;
+};
+
+
+/****************************************************************************
+*
+*   Variables
+*
+***/
 
 BOOL g_optMonochrome = FALSE;
 
@@ -84,11 +103,13 @@ static const COLORREF s_colorHiRes[6] = {
     0x1D56F9, 0x000000, 0xFFFFFF,   // orange, black, white
 };
 
-struct PngReadState {
-    const uint8_t * data;
-    size_t          bytesTotal;
-    size_t          bytesRead;
-};
+
+/****************************************************************************
+*
+*   Local functions
+*
+***/
+
 
 //===========================================================================
 static void BitBltCell(
@@ -476,7 +497,7 @@ static void UpdateVideoMode(DWORD newMode) {
         else
             s_updateUpper = Update40ColCell;
     }
-    else if SW_HIRES() {
+    else if (SW_HIRES()) {
         if (SW_DHIRES() && SW_80COL())
             s_updateUpper = UpdateDHiResCell;
         else
@@ -505,20 +526,22 @@ static void UpdateVideoScreen(int64_t cycle) {
     else
         VideoRefreshScreen();
 
-    SchedulerEnqueue(Event(cycle + CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen));
+    SchedulerEnqueue(cycle + CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen);
 }
 
 
-//
-// ----- ALL GLOBALLY ACCESSIBLE FUNCTIONS ARE BELOW THIS LINE -----
-//
+/****************************************************************************
+*
+*   Public functions
+*
+***/
 
 //===========================================================================
 BYTE VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
     if (address == 0x7F)
-        return MemReturnRandomData(SW_DHIRES() != 0);
+        return MemReturnRandomData(SW_DHIRES());
     else {
-        BOOL result = 0;
+        bool result = false;
         switch (address) {
             case 0x1A: result = SW_TEXT();       break;
             case 0x1B: result = SW_MIXED();      break;
@@ -709,6 +732,8 @@ void VideoGenerateSourceFiles() {
 
 //===========================================================================
 void VideoInitialize() {
+    s_videoMode = 0;
+
     // CREATE A FONT FOR DRAWING TEXT ABOVE THE SCREEN
     s_videoFont = CreateFont(
         16,
@@ -775,7 +800,7 @@ void VideoInitialize() {
     VideoResetState();
 
     s_lastRefreshMs = TimerGetMsElapsed();
-    SchedulerEnqueue(Event(CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen));
+    SchedulerEnqueue(CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen);
 }
 
 //===========================================================================
@@ -801,7 +826,7 @@ void VideoRefreshScreen() {
     }
     s_modeSwitches = 0;
 
-    s_displayPage2 = (SW_PAGE2() != 0);
+    s_displayPage2 = SW_PAGE2();
     s_hiResAuxPtr  = MemGetAuxPtr(0x2000 << (s_displayPage2 ? 1 : 0));
     s_hiResMainPtr = MemGetMainPtr(0x2000 << (s_displayPage2 ? 1 : 0));
     s_textAuxPtr   = MemGetAuxPtr(0x400 << (s_displayPage2 ? 1 : 0));
@@ -865,7 +890,7 @@ void VideoResetState() {
 
 //===========================================================================
 BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
-    DWORD oldpage2  = SW_PAGE2();
+    BOOL  oldpage2  = SW_PAGE2();
     DWORD oldmodeex = s_charOffset | (s_videoMode & ~(VF_MASK2 | VF_PAGE2));
 
     DWORD newmode = s_videoMode;
@@ -874,8 +899,8 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
         case 0x01: newmode |= VF_MASK2;    break;
         case 0x0C: newmode &= ~VF_80COL;   break;
         case 0x0D: newmode |= VF_80COL;    break;
-        case 0x0E: s_charOffset = 0;         break;
-        case 0x0F: s_charOffset = 256;       break;
+        case 0x0E: s_charOffset = 0;       break;
+        case 0x0F: s_charOffset = 256;     break;
         case 0x50: newmode &= ~VF_TEXT;    break;
         case 0x51: newmode |= VF_TEXT;     break;
         case 0x52: newmode &= ~VF_MIXED;   break;
@@ -894,7 +919,7 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
 
     DWORD newmodeex = s_charOffset | (s_videoMode & ~(VF_MASK2 | VF_PAGE2));
     if (oldmodeex != newmodeex) {
-        if ((SW_80COL() != 0) == (SW_DHIRES() != 0))
+        if (SW_80COL() == SW_DHIRES())
             s_modeSwitches++;
         s_redrawFull = TRUE;
     }
@@ -910,7 +935,7 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
     }
 
     if (oldpage2 != SW_PAGE2()) {
-        s_displayPage2 = (SW_PAGE2() != 0);
+        s_displayPage2 = SW_PAGE2();
         if (!s_redrawFull)
             VideoRefreshScreen();
     }

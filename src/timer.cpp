@@ -41,6 +41,13 @@ struct TimerThreadInit {
     int periodMs;
 };
 
+
+/****************************************************************************
+*
+*   Local functions
+*
+***/
+
 //===========================================================================
 static DWORD WINAPI TimerThread(LPVOID param) {
     TimerThreadInit * init = (TimerThreadInit *)param;
@@ -71,6 +78,28 @@ static void UpdateElapsedCycles() {
     int64_t tickDelta = counter.QuadPart - s_lastUpdateCount;
     s_cyclesElapsed += tickDelta * s_cyclesPerTick;
     s_lastUpdateCount = counter.QuadPart;
+}
+
+
+/****************************************************************************
+*
+*   Public functions
+*
+***/
+
+//===========================================================================
+int64_t TimerBenchmarkStart() {
+    LARGE_INTEGER count;
+    QueryPerformanceCounter(&count);
+    return count.QuadPart;
+}
+
+//===========================================================================
+int TimerBenchmarkStop(int64_t handle) {
+    LARGE_INTEGER count;
+    QueryPerformanceCounter(&count);
+    int64_t countElapsed = count.QuadPart - handle;
+    return int((countElapsed * 1000) / s_perfFreqMs);
 }
 
 //===========================================================================

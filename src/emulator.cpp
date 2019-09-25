@@ -19,7 +19,7 @@ int64_t   g_cyclesEmulated;
 HINSTANCE g_instance;
 
 static EAppleType    s_appleType;
-static bool          s_isBehind;
+static bool          s_behind;
 static bool          s_lastFullSpeed;
 static EEmulatorMode s_mode;
 static char          s_programDir[260];
@@ -39,7 +39,7 @@ static void AdvanceNormal() {
     // cycles.  Run at most 16ms worth of cycles.
     int64_t elapsedCycles = TimerUpdateElapsedCycles();
     int64_t stopCycle = MIN(elapsedCycles, g_cyclesEmulated + 16 * CPU_CYCLES_PER_MS);
-    s_isBehind = (elapsedCycles != stopCycle);
+    s_behind = (elapsedCycles > stopCycle);
     while (g_cyclesEmulated < stopCycle && !TimerIsFullSpeed()) {
 
         // Step the CPU until the next scheduled event.
@@ -54,9 +54,9 @@ static void AdvanceNormal() {
             event.func(event.cycle);
     }
 
-    // Delay for the next emulator tick (unless the emulator has fallen
+    // Delay until the next emulator tick (unless the emulator has fallen
     // significantly behind the wall clock).
-    if (!s_isBehind)
+    if (!s_behind)
         TimerWait();
 }
 
@@ -125,7 +125,7 @@ static LRESULT CALLBACK DlgProc(
 //===========================================================================
 static void UpdateEmulator(int64_t cycle) {
     // Interrupt the emulator once every millisecond.
-    SchedulerEnqueue(Event(cycle + CPU_CYCLES_PER_MS, UpdateEmulator));
+    SchedulerEnqueue(cycle + CPU_CYCLES_PER_MS, UpdateEmulator);
 }
 
 //===========================================================================
@@ -190,7 +190,7 @@ const char * EmulatorGetTitle() {
 
 //===========================================================================
 bool EmulatorIsBehind() {
-    return s_isBehind;
+    return s_behind;
 }
 
 //===========================================================================
@@ -218,10 +218,9 @@ void EmulatorSetMode(EEmulatorMode mode) {
     if (s_mode == mode)
         return;
 
-    if (mode == EMULATOR_MODE_RUNNING)
-        TimerReset();
-
     s_mode = mode;
+    if (s_mode == EMULATOR_MODE_RUNNING)
+        TimerReset();
 }
 
 //===========================================================================
@@ -244,13 +243,13 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     SpkrInitialize();
 
     do {
-        s_isBehind = false;
+        s_behind = false;
         s_lastFullSpeed = false;
         s_restartRequested = false;
         g_cyclesEmulated = 0;
         SchedulerInitialize();
         TimerInitialize(1);
-        SchedulerEnqueue(Event(CPU_CYCLES_PER_MS, UpdateEmulator));
+        SchedulerEnqueue(CPU_CYCLES_PER_MS, UpdateEmulator);
 
         EmulatorSetMode(EMULATOR_MODE_LOGO);
         EmulatorSetSpeed(SPEED_NORMAL);

@@ -23,6 +23,7 @@ bool SchedulerDequeue (int64_t elapsedCycles, Event * event) {
 
     int index = 0;
     s_eventQueue[index] = s_eventQueue[--s_eventCount];
+    s_eventQueue[s_eventCount] = Event();
     while (index < s_eventCount) {
         int leftIndex  = index * 2 + 1;
         int rightIndex = leftIndex + 1;
@@ -46,12 +47,12 @@ bool SchedulerDequeue (int64_t elapsedCycles, Event * event) {
 }
 
 //===========================================================================
-bool SchedulerEnqueue(Event event) {
+bool SchedulerEnqueue(int64_t cycle, FEvent func) {
     if (s_eventCount >= MAX_EVENTS)
         return false;
 
     int index = s_eventCount++;
-    s_eventQueue[index] = event;
+    s_eventQueue[index] = Event(cycle, func);
     while (index > 0) {
         int parentIndex = index / 2;
         if (s_eventQueue[parentIndex].cycle <= s_eventQueue[index].cycle)
