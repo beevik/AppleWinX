@@ -783,10 +783,6 @@ LPBYTE MemGetMainPtr(WORD offset) {
 
 //===========================================================================
 void MemInitialize() {
-
-    // ALLOCATE MEMORY FOR THE APPLE MEMORY IMAGE AND ASSOCIATED DATA
-    // STRUCTURES
-    //
     // THE MEMIMAGE BUFFER CAN CONTAIN EITHER MULTIPLE MEMORY IMAGES OR
     // ONE MEMORY IMAGE WITH COMPILER DATA
     int imageByes = MAX(0x30000, MAXIMAGES * 0x10000);
@@ -808,10 +804,10 @@ void MemInitialize() {
     ZeroMemory(memDirty, 0x100);
     ZeroMemory(memImage, imageByes);
 
-    // READ THE APPLE FIRMWARE ROMS INTO THE ROM IMAGE
-    LPCSTR resourceName = EmulatorGetAppleType() == APPLE_TYPE_IIE ? "APPLE2E_ROM" : "APPLE2_ROM";
-    HRSRC handle = FindResourceA(g_instance, resourceName, "ROM");
-    if (!handle) {
+    int size;
+    const char * name = EmulatorGetAppleType() == APPLE_TYPE_IIE ? "APPLE2E_ROM" : "APPLE2_ROM";
+    const void * rom  = ResourceLoad(name, "ROM", &size);
+    if (!rom) {
         MessageBox(
             GetDesktopWindow(),
             "The emulator was unable to load the ROM firmware"
@@ -821,22 +817,6 @@ void MemInitialize() {
         );
         ExitProcess(1);
     }
-
-    HGLOBAL resource = LoadResource(NULL, handle);
-    if (!resource) {
-        MessageBox(
-            GetDesktopWindow(),
-            "The emulator was unable to load the ROM firmware"
-            "into memory.  Further execution is not possible.",
-            EmulatorGetTitle(),
-            MB_ICONSTOP | MB_SETFOREGROUND
-        );
-        ExitProcess(1);
-    }
-
-    LPBYTE data = (LPBYTE)LockResource(resource);
-    DWORD  size = SizeofResource(NULL, handle);
-
     if (size != 0x5000) {
         MessageBox(
             GetDesktopWindow(),
@@ -846,10 +826,10 @@ void MemInitialize() {
         );
         ExitProcess(1);
     }
+    memcpy(memRom, rom, size);
+    ResourceFree(rom);
 
-    memcpy(memRom, data, size);
-
-    // REMOVE A WAIT ROUTINE FROM THE DISK CONTROLLER'S FIRMWARE
+    // Remove wait routine from the disk controller firmware.
     memRom[0x064C] = 0xA9;
     memRom[0x064D] = 0x00;
     memRom[0x064E] = 0xEA;

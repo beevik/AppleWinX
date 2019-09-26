@@ -31,9 +31,6 @@ if _ACTION == nil then
     return
 end
 
--- We're always building for Windows.
-_OPTIONS['os'] = "windows"
-
 -- Prepare commonly-used directory variables.
 solutionDir = path.getabsolute(".")
 rootDir     = path.getabsolute("..")
@@ -47,9 +44,8 @@ if _ACTION == "clean" then
     return
 end
 
-if not string.match(_ACTION, "vs.*") then
-    print("ERROR: Only visual studio is currently supported.\n")
-    return
+if string.match(_ACTION, "vs.*") then
+    _OPTIONS['os'] = "windows"
 end
 
 

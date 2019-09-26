@@ -1,10 +1,8 @@
 Remove non-SDL video and frame code.
-Replace registry with config file(s).
 Convert modules to singletons.
 Remove global variables.
 Remove or hide Windows-only hinstance.
-Create a platform-agnostic resource loading module.
-Write linux/mac timer code.
+Write linux/mac code.
 Fix restart code (SDL audio crash)
 
 

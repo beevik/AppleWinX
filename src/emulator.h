@@ -37,6 +37,7 @@ constexpr double  CPU_CYCLES_PER_US = CPU_HZ * 0.000001;
 #define  MAX(a,b)   (((a) > (b)) ? (a) : (b))
 #define  MIN(a,b)   (((a) < (b)) ? (a) : (b))
 #define  ARRSIZE(x) (sizeof(x) / sizeof(x[0]))
+#define  REF(x)     ((void)x)
 
 extern int64_t   g_cyclesEmulated;
 extern HINSTANCE g_instance;

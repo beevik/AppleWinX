@@ -284,17 +284,14 @@ static BOOL LoadPngImage(
     LPVOID  buf,
     DWORD   flags
 ) {
-    HRSRC handle = FindResourceA(g_instance, name, "IMAGE");
-    if (!handle)
-        return FALSE;
-
-    HGLOBAL resource = LoadResource(NULL, handle);
-    if (!resource)
+    int size;
+    const void * image = ResourceLoad(name, "IMAGE", &size);
+    if (!image)
         return FALSE;
 
     PngReadState state;
-    state.data       = (const uint8_t *)LockResource(resource);
-    state.bytesTotal = SizeofResource(NULL, handle);
+    state.data       = (const uint8_t *)image;
+    state.bytesTotal = size;
     state.bytesRead  = 0;
 
     png_structp read = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -318,6 +315,7 @@ static BOOL LoadPngImage(
 
     if (iwidth != width || iheight != height || bitDepth != 8) {
         png_destroy_read_struct(&read, &info, NULL);
+        ResourceFree(image);
         return FALSE;
     }
 
@@ -341,6 +339,7 @@ static BOOL LoadPngImage(
     delete[] rows;
 
     png_destroy_read_struct(&read, &info, NULL);
+    ResourceFree(image);
     return TRUE;
 }
 

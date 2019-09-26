@@ -1722,8 +1722,8 @@ static int ParseCommandString() {
 }
 
 //===========================================================================
-static void ParseSymbolData(LPBYTE data, DWORD bytes) {
-    LPBYTE term = data + bytes;
+static void ParseSymbolData(const uint8_t * data, int bytes) {
+    const uint8_t * term = data + bytes;
     while (data < term) {
         while (data < term && CharIsWhitespace(*data))
             ++data;
@@ -1743,7 +1743,7 @@ static void ParseSymbolData(LPBYTE data, DWORD bytes) {
         while (data < term && CharIsWhitespace(*data))
             ++data;
 
-        LPBYTE symptr = data;
+        const uint8_t * symptr = data;
         while (data < term && !CharIsWhitespace(*data))
             ++data;
         if (symptr == data)
@@ -1922,23 +1922,17 @@ void DebugEnd() {
 
 //===========================================================================
 void DebugInitialize() {
-    // CLEAR THE BREAKPOINT AND WATCH TABLES
     ZeroMemory(breakpoint, BREAKPOINTS * sizeof(bp));
     for (int loop = 0; loop < WATCHES; ++loop)
         watch[loop] = -1;
 
-    // READ IN THE SYMBOL TABLE
-    HRSRC handle = FindResourceA(g_instance, "APPLE2E_SYM", "SYMBOLS");
-    if (handle) {
-        HGLOBAL resource = LoadResource(NULL, handle);
-        if (resource) {
-            LPBYTE data = (LPBYTE)LockResource(resource);
-            DWORD  size = SizeofResource(NULL, handle);
-            ParseSymbolData(data, size);
-        }
+    int bytes;
+    const uint8_t * resource = (const uint8_t *)ResourceLoad("APPLE2E_SYM", "SYMBOLS", &bytes);
+    if (resource) {
+        ParseSymbolData(resource, bytes);
+        ResourceFree(resource);
     }
 
-    // CREATE A FONT FOR THE DEBUGGING SCREEN
     debugfont = CreateFont(
         15,
         0,
