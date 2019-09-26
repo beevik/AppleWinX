@@ -405,11 +405,11 @@ static BOOL AplBoot(imageInfo * ptr) {
     if (address + length <= address || address >= 0xC000 || address + length - 1 >= 0xC000)
         return FALSE;
 
-    if (fread(mem + address, length, 1, ptr->file) != 1)
+    if (fread(g_mem + address, length, 1, ptr->file) != 1)
         return FALSE;
 
     for (int loop = 0; loop < 192; ++loop)
-        memDirty[loop] = 0xFF;
+        g_memDirty[loop] = 0xFF;
 
     regs.pc = address;
     return TRUE;
@@ -686,11 +686,11 @@ static BOOL PrgBoot(imageInfo * ptr) {
         return FALSE;
 
     fseek(ptr->file, 128, SEEK_SET);
-    if (fread(mem + address, length, 1, ptr->file) != 1)
+    if (fread(g_mem + address, length, 1, ptr->file) != 1)
         return FALSE;
 
     for (int loop = 0; loop < 192; ++loop)
-        memDirty[loop] = 0xFF;
+        g_memDirty[loop] = 0xFF;
 
     regs.pc = address;
     return TRUE;

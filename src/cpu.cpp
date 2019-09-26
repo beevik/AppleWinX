@@ -66,12 +66,12 @@ const int statestart = 50000;
                    ++*cyclecounter; break;                                  \
                  }
 #define CYC(a)   *cyclecounter += (a)
-#define POP()    (mem[regs.sp >= 0x1FF ? (regs.sp = 0x100) : ++regs.sp])
-#define PUSH(a)  mem[regs.sp--] = (a);                                      \
+#define POP()    (g_mem[regs.sp >= 0x1FF ? (regs.sp = 0x100) : ++regs.sp])
+#define PUSH(a)  g_mem[regs.sp--] = (a);                                    \
                  if (regs.sp < 0x100) { regs.sp = 0x1FF; }
 #define READ()   ((addr & 0xFF00) == 0xC000                                 \
                     ? ioRead[addr & 0xFF](regs.pc,(BYTE)addr,0,0)           \
-                    : mem[addr])
+                    : g_mem[addr])
 #define SETNZ(a) {                                                          \
                    flagn = ((a) & 0x80);                                    \
                    flagz = !((a) & 0xFF);                                   \
@@ -80,8 +80,8 @@ const int statestart = 50000;
 #define TOBCD(a) (((((a) / 10) % 10) << 4) | ((a) % 10))
 #define TOBIN(a) (((a) >> 4) * 10 + ((a) & 0x0F))
 #define WRITE(a) {                                                          \
-                   memDirty[addr >> 8] = 0xFF;                              \
-                   LPBYTE page = memWrite[0][addr >> 8];                    \
+                   g_memDirty[addr >> 8] = 0xFF;                            \
+                   LPBYTE page = g_memWrite[addr >> 8];                     \
                    if (page)                                                \
                      page[addr & 0xFF] = (BYTE)(a);                         \
                    else if ((addr & 0xFF00) == 0xC000)                      \
@@ -95,19 +95,19 @@ const int statestart = 50000;
 *
 ***/
 
-#define ABS    addr = *(LPWORD)(mem + regs.pc); regs.pc += 2;
-#define ABSX   addr = *(LPWORD)(mem + regs.pc) + (WORD)regs.x; regs.pc += 2;
-#define ABSY   addr = *(LPWORD)(mem + regs.pc) + (WORD)regs.y; regs.pc += 2;
-#define IABS   addr = *(LPWORD)(mem + *(LPWORD)(mem + regs.pc)); regs.pc += 2;
-#define IABSX  addr = *(LPWORD)(mem + *(LPWORD)(mem + regs.pc) + (WORD)regs.x); regs.pc += 2;
+#define ABS    addr = *(LPWORD)(g_mem + regs.pc); regs.pc += 2;
+#define ABSX   addr = *(LPWORD)(g_mem + regs.pc) + (WORD)regs.x; regs.pc += 2;
+#define ABSY   addr = *(LPWORD)(g_mem + regs.pc) + (WORD)regs.y; regs.pc += 2;
+#define IABS   addr = *(LPWORD)(g_mem + *(LPWORD)(g_mem + regs.pc)); regs.pc += 2;
+#define IABSX  addr = *(LPWORD)(g_mem + *(LPWORD)(g_mem + regs.pc) + (WORD)regs.x); regs.pc += 2;
 #define IMM    addr = regs.pc++;
-#define INDX   addr = *(LPWORD)(mem + ((mem[regs.pc++] + regs.x) & 0xFF));
-#define INDY   addr = *(LPWORD)(mem + mem[regs.pc++]) + (WORD)regs.y;
-#define IND    addr = *(LPWORD)(mem + mem[regs.pc++]);
-#define REL    addr = (signed char)mem[regs.pc++];
-#define ZPG    addr = mem[regs.pc++];
-#define ZPGX   addr = (mem[regs.pc++] + regs.x) & 0xFF;
-#define ZPGY   addr = (mem[regs.pc++] + regs.y) & 0xFF;
+#define INDX   addr = *(LPWORD)(g_mem + ((g_mem[regs.pc++] + regs.x) & 0xFF));
+#define INDY   addr = *(LPWORD)(g_mem + g_mem[regs.pc++]) + (WORD)regs.y;
+#define IND    addr = *(LPWORD)(g_mem + g_mem[regs.pc++]);
+#define REL    addr = (signed char)g_mem[regs.pc++];
+#define ZPG    addr = g_mem[regs.pc++];
+#define ZPGX   addr = (g_mem[regs.pc++] + regs.x) & 0xFF;
+#define ZPGY   addr = (g_mem[regs.pc++] + regs.y) & 0xFF;
 
 
 /****************************************************************************
@@ -160,7 +160,7 @@ const int statestart = 50000;
                  regs.ps |= PS_BREAK;                                       \
                  PUSH(regs.ps)                                              \
                  regs.ps |= PS_INTERRUPT;                                   \
-                 regs.pc = *(LPWORD)(mem+0xFFFE);
+                 regs.pc = *(LPWORD)(g_mem+0xFFFE);
 #define BVC      if (!flagv) regs.pc += addr;
 #define BVS      if ( flagv) regs.pc += addr;
 #define CLC      flagc = 0;
@@ -316,14 +316,14 @@ const int statestart = 50000;
 
 //===========================================================================
 static inline uint16_t Absolute() {
-    uint16_t addr = *(uint16_t *)(mem + regs.pc);
+    uint16_t addr = *(uint16_t *)(g_mem + regs.pc);
     regs.pc += 2;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t AbsoluteX() {
-    uint16_t addr = *(uint16_t *)(mem + regs.pc) + uint16_t(regs.x);
+    uint16_t addr = *(uint16_t *)(g_mem + regs.pc) + uint16_t(regs.x);
     regs.pc += 2;
     return addr;
 }
@@ -331,7 +331,7 @@ static inline uint16_t AbsoluteX() {
 //===========================================================================
 static inline uint16_t AbsoluteX(int * cycles) {
     uint16_t oldaddr = regs.pc;
-    uint16_t addr = *(uint16_t *)(mem + regs.pc) + uint16_t(regs.x);
+    uint16_t addr = *(uint16_t *)(g_mem + regs.pc) + uint16_t(regs.x);
     if ((oldaddr ^ addr) & 0xff00)
         ++*cycles;
     regs.pc += 2;
@@ -340,7 +340,7 @@ static inline uint16_t AbsoluteX(int * cycles) {
 
 //===========================================================================
 static inline uint16_t AbsoluteY() {
-    uint16_t addr = *(uint16_t *)(mem + regs.pc) + uint16_t(regs.y);
+    uint16_t addr = *(uint16_t *)(g_mem + regs.pc) + uint16_t(regs.y);
     regs.pc += 2;
     return addr;
 }
@@ -348,7 +348,7 @@ static inline uint16_t AbsoluteY() {
 //===========================================================================
 static inline uint16_t AbsoluteY(int * cycles) {
     uint16_t oldaddr = regs.pc;
-    uint16_t addr = *(uint16_t *)(mem + regs.pc) + uint16_t(regs.y);
+    uint16_t addr = *(uint16_t *)(g_mem + regs.pc) + uint16_t(regs.y);
     if ((oldaddr ^ addr) & 0xff00)
         ++*cycles;
     regs.pc += 2;
@@ -362,7 +362,7 @@ static inline uint16_t Immediate() {
 
 //===========================================================================
 static inline uint16_t Indirect() {
-    uint16_t addr = *(uint16_t *)(mem + *(uint16_t *)(mem + regs.pc));
+    uint16_t addr = *(uint16_t *)(g_mem + *(uint16_t *)(g_mem + regs.pc));
     regs.pc += 2;
     return addr;
 }
@@ -370,27 +370,27 @@ static inline uint16_t Indirect() {
 //===========================================================================
 static inline uint16_t Indirect6502() {
     uint16_t addr;
-    if (mem[regs.pc] == 0xff) {
-        uint16_t addr0 = *(uint16_t *)(mem + regs.pc);
+    if (g_mem[regs.pc] == 0xff) {
+        uint16_t addr0 = *(uint16_t *)(g_mem + regs.pc);
         uint16_t addr1 = addr0 - 0xff;
-        addr = uint16_t(mem[addr0]) | uint16_t(mem[addr1] << 8);
+        addr = uint16_t(g_mem[addr0]) | uint16_t(g_mem[addr1] << 8);
     }
     else
-        addr = *(uint16_t *)(mem + *(uint16_t *)(mem + regs.pc));
+        addr = *(uint16_t *)(g_mem + *(uint16_t *)(g_mem + regs.pc));
     regs.pc += 2;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t IndirectX() {
-    uint16_t addr = *(uint16_t *)(mem + ((mem[regs.pc] + regs.x) & 0xff));
+    uint16_t addr = *(uint16_t *)(g_mem + ((g_mem[regs.pc] + regs.x) & 0xff));
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t IndirectY() {
-    uint16_t addr = *(uint16_t *)(mem + mem[regs.pc]) + (uint16_t)regs.y;
+    uint16_t addr = *(uint16_t *)(g_mem + g_mem[regs.pc]) + (uint16_t)regs.y;
     ++regs.pc;
     return addr;
 }
@@ -398,7 +398,7 @@ static inline uint16_t IndirectY() {
 //===========================================================================
 static inline uint16_t IndirectY(int * cycles) {
     uint16_t oldaddr = regs.pc;
-    uint16_t addr = *(uint16_t *)(mem + mem[regs.pc]) + (uint16_t)regs.y;
+    uint16_t addr = *(uint16_t *)(g_mem + g_mem[regs.pc]) + (uint16_t)regs.y;
     if ((oldaddr ^ addr) & 0xff00)
         ++*cycles;
     ++regs.pc;
@@ -407,35 +407,35 @@ static inline uint16_t IndirectY(int * cycles) {
 
 //===========================================================================
 static inline uint16_t IndirectZeroPage() {
-    uint16_t addr = *(uint16_t *)(mem + mem[regs.pc]);
+    uint16_t addr = *(uint16_t *)(g_mem + g_mem[regs.pc]);
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t Relative() {
-    int8_t offset = (int8_t)mem[regs.pc];
+    int8_t offset = (int8_t)g_mem[regs.pc];
     ++regs.pc;
     return regs.pc + offset;
 }
 
 //===========================================================================
 static inline uint16_t ZeroPage() {
-    uint16_t addr = mem[regs.pc];
+    uint16_t addr = g_mem[regs.pc];
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t ZeroPageX() {
-    uint16_t addr = uint8_t(mem[regs.pc] + regs.x);
+    uint16_t addr = uint8_t(g_mem[regs.pc] + regs.x);
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t ZeroPageY() {
-    uint16_t addr = uint8_t(mem[regs.pc] + regs.y);
+    uint16_t addr = uint8_t(g_mem[regs.pc] + regs.y);
     ++regs.pc;
     return addr;
 }
@@ -459,7 +459,7 @@ static inline void Branch(uint8_t condition, uint16_t addr, int * cycles) {
 //===========================================================================
 static inline uint8_t Pop8() {
     regs.sp = ((regs.sp + 1) & 0xff) | 0x100;
-    return mem[regs.sp];
+    return g_mem[regs.sp];
 }
 
 //===========================================================================
@@ -471,7 +471,7 @@ static inline uint16_t Pop16() {
 
 //===========================================================================
 static inline void Push8(uint8_t value) {
-    mem[regs.sp] = value;
+    g_mem[regs.sp] = value;
     regs.sp = (regs.sp - 1) | 0x100;
 }
 
@@ -480,20 +480,20 @@ static inline uint8_t Read8(uint16_t addr) {
     if ((addr & 0xff00) == 0xc000)
         return ioRead[addr & 0xff](regs.pc, (uint8_t)addr, 0, 0);
     else
-        return mem[addr];
+        return g_mem[addr];
 }
 
 //===========================================================================
 static inline uint16_t Read16(uint16_t addr) {
-    return *(uint16_t *)(mem + addr);
+    return *(uint16_t *)(g_mem + addr);
 }
 
 //===========================================================================
 static inline void Write8(uint16_t addr, uint8_t value) {
     int       offset = addr & 0xff;
     int       pageno = addr >> 8;
-    uint8_t * page   = memWrite[0][pageno];
-    memDirty[pageno] = 0xff;
+    uint8_t * page   = g_memWrite[pageno];
+    g_memDirty[pageno] = 0xff;
     if (page)
         page[offset] = value;
     else if (pageno == 0xc0)
@@ -944,7 +944,7 @@ int CpuStep6502() {
     }
 #endif
 
-    switch (mem[regs.pc++]) {
+    switch (g_mem[regs.pc++]) {
         case 0x00: // BRK
             Brk();
             cycles += 7;
@@ -2151,7 +2151,7 @@ int CpuStepTest() {
     }
 #endif
 
-    switch (mem[regs.pc++]) {
+    switch (g_mem[regs.pc++]) {
         case 0x00:       BRK           CYC(7);  break;
         case 0x01:       INDX ORA      CYC(6);  break;
         case 0x02:       INVALID2      CYC(2);  break;
@@ -2424,7 +2424,7 @@ void CpuInitialize() {
     regs.x  = 0;
     regs.y  = 0;
     regs.ps = 0x20;
-    regs.pc = *(uint16_t *)(mem + 0xfffc);
+    regs.pc = *(uint16_t *)(g_mem + 0xfffc);
     regs.sp = 0x01ff;
 }
 

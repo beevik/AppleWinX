@@ -4,6 +4,7 @@ Remove global variables.
 Remove or hide Windows-only hinstance.
 Write linux/mac code.
 Fix restart code (SDL audio crash)
+Rewrite memory code (get rid of shadowing)
 
 
     int64_t handle = TimerBenchmarkStart();

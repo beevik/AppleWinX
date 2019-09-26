@@ -155,13 +155,13 @@ static void RemoveDisk(int drive) {
 //===========================================================================
 static void RemoveStepperDelay() {
     // note: make sure this works for the latest version of prodos
-    if ((*(LPDWORD)(mem + 0xBA00) == 0xD0CA11A2) && (mem[0xBA04] == 0xFD)) {
-        *(LPDWORD)(mem + 0xBA00) = 0xEAEAEAEA;
-        mem[0xBA04] = 0xEA;
+    if ((*(LPDWORD)(g_mem + 0xBA00) == 0xD0CA11A2) && (g_mem[0xBA04] == 0xFD)) {
+        *(LPDWORD)(g_mem + 0xBA00) = 0xEAEAEAEA;
+        g_mem[0xBA04] = 0xEA;
     }
-    if ((*(LPDWORD)(mem + 0xBD9E) == 0xD08812A0) && (mem[0xBDA2] == 0xFD)) {
-        *(LPDWORD)(mem + 0xBD9E) = 0xEAEAEAEA;
-        mem[0xBDA2] = 0xEA;
+    if ((*(LPDWORD)(g_mem + 0xBD9E) == 0xD08812A0) && (g_mem[0xBDA2] == 0xFD)) {
+        *(LPDWORD)(g_mem + 0xBD9E) = 0xEAEAEAEA;
+        g_mem[0xBDA2] = 0xEA;
     }
 }
 
@@ -347,9 +347,9 @@ BYTE DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
         }
         else {
             if (optEnhancedDisk
-                && (*(LPDWORD)(mem + programcounter) == 0xD5C9FB10 || *(LPDWORD)(mem + programcounter) == 0xD549FB10)
-                && (*(LPDWORD)(mem + programcounter + 4) & 0xFFFF00FF) != 0xAAC900F0
-                && (mem[programcounter + 4] != 0xD0 || mem[programcounter + 5] == 0xF7 || mem[programcounter + 5] == 0xF0))
+                && (*(LPDWORD)(g_mem + programcounter) == 0xD5C9FB10 || *(LPDWORD)(g_mem + programcounter) == 0xD549FB10)
+                && (*(LPDWORD)(g_mem + programcounter + 4) & 0xFFFF00FF) != 0xAAC900F0
+                && (g_mem[programcounter + 4] != 0xD0 || g_mem[programcounter + 5] == 0xF7 || g_mem[programcounter + 5] == 0xF0))
             {
                 int loop = fptr->nibbles;
                 while (fptr->trackImage[fptr->byte] != 0xD5 && loop--) {

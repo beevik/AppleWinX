@@ -742,7 +742,7 @@ static BOOL CmdInternalMemoryDump(int argc) {
 
     FILE * fp = fopen(filename, "wb");
     if (fp) {
-        fwrite(mem, 0x30000, 1, fp);
+        fwrite(g_mem, 0x30000, 1, fp);
         fclose(fp);
     }
     return FALSE;
@@ -750,7 +750,7 @@ static BOOL CmdInternalMemoryDump(int argc) {
 
 //===========================================================================
 static BOOL CmdLineDown(int argc) {
-    const inst & in   = instruction[mem[topoffset]];
+    const inst & in   = instruction[g_mem[topoffset]];
     const addr & mode = addressmode[in.addrmode];
     topoffset += mode.bytes;
     return TRUE;
@@ -763,7 +763,7 @@ static BOOL CmdLineUp(int argc) {
     WORD newoffset = topoffset;
     while (newoffset < savedoffset) {
         topoffset = newoffset;
-        const inst & in   = instruction[mem[newoffset]];
+        const inst & in   = instruction[g_mem[newoffset]];
         const addr & mode = addressmode[in.addrmode];
         newoffset += mode.bytes;
     }
@@ -799,7 +799,7 @@ static BOOL CmdMemoryEnter(int argc) {
     WORD address = argv[1].val1 ? argv[1].val1 : (WORD)addr;
     for (int i = 0; i < argc - 2; ++i) {
         membank[address + i] = (BYTE)argv[i + 2].val1;
-        memDirty[(address + i) >> 8] = 1;
+        g_memDirty[(address + i) >> 8] = 1;
     }
 
     return TRUE;
@@ -820,7 +820,7 @@ static BOOL CmdMemoryFill(int argc) {
     while (bytes--) {
         if (address < 0xC000 || address > 0xC0FF) {
             membank[address] = value;
-            memDirty[address >> 8] = 1;
+            g_memDirty[address >> 8] = 1;
         }
         address++;
     }
@@ -996,9 +996,9 @@ static BOOL CmdWatchClear(int argc) {
 
 //===========================================================================
 static BOOL CmdZap(int argc) {
-    int loop = addressmode[instruction[mem[regs.pc]].addrmode].bytes;
+    int loop = addressmode[instruction[g_mem[regs.pc]].addrmode].bytes;
     while (loop--)
-        mem[regs.pc + loop] = 0xEA;
+        g_mem[regs.pc + loop] = 0xEA;
     return TRUE;
 }
 
@@ -1012,7 +1012,7 @@ static void ComputeTopOffset(WORD centeroffset) {
         WORD currofs = topoffset;
         int  currnum = 0;
         do {
-            int addrmode = instruction[mem[currofs]].addrmode;
+            int addrmode = instruction[g_mem[currofs]].addrmode;
             if ((addrmode >= 1) && (addrmode <= 3))
                 invalid = 1;
             else {
@@ -1127,13 +1127,13 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, char * text, size_t t
     char addresstext[40] = "";
     char bytestext[10]   = "";
     char fulltext[50]    = "";
-    BYTE inst            = mem[offset];
+    BYTE inst            = g_mem[offset];
     int  addrmode        = instruction[inst].addrmode;
     WORD bytes           = addressmode[addrmode].bytes;
 
     // BUILD A STRING CONTAINING THE TARGET ADDRESS OR SYMBOL
     if (addressmode[addrmode].format[0]) {
-        WORD address = *(LPWORD)(mem + offset + 1);
+        WORD address = *(LPWORD)(g_mem + offset + 1);
         if (bytes == 2)
             address &= 0xFF;
         if (addrmode == ADDR_REL)
@@ -1172,7 +1172,7 @@ static WORD DrawDisassembly(HDC dc, int line, WORD offset, char * text, size_t t
                 bytestext + offset,
                 ARRSIZE(bytestext) - offset,
                 "%02X",
-                (unsigned) * (mem + offset + (loop++))
+                (unsigned) * (g_mem + offset + (loop++))
             );
         }
         while (StrLen(bytestext) < 6)
@@ -1382,7 +1382,7 @@ static void DrawStack(HDC dc, int line) {
         linerect.right = SCREENSPLIT2;
         SetTextColor(dc, color[colorscheme][COLOR_DATATEXT]);
         if (curraddr <= 0x1FF)
-            StrPrintf(outtext, ARRSIZE(outtext), "%02X", (unsigned) * (LPBYTE)(mem + curraddr));
+            StrPrintf(outtext, ARRSIZE(outtext), "%02X", (unsigned) * (LPBYTE)(g_mem + curraddr));
         ExtTextOut(
             dc,
             linerect.left,
@@ -1410,9 +1410,9 @@ static void DrawTargets(HDC dc, int line) {
         if (address[loop] >= 0) {
             StrPrintf(addressstr, ARRSIZE(addressstr), "%04X", address[loop]);
             if (loop)
-                StrPrintf(valuestr, ARRSIZE(valuestr), "%02X", *(LPBYTE)(mem + address[loop]));
+                StrPrintf(valuestr, ARRSIZE(valuestr), "%02X", *(LPBYTE)(g_mem + address[loop]));
             else
-                StrPrintf(valuestr, ARRSIZE(valuestr), "%04X", *(LPWORD)(mem + address[loop]));
+                StrPrintf(valuestr, ARRSIZE(valuestr), "%04X", *(LPWORD)(g_mem + address[loop]));
         }
         RECT linerect;
         linerect.left   = SCREENSPLIT1;
@@ -1495,7 +1495,7 @@ static void DrawWatches(HDC dc, int line) {
     SetTextColor(dc, color[colorscheme][COLOR_DATATEXT]);
     for (int loop = 0; loop < WATCHES; ++loop) {
         if (watch[loop] >= 0)
-            StrPrintf(outstr, ARRSIZE(outstr), "%02X", (unsigned)mem[watch[loop]]);
+            StrPrintf(outstr, ARRSIZE(outstr), "%02X", (unsigned)g_mem[watch[loop]]);
         else
             outstr[0] = 0;
         linerect.top += 16;
@@ -1583,9 +1583,9 @@ static const char * GetSymbol(WORD address, int bytes, char * tmpbuf, int tmpbuf
 static void GetTargets(int * intermediate, int * final) {
     *intermediate = -1;
     *final        = -1;
-    int  addrmode   = instruction[mem[regs.pc]].addrmode;
-    BYTE argument8  = *(LPBYTE)(mem + regs.pc + 1);
-    WORD argument16 = *(LPWORD)(mem + regs.pc + 1);
+    int  addrmode   = instruction[g_mem[regs.pc]].addrmode;
+    BYTE argument8  = *(LPBYTE)(g_mem + regs.pc + 1);
+    WORD argument16 = *(LPWORD)(g_mem + regs.pc + 1);
     switch (addrmode) {
         case ADDR_ABS:
             *final = argument16;
@@ -1594,7 +1594,7 @@ static void GetTargets(int * intermediate, int * final) {
         case ADDR_IABSX:
             argument16 += regs.x;
             *intermediate = argument16;
-            *final = *(LPWORD)(mem + *intermediate);
+            *final = *(LPWORD)(g_mem + *intermediate);
             break;
 
         case ADDR_ABSX:
@@ -1609,23 +1609,23 @@ static void GetTargets(int * intermediate, int * final) {
 
         case ADDR_IABS:
             *intermediate = argument16;
-            *final = *(LPWORD)(mem + *intermediate);
+            *final = *(LPWORD)(g_mem + *intermediate);
             break;
 
         case ADDR_INDX:
             argument8 += regs.x;
             *intermediate = argument8;
-            *final = *(LPWORD)(mem + *intermediate);
+            *final = *(LPWORD)(g_mem + *intermediate);
             break;
 
         case ADDR_INDY:
             *intermediate = argument8;
-            *final = (*(LPWORD)(mem + *intermediate)) + regs.y;
+            *final = (*(LPWORD)(g_mem + *intermediate)) + regs.y;
             break;
 
         case ADDR_IZPG:
             *intermediate = argument8;
-            *final = *(LPWORD)(mem + *intermediate);
+            *final = *(LPWORD)(g_mem + *intermediate);
             break;
 
         case ADDR_ZPG:
@@ -1641,8 +1641,8 @@ static void GetTargets(int * intermediate, int * final) {
             break;
     }
 
-    if (*final >= 0 && (!StrCmp(instruction[mem[regs.pc]].mnemonic, "JMP") ||
-        !StrCmp(instruction[mem[regs.pc]].mnemonic, "JSR")))
+    if (*final >= 0 && (!StrCmp(instruction[g_mem[regs.pc]].mnemonic, "JMP") ||
+        !StrCmp(instruction[g_mem[regs.pc]].mnemonic, "JSR")))
     {
         *final = -1;
     }
@@ -1652,7 +1652,7 @@ static void GetTargets(int * intermediate, int * final) {
 static BOOL InternalSingleStep() {
     BOOL result = 0;
     _try {
-        ++profiledata[mem[regs.pc]];
+        ++profiledata[g_mem[regs.pc]];
         g_cyclesEmulated += CpuStep6502();
         result = 1;
     }
@@ -1833,7 +1833,7 @@ void DebugAdvance() {
     else {
         EmulatorSetMode(EMULATOR_MODE_DEBUG);
         if (stepstart < regs.pc && stepstart + 3 >= regs.pc)
-            topoffset += addressmode[instruction[mem[topoffset]].addrmode].bytes;
+            topoffset += addressmode[instruction[g_mem[topoffset]].addrmode].bytes;
         else
             ComputeTopOffset(regs.pc);
         DebugDisplay(stepstaken >= 0x10000);
@@ -1844,7 +1844,7 @@ void DebugAdvance() {
 //===========================================================================
 void DebugBegin() {
     if (!membank)
-        membank = mem;
+        membank = g_mem;
     EmulatorSetMode(EMULATOR_MODE_DEBUG);
     addressmode[INVALID2].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 2 : 1;
     addressmode[INVALID3].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 3 : 1;

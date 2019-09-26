@@ -291,7 +291,7 @@ void KeybQueueKeypress(int virtkey, BOOL extended) {
         ((EmulatorGetAppleType() != APPLE_TYPE_IIE) || (GetKeyState(VK_CONTROL) < 0))) {
         if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
             MemResetPaging();
-        regs.pc = *(LPWORD)(mem + 0xFFFC);
+        regs.pc = *(LPWORD)(g_mem + 0xFFFC);
     }
     if ((virtkey & 0x7F) > 0x6F)
         return;
@@ -315,7 +315,7 @@ void KeybQueueKeypressSdl(const SDL_Keysym & sym) {
     if (sym.scancode == SDL_SCANCODE_BACKSPACE && (sym.mod & KMOD_CTRL) && (sym.mod & KMOD_SHIFT)) {
         if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
             MemResetPaging();
-        regs.pc = *(LPWORD)(mem + 0xFFFC);
+        regs.pc = *(LPWORD)(g_mem + 0xFFFC);
     }
 
     if (sym.scancode > 0x64)

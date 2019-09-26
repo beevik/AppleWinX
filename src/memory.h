@@ -8,16 +8,13 @@
 
 #pragma once
 
-constexpr int MAXIMAGES = 16;
+typedef BYTE (* FIo)(WORD pc, BYTE address, BYTE write, BYTE value);
 
-typedef BYTE (* fio)(WORD pc, BYTE address, BYTE write, BYTE value);
-
-extern fio        ioRead[0x100];
-extern fio        ioWrite[0x100];
-extern LPBYTE     mem;
-extern LPBYTE     memDirty;
-extern LPBYTE     memWrite[MAXIMAGES][0x100];
-extern DWORD      pages;
+extern FIo        ioRead[0x100];
+extern FIo        ioWrite[0x100];
+extern LPBYTE     g_mem;
+extern LPBYTE     g_memDirty;
+extern LPBYTE     g_memWrite[0x100];
 
 void   MemDestroy();
 LPBYTE MemGetAuxPtr(WORD offset);
@@ -27,5 +24,5 @@ void   MemReset();
 void   MemResetPaging();
 BYTE   MemReturnRandomData(BOOL highbit);
 
-BYTE MemCheckPaging(WORD pc, BYTE address, BYTE write, BYTE value);
+BYTE MemGetPaging(WORD pc, BYTE address, BYTE write, BYTE value);
 BYTE MemSetPaging(WORD pc, BYTE address, BYTE write, BYTE value);
