@@ -27,9 +27,11 @@ static bool          s_restartRequested;
 static int           s_speed;
 
 static const char * s_appleTypeNames[] = {
+    "Apple ][",
     "Apple ][+",
     "Apple //e"
 };
+static_assert(ARRSIZE(s_appleTypeNames) == APPLE_TYPES, "apple type name mismatch");
 
 
 /****************************************************************************
@@ -217,6 +219,7 @@ void EmulatorSetAppleType(EAppleType type) {
     s_appleType = type;
 
     switch (s_appleType) {
+        case APPLE_TYPE_II:
         case APPLE_TYPE_IIPLUS:
             CpuSetType(CPU_TYPE_6502);
             break;
@@ -272,6 +275,7 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         DebugInitialize();
         JoyInitialize();
         MemInitialize();
+        MemInitialize2();
         VideoInitialize();
         FrameCreateWindow();
 
@@ -286,6 +290,7 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
 
         VideoDestroy();
         CommDestroy();
+        MemDestroy2();
         MemDestroy();
         DebugDestroy();
         ConfigSave();

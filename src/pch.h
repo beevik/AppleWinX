@@ -40,6 +40,7 @@
 #include "joystick.h"
 #include "keyboard.h"
 #include "memory.h"
+#include "memory2.h"
 #include "resource.h"
 #include "scheduler.h"
 #include "speaker.h"

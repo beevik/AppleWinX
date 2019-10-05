@@ -1,5 +1,7 @@
 // Microsoft Visual C++ generated resource script.
 //
+#pragma code_page(65001)
+
 #include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
@@ -19,7 +21,6 @@
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-#pragma code_page(1252)
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -165,6 +166,16 @@ LOGO                    IMAGE                   "applewinx.png"
 APPLE2_ROM              ROM                     "apple2.rom"
 
 APPLE2E_ROM             ROM                     "apple2e.rom"
+
+APPLE2_SYSTEM_ROM       ROM                     "rom/apple2.rom"
+
+APPLE2PLUS_SYSTEM_ROM   ROM                     "rom/apple2plus.rom"
+
+APPLE2E_SYSTEM_ROM      ROM                     "rom/apple2e.rom"
+
+APPLE2ENHANCED_SYSTEM_ROM ROM                   "rom/apple2enhanced.rom"
+
+DISK2_ROM               ROM                     "rom/disk2.rom"
 
 
 /////////////////////////////////////////////////////////////////////////////

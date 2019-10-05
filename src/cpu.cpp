@@ -24,7 +24,7 @@ constexpr int BENCHOPCODES = 33;
 bool         cpuKill = false;
 CpuRegisters regs    = { 0 };
 
-static ECpuType cpuType;
+static ECpuType s_cpuType;
 
 static const BYTE benchopcode[BENCHOPCODES] = {
     0x06, 0x16, 0x24, 0x45, 0x48, 0x65, 0x68, 0x76,
@@ -62,7 +62,7 @@ const int statestart = 50000;
                               | (flagn ? PS_SIGN     : 0)                   \
                               | (flagv ? PS_OVERFLOW : 0)                   \
                               | (flagz ? PS_ZERO     : 0)
-#define CMOS     if (EmulatorGetAppleType() != APPLE_TYPE_IIE) {            \
+#define CMOS     if (s_cpuType == CPU_TYPE_6502) {                          \
                    ++*cyclecounter; break;                                  \
                  }
 #define CYC(a)   *cyclecounter += (a)
@@ -121,7 +121,7 @@ const int statestart = 50000;
                    val    = TOBIN(regs.a)+TOBIN(temp)+(flagc != 0);         \
                    flagc  = (val > 99);                                     \
                    regs.a = TOBCD(val);                                     \
-                   if (EmulatorGetAppleType() == APPLE_TYPE_IIE)            \
+                   if (s_cpuType == CPU_TYPE_65C02)                         \
                      SETNZ(regs.a);                                         \
                  }                                                          \
                  else {                                                     \
@@ -266,7 +266,7 @@ const int statestart = 50000;
                    val    = TOBIN(regs.a)-TOBIN(temp)-!flagc;               \
                    flagc  = (val < 0x8000);                                 \
                    regs.a = TOBCD(val);                                     \
-                   if (EmulatorGetAppleType() == APPLE_TYPE_IIE)            \
+                   if (s_cpuType == CPU_TYPE_65C02)                         \
                      SETNZ(regs.a);                                         \
                  }                                                          \
                  else {                                                     \
@@ -304,8 +304,8 @@ const int statestart = 50000;
 #define TYA      regs.a = regs.y;                                           \
                  SETNZ(regs.a);
 #define INVALID1
-#define INVALID2 if (EmulatorGetAppleType() == APPLE_TYPE_IIE) ++regs.pc;
-#define INVALID3 if (EmulatorGetAppleType() == APPLE_TYPE_IIE) regs.pc += 2;
+#define INVALID2 if (s_cpuType == CPU_TYPE_65C02) ++regs.pc;
+#define INVALID3 if (s_cpuType == CPU_TYPE_65C02) regs.pc += 2;
 
 
 /****************************************************************************
@@ -2414,9 +2414,16 @@ int CpuStepTest() {
 }
 
 
-//
-// ----- ALL GLOBALLY ACCESSIBLE FUNCTIONS ARE BELOW THIS LINE -----
-//
+/****************************************************************************
+*
+*   Public functions
+*
+***/
+
+//===========================================================================
+ECpuType CpuGetType() {
+    return s_cpuType;
+}
 
 //===========================================================================
 void CpuInitialize() {
@@ -2430,5 +2437,5 @@ void CpuInitialize() {
 
 //===========================================================================
 void CpuSetType (ECpuType type) {
-    cpuType = type;
+    s_cpuType = type;
 }

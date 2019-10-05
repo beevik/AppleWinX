@@ -1846,8 +1846,8 @@ void DebugBegin() {
     if (!membank)
         membank = g_mem;
     EmulatorSetMode(EMULATOR_MODE_DEBUG);
-    addressmode[INVALID2].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 2 : 1;
-    addressmode[INVALID3].bytes = EmulatorGetAppleType() == APPLE_TYPE_IIE ? 3 : 1;
+    addressmode[INVALID2].bytes = CpuGetType() == CPU_TYPE_65C02 ? 2 : 1;
+    addressmode[INVALID3].bytes = CpuGetType() == CPU_TYPE_65C02 ? 3 : 1;
     ComputeTopOffset(regs.pc);
     DebugDisplay(TRUE);
 }

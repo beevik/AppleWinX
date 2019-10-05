@@ -25,7 +25,8 @@ struct CpuRegisters {
 extern bool         cpuKill;
 extern CpuRegisters regs;
 
-void  CpuInitialize();
-void  CpuSetType(ECpuType type);
-int   CpuStep6502();
-int   CpuStepTest();
+ECpuType CpuGetType();
+void     CpuInitialize();
+void     CpuSetType(ECpuType type);
+int      CpuStep6502();
+int      CpuStepTest();

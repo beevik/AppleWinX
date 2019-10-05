@@ -26,7 +26,8 @@ constexpr int BTN_TODISK  = 5;
 constexpr int BTN_DEBUG   = 6;
 constexpr int BTN_SETUP   = 7;
 
-static const char computerchoices[] = "Apple ][+\0"
+static const char computerchoices[] = "Apple ][\0"
+                                      "Apple ][+\0"
                                       "Apple //e\0";
 static const char joystickchoices[] = "Disabled\0"
                                       "PC Joystick\0"
