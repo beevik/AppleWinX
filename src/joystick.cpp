@@ -206,9 +206,8 @@ BYTE JoyReadButton(WORD, BYTE address, BYTE, BYTE) {
 }
 
 //===========================================================================
-BYTE JoyReadPosition(WORD programcounter, BYTE address, BYTE, BYTE) {
-    if ((*(LPDWORD)(g_mem + programcounter) == 0xD0C80410) &&
-        (*(LPWORD)(g_mem + programcounter + 4) == 0x88F8))
+BYTE JoyReadPosition(WORD pc, BYTE address, BYTE, BYTE) {
+    if (MemReadDword(pc) == 0xd0c80410 && MemReadWord(pc + 4) == 0x88f8) 
         delayleft = 1;
     if (delayleft) {
         if (xdelay)

@@ -208,6 +208,7 @@ void EmulatorRequestRestart() {
 //===========================================================================
 void EmulatorReset() {
     MemReset();
+    MemReset2();
     DiskBoot();
     VideoResetState();
     CommReset();

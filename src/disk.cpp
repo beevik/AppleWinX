@@ -155,13 +155,13 @@ static void RemoveDisk(int drive) {
 //===========================================================================
 static void RemoveStepperDelay() {
     // note: make sure this works for the latest version of prodos
-    if ((*(LPDWORD)(g_mem + 0xBA00) == 0xD0CA11A2) && (g_mem[0xBA04] == 0xFD)) {
-        *(LPDWORD)(g_mem + 0xBA00) = 0xEAEAEAEA;
-        g_mem[0xBA04] = 0xEA;
+    if (MemReadDword(0xba00) == 0xd0ca11a2 && MemReadByte(0xba04) == 0xfd) {
+        MemWriteDword(0xba00, 0xeaeaeaea);
+        MemWriteByte(0xba04, 0xea);
     }
-    if ((*(LPDWORD)(g_mem + 0xBD9E) == 0xD08812A0) && (g_mem[0xBDA2] == 0xFD)) {
-        *(LPDWORD)(g_mem + 0xBD9E) = 0xEAEAEAEA;
-        g_mem[0xBDA2] = 0xEA;
+    if (MemReadDword(0xbd9e) == 0xd08812a0 && MemReadByte(0xbda2) == 0xfd) {
+        MemWriteDword(0xbd9e, 0xeaeaeaea);
+        MemWriteByte(0xbda2, 0xea);
     }
 }
 
@@ -328,7 +328,7 @@ BOOL DiskIsSpinning() {
 }
 
 //===========================================================================
-BYTE DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
+BYTE DiskReadWrite(WORD pc, BYTE, BYTE, BYTE) {
     floppy * fptr = &floppyDrive[currDrive];
     diskAccessed = TRUE;
     if ((!fptr->trackImageData) && fptr->imageHandle)
@@ -346,17 +346,19 @@ BYTE DiskReadWrite(WORD programcounter, BYTE, BYTE, BYTE) {
                 return 0;
         }
         else {
+#if 0
             if (optEnhancedDisk
-                && (*(LPDWORD)(g_mem + programcounter) == 0xD5C9FB10 || *(LPDWORD)(g_mem + programcounter) == 0xD549FB10)
-                && (*(LPDWORD)(g_mem + programcounter + 4) & 0xFFFF00FF) != 0xAAC900F0
-                && (g_mem[programcounter + 4] != 0xD0 || g_mem[programcounter + 5] == 0xF7 || g_mem[programcounter + 5] == 0xF0))
+                && (MemReadDword(pc) == 0xd5c9fb10 || MemReadDword(pc) == 0xd549fb10)
+                && ((MemReadDword(pc + 4) & 0xffff00ff) != 0xaac900f0)
+                && (MemReadByte(pc + 4) != 0xd0 || MemReadByte(pc + 5) == 0xf7 || MemReadByte(pc + 5) == 0xf0))
             {
                 int loop = fptr->nibbles;
-                while (fptr->trackImage[fptr->byte] != 0xD5 && loop--) {
+                while (fptr->trackImage[fptr->byte] != 0xd5 && loop--) {
                     if (++fptr->byte >= fptr->nibbles)
                         fptr->byte = 0;
                 }
             }
+#endif
             result = fptr->trackImage[fptr->byte];
         }
     }

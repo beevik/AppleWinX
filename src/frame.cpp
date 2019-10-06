@@ -841,6 +841,7 @@ static void ProcessButtonClick(int button) {
 //===========================================================================
 static void ResetMachineState() {
     MemReset();
+    MemReset2();
     DiskBoot();
     VideoResetState();
     CommReset();

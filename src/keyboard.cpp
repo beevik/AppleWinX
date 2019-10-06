@@ -290,8 +290,9 @@ void KeybQueueKeypress(int virtkey, BOOL extended) {
     if (((virtkey == VK_CANCEL) || (virtkey == VK_F12)) &&
         ((EmulatorGetAppleType() != APPLE_TYPE_IIE) || (GetKeyState(VK_CONTROL) < 0))) {
         if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
-            MemResetPaging();
-        regs.pc = *(LPWORD)(g_mem + 0xFFFC);
+            MemReset2();
+        else
+            regs.pc = *(uint16_t *)(g_pageRead[0xff] + 0xfc);
     }
     if ((virtkey & 0x7F) > 0x6F)
         return;

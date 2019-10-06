@@ -646,6 +646,21 @@ void MemIoWrite(uint16_t address, uint8_t value) {
 }
 
 //===========================================================================
+uint8_t MemReadByte(uint16_t address) {
+    return g_pageRead[address >> 8][address & 0xff];
+}
+
+//===========================================================================
+uint16_t MemReadWord(uint16_t address) {
+    return *(uint16_t *)(g_pageRead[address >> 8] + (address & 0xff));
+}
+
+//===========================================================================
+uint32_t MemReadDword(uint16_t address) {
+    return *(uint32_t *)(g_pageRead[address >> 8] + (address & 0xff));
+}
+
+//===========================================================================
 void MemReset2() {
     // TODO: Call this from an EmulatorReset function, which also initializes
     // the CPU.
@@ -662,4 +677,19 @@ void MemReset2() {
 
     // Initialize the CPU.
     CpuInitialize();
+}
+
+//===========================================================================
+void MemWriteByte(uint16_t address, uint8_t value) {
+    g_pageWrite[address >> 8][address & 0xff] = value;
+}
+
+//===========================================================================
+void MemWriteWord(uint16_t address, uint16_t value) {
+    *(uint16_t *)(g_pageWrite[address >> 8] + (address & 0xff)) = value;
+}
+
+//===========================================================================
+void MemWriteDword(uint16_t address, uint32_t value) {
+    *(uint32_t *)(g_pageWrite[address >> 8] + (address & 0xff)) = value;
 }
