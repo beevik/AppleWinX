@@ -54,8 +54,6 @@ constexpr DWORD VF_TEXT     = 1 << 6;
 #define  SW_PAGE2()    ((s_videoMode & VF_PAGE2)  != 0)
 #define  SW_TEXT()     ((s_videoMode & VF_TEXT)   != 0)
 
-typedef void (* FUpdate)(int x, int y, int xpixel, int ypixel, int offset);
-
 struct PngReadState {
     const uint8_t * data;
     size_t          bytesTotal;
@@ -80,8 +78,6 @@ static uint32_t * s_sourceLookup;
 static LPBYTE     s_textAuxPtr;
 static LPBYTE     s_textMainPtr;
 static uint32_t * s_screenPixels;
-static FUpdate    s_updateLower;
-static FUpdate    s_updateUpper;
 
 static DWORD      s_charOffset;
 static HDC        s_frameDC;
@@ -359,11 +355,7 @@ static BOOL LoadSourceLookup() {
 
 //===========================================================================
 static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
-    // TODO: Fix this. It's wrong.
-    uint16_t addr = 0x400 + offset;
-    BYTE ch = g_pageRead[addr >> 8][addr & 0xff];
-
-    //BYTE ch = s_textMainPtr[offset];
+    BYTE ch = s_textMainPtr[offset];
 
     // Handle flashing text (1.87Hz blink rate)
     constexpr DWORD BLINK_PERIOD = (DWORD)(CPU_CYCLES_PER_MS * 1000.0 / 1.87);
@@ -479,35 +471,6 @@ static void UpdateHiResCell(int x, int y, int xpixel, int ypixel, int offset) {
             SRCX_HIRES + coloroffs + ((x & 1) << 4),
             (int)curr << 1
         );
-    }
-}
-
-//===========================================================================
-static void UpdateVideoMode(DWORD newMode) {
-    s_videoMode = newMode;
-
-    if (SW_TEXT()) {
-        if (SW_80COL())
-            s_updateUpper = Update80ColCell;
-        else
-            s_updateUpper = Update40ColCell;
-    }
-    else if (SW_HIRES()) {
-        if (SW_DHIRES() && SW_80COL())
-            s_updateUpper = UpdateDHiResCell;
-        else
-            s_updateUpper = UpdateHiResCell;
-    }
-    else {
-        s_updateUpper = UpdateLoResCell;
-    }
-
-    s_updateLower = s_updateUpper;
-    if (SW_MIXED()) {
-        if (SW_80COL())
-            s_updateLower = Update80ColCell;
-        else
-            s_updateLower = Update40ColCell;
     }
 }
 
@@ -732,11 +695,48 @@ void VideoRefreshScreen() {
     if (!s_frameDC)
         s_frameDC = FrameGetDC();
 
-    int shift = SW_PAGE2() ? 1 : 0;
-    s_hiResAuxPtr  = MemGetAuxPtr(0x2000 << shift);
-    s_hiResMainPtr = MemGetMainPtr(0x2000 << shift);
-    s_textAuxPtr   = MemGetAuxPtr(0x400 << shift);
-    s_textMainPtr  = MemGetMainPtr(0x400 << shift);
+    using FUpdate = void (*)(int x, int y, int xpixel, int ypixel, int offset);
+    FUpdate updateUpper, updateLower;
+    if (SW_TEXT()) {
+        if (SW_80COL()) {
+            updateUpper   = Update80ColCell;
+            s_textMainPtr = MemGetMainPtr() + 0x400;
+            s_textAuxPtr  = MemGetAuxPtr() + 0x400;
+        }
+        else {
+            updateUpper   = Update40ColCell;
+            s_textMainPtr = MemGetMainPtr() + (MemIsPage2() ? 0x800 : 0x400);
+        }
+    }
+    else if (SW_HIRES()) {
+        if (SW_DHIRES() && SW_80COL()) {
+            updateUpper    = UpdateDHiResCell;
+            s_hiResMainPtr = MemGetMainPtr() + 0x2000;
+            s_hiResAuxPtr  = MemGetAuxPtr() + 0x2000;
+        }
+        else {
+            updateUpper    = UpdateHiResCell;
+            s_hiResMainPtr = MemGetMainPtr() + (MemIsPage2() ? 0x4000 : 0x2000);
+        }
+    }
+    else {
+        updateUpper   = UpdateLoResCell;
+        s_textMainPtr = MemGetMainPtr() + (MemIsPage2() ? 0x800 : 0x400);
+    }
+
+    updateLower = updateUpper;
+    if (SW_MIXED()) {
+        if (SW_80COL()) {
+            updateLower   = Update80ColCell;
+            s_textMainPtr = MemGetMainPtr() + 0x400;
+            s_textAuxPtr  = MemGetAuxPtr() + 0x400;
+        }
+        else {
+            updateLower   = Update40ColCell;
+            s_textMainPtr = MemGetMainPtr() + (MemIsPage2() ? 0x800 : 0x400);
+        }
+    }
+
     s_screenPixels = WindowLockPixels();
 
     int y      = 0;
@@ -744,12 +744,12 @@ void VideoRefreshScreen() {
     for (; y < 20; y++, ypixel += 16) {
         int offset = ((y & 7) << 7) + ((y >> 3) * 40);
         for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14)
-            s_updateUpper(x, y, xpixel, ypixel, offset + x);
+            updateUpper(x, y, xpixel, ypixel, offset + x);
     }
     for (; y < 24; y++, ypixel += 16) {
         int offset = ((y & 7) << 7) + ((y >> 3) * 40);
         for (int x = 0, xpixel = 0; x < 40; x++, xpixel += 14)
-            s_updateLower(x, y, xpixel, ypixel, offset + x);
+            updateLower(x, y, xpixel, ypixel, offset + x);
     }
 
     WindowUnlockPixels();
@@ -773,7 +773,7 @@ void VideoReleaseFrameDC() {
 //===========================================================================
 void VideoResetState() {
     s_charOffset = 0;
-    UpdateVideoMode(VF_TEXT);
+    s_videoMode = VF_TEXT;
 }
 
 //===========================================================================
@@ -800,7 +800,7 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
     }
     if (newMode & VF_MASK2)
         newMode &= ~VF_PAGE2;
-    UpdateVideoMode(newMode);
+    s_videoMode = newMode;
 
     if (wasPage2 != SW_PAGE2())
         VideoRefreshScreen();

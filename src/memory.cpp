@@ -15,30 +15,34 @@
 *
 ***/
 
-constexpr DWORD MF_80STORE    = 0x00000001;
-constexpr DWORD MF_ALTZP      = 0x00000002;
-constexpr DWORD MF_AUXREAD    = 0x00000004;
-constexpr DWORD MF_AUXWRITE   = 0x00000008;
-constexpr DWORD MF_BANK2      = 0x00000010;
-constexpr DWORD MF_HIGHRAM    = 0x00000020;
-constexpr DWORD MF_HIRES      = 0x00000040;
-constexpr DWORD MF_PAGE2      = 0x00000080;
-constexpr DWORD MF_SLOTC3ROM  = 0x00000100;
-constexpr DWORD MF_SLOTCXROM  = 0x00000200;
-constexpr DWORD MF_WRITERAM   = 0x00000400;
-constexpr DWORD MF_IMAGEMASK  = 0x000003F7;
+// I/O switch MMU flags
+constexpr uint32_t SF_80STORE    = 1 << 0;  // 80-store mode
+constexpr uint32_t SF_RAMRD      = 1 << 1;  // read from aux
+constexpr uint32_t SF_RAMWRT     = 1 << 2;  // write to aux
+constexpr uint32_t SF_INTCXROM   = 1 << 3;  // use internal system rom for $CXXX
+constexpr uint32_t SF_ALTZP      = 1 << 4;  // alt zero page
+constexpr uint32_t SF_SLOTC3ROM  = 1 << 5;  // use slot rom for $C3XX
+constexpr uint32_t SF_PAGE2      = 1 << 6;  // use page 2 display
+constexpr uint32_t SF_HIRES      = 1 << 7;  // hi-res mode on
+constexpr uint32_t SF_BANK2      = 1 << 8;  // use bank2 for $DXXX hi ram
+constexpr uint32_t SF_HRAMRD     = 1 << 9;  // read high memory from ram
+constexpr uint32_t SF_HRAMWRT    = 1 << 10; // write high memory to ram
+constexpr uint32_t SF_UPDATEMASK = (1 << 11) - 1;
+constexpr uint32_t SF_PREWRITE   = 1 << 31; // toggle for high memory mode counter
 
-#define  SW_80STORE()   ((s_memMode & MF_80STORE)   != 0)
-#define  SW_ALTZP()     ((s_memMode & MF_ALTZP)     != 0)
-#define  SW_AUXREAD()   ((s_memMode & MF_AUXREAD)   != 0)
-#define  SW_AUXWRITE()  ((s_memMode & MF_AUXWRITE)  != 0)
-#define  SW_BANK2()     ((s_memMode & MF_BANK2)     != 0)
-#define  SW_HIGHRAM()   ((s_memMode & MF_HIGHRAM)   != 0)
-#define  SW_HIRES()     ((s_memMode & MF_HIRES)     != 0)
-#define  SW_PAGE2()     ((s_memMode & MF_PAGE2)     != 0)
-#define  SW_SLOTC3ROM() ((s_memMode & MF_SLOTC3ROM) != 0)
-#define  SW_SLOTCXROM() ((s_memMode & MF_SLOTCXROM) != 0)
-#define  SW_WRITERAM()  ((s_memMode & MF_WRITERAM)  != 0)
+// I/O switch MMU helper macros
+#define  SW_80STORE()   ((s_switches & SF_80STORE)   != 0)
+#define  SW_RAMRD()     ((s_switches & SF_RAMRD)     != 0)
+#define  SW_RAMWRT()    ((s_switches & SF_RAMWRT)    != 0)
+#define  SW_INTCXROM()  ((s_switches & SF_INTCXROM)  != 0)
+#define  SW_ALTZP()     ((s_switches & SF_ALTZP)     != 0)
+#define  SW_SLOTC3ROM() ((s_switches & SF_SLOTC3ROM) != 0)
+#define  SW_PAGE2()     ((s_switches & SF_PAGE2)     != 0)
+#define  SW_HIRES()     ((s_switches & SF_HIRES)     != 0)
+#define  SW_BANK2()     ((s_switches & SF_BANK2)     != 0)
+#define  SW_HRAMRD()    ((s_switches & SF_HRAMRD)    != 0)
+#define  SW_HRAMWRT()   ((s_switches & SF_HRAMWRT)   != 0)
+#define  SW_PREWRITE()  ((s_switches & SF_PREWRITE)  != 0)
 
 
 /****************************************************************************
@@ -47,536 +51,16 @@ constexpr DWORD MF_IMAGEMASK  = 0x000003F7;
 *
 ***/
 
-LPBYTE  g_mem      = NULL;
-LPBYTE  g_memDirty = NULL;
-LPBYTE  g_memWrite[0x100];
+uint8_t * g_pageRead[0x100];
+uint8_t * g_pageWrite[0x100];
 
-static bool   s_lastWriteRam = false;
-static LPBYTE s_memAux       = NULL;
-static LPBYTE s_memMain      = NULL;
-static DWORD  s_memMode      = MF_BANK2 | MF_SLOTCXROM | MF_WRITERAM;
-static LPBYTE s_memRom       = NULL;
-static LPBYTE s_memShadow[0x100];
-
-BYTE NullIo(WORD pc, BYTE address, BYTE write, BYTE value);
-
-FIo ioRead[0x100] = {
-    KeybReadData,       // $C000
-    KeybReadData,       // $C001
-    KeybReadData,       // $C002
-    KeybReadData,       // $C003
-    KeybReadData,       // $C004
-    KeybReadData,       // $C005
-    KeybReadData,       // $C006
-    KeybReadData,       // $C007
-    KeybReadData,       // $C008
-    KeybReadData,       // $C009
-    KeybReadData,       // $C00A
-    KeybReadData,       // $C00B
-    KeybReadData,       // $C00C
-    KeybReadData,       // $C00D
-    KeybReadData,       // $C00E
-    KeybReadData,       // $C00F
-    KeybReadFlag,       // $C010
-    MemGetPaging,       // $C011
-    MemGetPaging,       // $C012
-    MemGetPaging,       // $C013
-    MemGetPaging,       // $C014
-    MemGetPaging,       // $C015
-    MemGetPaging,       // $C016
-    MemGetPaging,       // $C017
-    MemGetPaging,       // $C018
-    VideoCheckVbl,      // $C019
-    VideoCheckMode,     // $C01A
-    VideoCheckMode,     // $C01B
-    MemGetPaging,       // $C01C
-    MemGetPaging,       // $C01D
-    VideoCheckMode,     // $C01E
-    VideoCheckMode,     // $C01F
-    NullIo,             // $C020
-    NullIo,             // $C021
-    NullIo,             // $C022
-    NullIo,             // $C023
-    NullIo,             // $C024
-    NullIo,             // $C025
-    NullIo,             // $C026
-    NullIo,             // $C027
-    NullIo,             // $C028
-    NullIo,             // $C029
-    NullIo,             // $C02A
-    NullIo,             // $C02B
-    NullIo,             // $C02C
-    NullIo,             // $C02D
-    NullIo,             // $C02E
-    NullIo,             // $C02F
-    SpkrToggle,         // $C030
-    SpkrToggle,         // $C031
-    SpkrToggle,         // $C032
-    SpkrToggle,         // $C033
-    SpkrToggle,         // $C034
-    SpkrToggle,         // $C035
-    SpkrToggle,         // $C036
-    SpkrToggle,         // $C037
-    SpkrToggle,         // $C038
-    SpkrToggle,         // $C039
-    SpkrToggle,         // $C03A
-    SpkrToggle,         // $C03B
-    SpkrToggle,         // $C03C
-    SpkrToggle,         // $C03D
-    SpkrToggle,         // $C03E
-    SpkrToggle,         // $C03F
-    NullIo,             // $C040
-    NullIo,             // $C041
-    NullIo,             // $C042
-    NullIo,             // $C043
-    NullIo,             // $C044
-    NullIo,             // $C045
-    NullIo,             // $C046
-    NullIo,             // $C047
-    NullIo,             // $C048
-    NullIo,             // $C049
-    NullIo,             // $C04A
-    NullIo,             // $C04B
-    NullIo,             // $C04C
-    NullIo,             // $C04D
-    NullIo,             // $C04E
-    NullIo,             // $C04F
-    VideoSetMode,       // $C050
-    VideoSetMode,       // $C051
-    VideoSetMode,       // $C052
-    VideoSetMode,       // $C053
-    MemSetPaging,       // $C054
-    MemSetPaging,       // $C055
-    MemSetPaging,       // $C056
-    MemSetPaging,       // $C057
-    NullIo,             // $C058
-    NullIo,             // $C059
-    NullIo,             // $C05A
-    NullIo,             // $C05B
-    NullIo,             // $C05C
-    NullIo,             // $C05D
-    VideoSetMode,       // $C05E
-    VideoSetMode,       // $C05F
-    NullIo,             // $C060
-    JoyReadButton,      // $C061
-    JoyReadButton,      // $C062
-    JoyReadButton,      // $C063
-    JoyReadPosition,    // $C064
-    JoyReadPosition,    // $C065
-    NullIo,             // $C066
-    NullIo,             // $C067
-    NullIo,             // $C068
-    NullIo,             // $C069
-    NullIo,             // $C06A
-    NullIo,             // $C06B
-    NullIo,             // $C06C
-    NullIo,             // $C06D
-    NullIo,             // $C06E
-    NullIo,             // $C06F
-    JoyResetPosition,   // $C070
-    NullIo,             // $C071
-    NullIo,             // $C072
-    NullIo,             // $C073
-    NullIo,             // $C074
-    NullIo,             // $C075
-    NullIo,             // $C076
-    NullIo,             // $C077
-    NullIo,             // $C078
-    NullIo,             // $C079
-    NullIo,             // $C07A
-    NullIo,             // $C07B
-    NullIo,             // $C07C
-    NullIo,             // $C07D
-    NullIo,             // $C07E
-    VideoCheckMode,     // $C07F
-    MemSetPaging,       // $C080
-    MemSetPaging,       // $C081
-    MemSetPaging,       // $C082
-    MemSetPaging,       // $C083
-    MemSetPaging,       // $C084
-    MemSetPaging,       // $C085
-    MemSetPaging,       // $C086
-    MemSetPaging,       // $C087
-    MemSetPaging,       // $C088
-    MemSetPaging,       // $C089
-    MemSetPaging,       // $C08A
-    MemSetPaging,       // $C08B
-    MemSetPaging,       // $C08C
-    MemSetPaging,       // $C08D
-    MemSetPaging,       // $C08E
-    MemSetPaging,       // $C08F
-    NullIo,             // $C090
-    NullIo,             // $C091
-    NullIo,             // $C092
-    NullIo,             // $C093
-    NullIo,             // $C094
-    NullIo,             // $C095
-    NullIo,             // $C096
-    NullIo,             // $C097
-    NullIo,             // $C098
-    NullIo,             // $C099
-    NullIo,             // $C09A
-    NullIo,             // $C09B
-    NullIo,             // $C09C
-    NullIo,             // $C09D
-    NullIo,             // $C09E
-    NullIo,             // $C09F
-    NullIo,             // $C0A0
-    CommDipSw,          // $C0A1
-    CommDipSw,          // $C0A2
-    NullIo,             // $C0A3
-    NullIo,             // $C0A4
-    NullIo,             // $C0A5
-    NullIo,             // $C0A6
-    NullIo,             // $C0A7
-    CommReceive,        // $C0A8
-    CommStatus,         // $C0A9
-    CommCommand,        // $C0AA
-    CommControl,        // $C0AB
-    NullIo,             // $C0AC
-    NullIo,             // $C0AD
-    NullIo,             // $C0AE
-    NullIo,             // $C0AF
-    NullIo,             // $C0B0
-    NullIo,             // $C0B1
-    NullIo,             // $C0B2
-    NullIo,             // $C0B3
-    NullIo,             // $C0B4
-    NullIo,             // $C0B5
-    NullIo,             // $C0B6
-    NullIo,             // $C0B7
-    NullIo,             // $C0B8
-    NullIo,             // $C0B9
-    NullIo,             // $C0BA
-    NullIo,             // $C0BB
-    NullIo,             // $C0BC
-    NullIo,             // $C0BD
-    NullIo,             // $C0BE
-    NullIo,             // $C0BF
-    NullIo,             // $C0C0
-    NullIo,             // $C0C1
-    NullIo,             // $C0C2
-    NullIo,             // $C0C3
-    NullIo,             // $C0C4
-    NullIo,             // $C0C5
-    NullIo,             // $C0C6
-    NullIo,             // $C0C7
-    NullIo,             // $C0C8
-    NullIo,             // $C0C9
-    NullIo,             // $C0CA
-    NullIo,             // $C0CB
-    NullIo,             // $C0CC
-    NullIo,             // $C0CD
-    NullIo,             // $C0CE
-    NullIo,             // $C0CF
-    NullIo,             // $C0D0
-    NullIo,             // $C0D1
-    NullIo,             // $C0D2
-    NullIo,             // $C0D3
-    NullIo,             // $C0D4
-    NullIo,             // $C0D5
-    NullIo,             // $C0D6
-    NullIo,             // $C0D7
-    NullIo,             // $C0D8
-    NullIo,             // $C0D9
-    NullIo,             // $C0DA
-    NullIo,             // $C0DB
-    NullIo,             // $C0DC
-    NullIo,             // $C0DD
-    NullIo,             // $C0DE
-    NullIo,             // $C0DF
-    DiskControlStepper, // $C0E0
-    DiskControlStepper, // $C0E1
-    DiskControlStepper, // $C0E2
-    DiskControlStepper, // $C0E3
-    DiskControlStepper, // $C0E4
-    DiskControlStepper, // $C0E5
-    DiskControlStepper, // $C0E6
-    DiskControlStepper, // $C0E7
-    DiskControlMotor,   // $C0E8
-    DiskControlMotor,   // $C0E9
-    DiskEnable,         // $C0EA
-    DiskEnable,         // $C0EB
-    DiskReadWrite,      // $C0EC
-    DiskSetLatchValue,  // $C0ED
-    DiskSetReadMode,    // $C0EE
-    DiskSetWriteMode,   // $C0EF
-    NullIo,             // $C0F0
-    NullIo,             // $C0F1
-    NullIo,             // $C0F2
-    NullIo,             // $C0F3
-    NullIo,             // $C0F4
-    NullIo,             // $C0F5
-    NullIo,             // $C0F6
-    NullIo,             // $C0F7
-    NullIo,             // $C0F8
-    NullIo,             // $C0F9
-    NullIo,             // $C0FA
-    NullIo,             // $C0FB
-    NullIo,             // $C0FC
-    NullIo,             // $C0FD
-    NullIo,             // $C0FE
-    NullIo              // $C0FF
-};
-
-FIo ioWrite[0x100] = {
-    MemSetPaging,       // $C000
-    MemSetPaging,       // $C001
-    MemSetPaging,       // $C002
-    MemSetPaging,       // $C003
-    MemSetPaging,       // $C004
-    MemSetPaging,       // $C005
-    MemSetPaging,       // $C006
-    MemSetPaging,       // $C007
-    MemSetPaging,       // $C008
-    MemSetPaging,       // $C009
-    MemSetPaging,       // $C00A
-    MemSetPaging,       // $C00B
-    VideoSetMode,       // $C00C
-    VideoSetMode,       // $C00D
-    VideoSetMode,       // $C00E
-    VideoSetMode,       // $C00F
-    KeybReadFlag,       // $C010
-    KeybReadFlag,       // $C011
-    KeybReadFlag,       // $C012
-    KeybReadFlag,       // $C013
-    KeybReadFlag,       // $C014
-    KeybReadFlag,       // $C015
-    KeybReadFlag,       // $C016
-    KeybReadFlag,       // $C017
-    KeybReadFlag,       // $C018
-    KeybReadFlag,       // $C019
-    KeybReadFlag,       // $C01A
-    KeybReadFlag,       // $C01B
-    KeybReadFlag,       // $C01C
-    KeybReadFlag,       // $C01D
-    KeybReadFlag,       // $C01E
-    KeybReadFlag,       // $C01F
-    NullIo,             // $C020
-    NullIo,             // $C021
-    NullIo,             // $C022
-    NullIo,             // $C023
-    NullIo,             // $C024
-    NullIo,             // $C025
-    NullIo,             // $C026
-    NullIo,             // $C027
-    NullIo,             // $C028
-    NullIo,             // $C029
-    NullIo,             // $C02A
-    NullIo,             // $C02B
-    NullIo,             // $C02C
-    NullIo,             // $C02D
-    NullIo,             // $C02E
-    NullIo,             // $C02F
-    SpkrToggle,         // $C030
-    SpkrToggle,         // $C031
-    SpkrToggle,         // $C032
-    SpkrToggle,         // $C033
-    SpkrToggle,         // $C034
-    SpkrToggle,         // $C035
-    SpkrToggle,         // $C036
-    SpkrToggle,         // $C037
-    SpkrToggle,         // $C038
-    SpkrToggle,         // $C039
-    SpkrToggle,         // $C03A
-    SpkrToggle,         // $C03B
-    SpkrToggle,         // $C03C
-    SpkrToggle,         // $C03D
-    SpkrToggle,         // $C03E
-    SpkrToggle,         // $C03F
-    NullIo,             // $C040
-    NullIo,             // $C041
-    NullIo,             // $C042
-    NullIo,             // $C043
-    NullIo,             // $C044
-    NullIo,             // $C045
-    NullIo,             // $C046
-    NullIo,             // $C047
-    NullIo,             // $C048
-    NullIo,             // $C049
-    NullIo,             // $C04A
-    NullIo,             // $C04B
-    NullIo,             // $C04C
-    NullIo,             // $C04D
-    NullIo,             // $C04E
-    NullIo,             // $C04F
-    VideoSetMode,       // $C050
-    VideoSetMode,       // $C051
-    VideoSetMode,       // $C052
-    VideoSetMode,       // $C053
-    MemSetPaging,       // $C054
-    MemSetPaging,       // $C055
-    MemSetPaging,       // $C056
-    MemSetPaging,       // $C057
-    NullIo,             // $C058
-    NullIo,             // $C059
-    NullIo,             // $C05A
-    NullIo,             // $C05B
-    NullIo,             // $C05C
-    NullIo,             // $C05D
-    VideoSetMode,       // $C05E
-    VideoSetMode,       // $C05F
-    NullIo,             // $C060
-    NullIo,             // $C061
-    NullIo,             // $C062
-    NullIo,             // $C063
-    NullIo,             // $C064
-    NullIo,             // $C065
-    NullIo,             // $C066
-    NullIo,             // $C067
-    NullIo,             // $C068
-    NullIo,             // $C069
-    NullIo,             // $C06A
-    NullIo,             // $C06B
-    NullIo,             // $C06C
-    NullIo,             // $C06D
-    NullIo,             // $C06E
-    NullIo,             // $C06F
-    JoyResetPosition,   // $C070
-    NullIo,             // $C071
-    NullIo,             // $C072
-    NullIo,             // $C073
-    NullIo,             // $C074
-    NullIo,             // $C075
-    NullIo,             // $C076
-    NullIo,             // $C077
-    NullIo,             // $C078
-    NullIo,             // $C079
-    NullIo,             // $C07A
-    NullIo,             // $C07B
-    NullIo,             // $C07C
-    NullIo,             // $C07D
-    NullIo,             // $C07E
-    NullIo,             // $C07F
-    MemSetPaging,       // $C080
-    MemSetPaging,       // $C081
-    MemSetPaging,       // $C082
-    MemSetPaging,       // $C083
-    MemSetPaging,       // $C084
-    MemSetPaging,       // $C085
-    MemSetPaging,       // $C086
-    MemSetPaging,       // $C087
-    MemSetPaging,       // $C088
-    MemSetPaging,       // $C089
-    MemSetPaging,       // $C08A
-    MemSetPaging,       // $C08B
-    MemSetPaging,       // $C08C
-    MemSetPaging,       // $C08D
-    MemSetPaging,       // $C08E
-    MemSetPaging,       // $C08F
-    NullIo,             // $C090
-    NullIo,             // $C091
-    NullIo,             // $C092
-    NullIo,             // $C093
-    NullIo,             // $C094
-    NullIo,             // $C095
-    NullIo,             // $C096
-    NullIo,             // $C097
-    NullIo,             // $C098
-    NullIo,             // $C099
-    NullIo,             // $C09A
-    NullIo,             // $C09B
-    NullIo,             // $C09C
-    NullIo,             // $C09D
-    NullIo,             // $C09E
-    NullIo,             // $C09F
-    NullIo,             // $C0A0
-    NullIo,             // $C0A1
-    NullIo,             // $C0A2
-    NullIo,             // $C0A3
-    NullIo,             // $C0A4
-    NullIo,             // $C0A5
-    NullIo,             // $C0A6
-    NullIo,             // $C0A7
-    CommTransmit,       // $C0A8
-    CommStatus,         // $C0A9
-    CommCommand,        // $C0AA
-    CommControl,        // $C0AB
-    NullIo,             // $C0AC
-    NullIo,             // $C0AD
-    NullIo,             // $C0AE
-    NullIo,             // $C0AF
-    NullIo,             // $C0B0
-    NullIo,             // $C0B1
-    NullIo,             // $C0B2
-    NullIo,             // $C0B3
-    NullIo,             // $C0B4
-    NullIo,             // $C0B5
-    NullIo,             // $C0B6
-    NullIo,             // $C0B7
-    NullIo,             // $C0B8
-    NullIo,             // $C0B9
-    NullIo,             // $C0BA
-    NullIo,             // $C0BB
-    NullIo,             // $C0BC
-    NullIo,             // $C0BD
-    NullIo,             // $C0BE
-    NullIo,             // $C0BF
-    NullIo,             // $C0C0
-    NullIo,             // $C0C1
-    NullIo,             // $C0C2
-    NullIo,             // $C0C3
-    NullIo,             // $C0C4
-    NullIo,             // $C0C5
-    NullIo,             // $C0C6
-    NullIo,             // $C0C7
-    NullIo,             // $C0C8
-    NullIo,             // $C0C9
-    NullIo,             // $C0CA
-    NullIo,             // $C0CB
-    NullIo,             // $C0CC
-    NullIo,             // $C0CD
-    NullIo,             // $C0CE
-    NullIo,             // $C0CF
-    NullIo,             // $C0D0
-    NullIo,             // $C0D1
-    NullIo,             // $C0D2
-    NullIo,             // $C0D3
-    NullIo,             // $C0D4
-    NullIo,             // $C0D5
-    NullIo,             // $C0D6
-    NullIo,             // $C0D7
-    NullIo,             // $C0D8
-    NullIo,             // $C0D9
-    NullIo,             // $C0DA
-    NullIo,             // $C0DB
-    NullIo,             // $C0DC
-    NullIo,             // $C0DD
-    NullIo,             // $C0DE
-    NullIo,             // $C0DF
-    DiskControlStepper, // $C0E0
-    DiskControlStepper, // $C0E1
-    DiskControlStepper, // $C0E2
-    DiskControlStepper, // $C0E3
-    DiskControlStepper, // $C0E4
-    DiskControlStepper, // $C0E5
-    DiskControlStepper, // $C0E6
-    DiskControlStepper, // $C0E7
-    DiskControlMotor,   // $C0E8
-    DiskControlMotor,   // $C0E9
-    DiskEnable,         // $C0EA
-    DiskEnable,         // $C0EB
-    DiskReadWrite,      // $C0EC
-    DiskSetLatchValue,  // $C0ED
-    DiskSetReadMode,    // $C0EE
-    DiskSetWriteMode,   // $C0EF
-    NullIo,             // $C0F0
-    NullIo,             // $C0F1
-    NullIo,             // $C0F2
-    NullIo,             // $C0F3
-    NullIo,             // $C0F4
-    NullIo,             // $C0F5
-    NullIo,             // $C0F6
-    NullIo,             // $C0F7
-    NullIo,             // $C0F8
-    NullIo,             // $C0F9
-    NullIo,             // $C0FA
-    NullIo,             // $C0FB
-    NullIo,             // $C0FC
-    NullIo,             // $C0FD
-    NullIo,             // $C0FE
-    NullIo              // $C0FF
-};
+static uint8_t * s_memMain;
+static uint8_t * s_memAux;
+static uint8_t * s_memSystemRom;
+static uint8_t * s_memSlotRom;
+static uint8_t * s_memNull;
+static uint32_t  s_switches;
+static uint32_t  s_switchesPrev;
 
 
 /****************************************************************************
@@ -585,170 +69,451 @@ FIo ioWrite[0x100] = {
 *
 ***/
 
-static void UpdatePaging(bool initialize);
+static void UpdatePageTables();
 
 //===========================================================================
-static void BackMainImage() {
-    for (int page = 0; page < 256; page++) {
-        if (s_memShadow[page] && ((g_memDirty[page] & 1) || (page <= 1)))
-            memcpy(s_memShadow[page], g_mem + (page << 8), 256);
-        g_memDirty[page] &= ~1;
+static void InitializePageTables() {
+    s_switchesPrev = ~s_switches; // this forces all pages to update
+
+    // Initialize writes to $Cxxx to be ignored. This will never change.
+    for (size_t page = 0xc0; page < 0xd0; ++page)
+        g_pageWrite[page] = s_memNull;
+
+    UpdatePageTables();
+}
+
+//===========================================================================
+static uint8_t ReturnRandomData(bool hiBit) {
+    static const uint8_t retval[16] = {
+        0x00, 0x2D, 0x2D, 0x30, 0x30, 0x32, 0x32, 0x34,
+        0x35, 0x39, 0x43, 0x43, 0x43, 0x60, 0x7F, 0x7F
+    };
+
+    uint8_t r = (uint8_t)rand();
+    if (r <= 170)
+        return 0x20 | (hiBit ? 0x80 : 0);
+    else
+        return retval[r & 15] | (hiBit ? 0x80 : 0);
+}
+
+//===========================================================================
+static void UpdatePageTables() {
+    // Figure out which I/O switches changed since the last update.
+    uint32_t updateMask = (s_switches ^ s_switchesPrev) & SF_UPDATEMASK;
+    if (!updateMask)
+        return;
+
+    // Zero page and stack ($0000..$01FF)
+    uint8_t * zpBank = SW_ALTZP() ? s_memAux : s_memMain;
+    if (updateMask & SF_ALTZP) {
+        for (size_t page = 0x00; page < 0x02; ++page)
+            g_pageRead[page] = g_pageWrite[page] = zpBank + (page << 8);
     }
+
+    // Low memory excluding first text and hi-res pages ($0200..$03FF,
+    // $0800..$1FFF, $4000..$BFFF)
+    uint8_t * lowBankRead  = SW_RAMRD()  ? s_memAux : s_memMain;
+    uint8_t * lowBankWrite = SW_RAMWRT() ? s_memAux : s_memMain;
+    if (updateMask & (SF_RAMRD | SF_RAMWRT)) {
+        for (size_t page = 0x02; page < 0x04; ++page) {
+            g_pageRead[page]  = lowBankRead + (page << 8);
+            g_pageWrite[page] = lowBankWrite + (page << 8);
+        }
+        for (size_t page = 0x08; page < 0x20; ++page) {
+            g_pageRead[page]  = lowBankRead + (page << 8);
+            g_pageWrite[page] = lowBankWrite + (page << 8);
+        }
+        for (size_t page = 0x40; page < 0xc0; ++page) {
+            g_pageRead[page]  = lowBankRead + (page << 8);
+            g_pageWrite[page] = lowBankWrite + (page << 8);
+        }
+    }
+
+    // Text memory page 1 ($0400..$07FF)
+    if (updateMask & (SF_RAMRD | SF_RAMWRT | SF_80STORE | SF_PAGE2)) {
+        uint8_t * pageBankRead  = lowBankRead;
+        uint8_t * pageBankWrite = lowBankWrite;
+        if (SW_80STORE())
+            pageBankRead = pageBankWrite = SW_PAGE2() ? s_memAux : s_memMain;
+        for (size_t page = 0x04; page < 0x08; ++page) {
+            g_pageRead[page]  = pageBankRead + (page << 8);
+            g_pageWrite[page] = pageBankWrite + (page << 8);
+        }
+    }
+
+    // Hi-res memory page 1 ($2000..$3FFF)
+    if (updateMask & (SF_RAMRD | SF_RAMWRT | SF_80STORE | SF_PAGE2 | SF_HIRES)) {
+        uint8_t * pageBankRead  = lowBankRead;
+        uint8_t * pageBankWrite = lowBankWrite;
+        if ((s_switches & (SF_80STORE | SF_HIRES)) == (SF_80STORE | SF_HIRES))
+            pageBankRead = pageBankWrite = SW_PAGE2() ? s_memAux : s_memMain;
+        for (size_t page = 0x20; page < 0x40; ++page) {
+            g_pageRead[page]  = pageBankRead + (page << 8);
+            g_pageWrite[page] = pageBankWrite + (page << 8);
+        }
+    }
+
+    // I/O range ($C000..$CFFF)
+    if (updateMask & (SF_INTCXROM | SF_SLOTC3ROM)) {
+        if (SW_INTCXROM()) {
+            for (size_t page = 0xc0; page < 0xd0; ++page)
+                g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
+        }
+        else {
+            for (size_t page = 0xc0; page < 0xc8; ++page)
+                g_pageRead[page] = s_memSlotRom + ((page - 0xc0) << 8);
+            if (!SW_SLOTC3ROM())
+                g_pageRead[0xc3] = s_memSystemRom + 0x0300;
+            for (size_t page = 0xc8; page < 0xd0; ++page)
+                g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8); // need to handle slot strobe remapping here
+        }
+    }
+
+    // High memory ($D000..$FFFF)
+    if (updateMask & (SF_BANK2 | SF_ALTZP | SF_HRAMRD | SF_HRAMWRT)) {
+
+        // First 4K of high memory ($D000..$DFFF)
+        for (size_t page = 0xd0; page < 0xe0; ++page) {
+            size_t bankOffset = SW_BANK2() ? 0 : 0x1000;
+            if (SW_HRAMRD())
+                g_pageRead[page] = zpBank - bankOffset + (page << 8);
+            else
+                g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
+            if (SW_HRAMWRT())
+                g_pageWrite[page] = zpBank - bankOffset + (page << 8);
+            else
+                g_pageWrite[page] = s_memNull;
+        }
+
+        // Last 8K of high memory ($E000..$FFFF)
+        for (size_t page = 0xe0; page < 0x100; ++page) {
+            if (SW_HRAMRD())
+                g_pageRead[page] = zpBank + (page << 8);
+            else
+                g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
+            if (SW_HRAMWRT())
+                g_pageWrite[page] = zpBank + (page << 8);
+            else
+                g_pageWrite[page] = s_memNull;
+        }
+    }
+
+    s_switchesPrev = s_switches;
 }
 
-//===========================================================================
-static void InitializePaging() {
-    BackMainImage();
-    UpdatePaging(true);
-}
+
+/****************************************************************************
+*
+*   I/O switch handlers
+*
+***/
 
 //===========================================================================
-static BYTE NullIo(WORD pc, BYTE address, BYTE write, BYTE value) {
-    if ((address & 0xF0) == 0xA0) {
-        static const BYTE retval[16] = {
-            0x58, 0xFC, 0x5B, 0xFF, 0x58, 0xFC, 0x5B, 0xFF,
-            0x0B, 0x10, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF
+static uint8_t IoNull(uint8_t address, bool write, uint8_t value) {
+    return write ? 0 : ReturnRandomData(true);
+
+#if 0
+    // TODO: Fix this. It's serial peripheral code.
+    if ((address & 0xf0) == 0xa0) {
+        static const uint8_t retval[16] = {
+            0x58, 0xfc, 0x5b, 0xff, 0x58, 0xfc, 0x5b, 0xff,
+            0x0b, 0x10, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
         };
-        return retval[address & 15];
+        return retval[address & 0x0f];
     }
-    else if ((address >= 0xB0) && (address <= 0xCF)) {
-        BYTE r = (BYTE)(rand() & 0xFF);
+
+    // TODO: Fix this. It's slot 3/4 code.
+    if (address >= 0xb0 && address <= 0xcf) {
+        uint8_t r = (uint8_t)rand();
         if (r >= 0x10)
-            return 0xA0;
-        else if (r >= 8)
-            return (r > 0xC) ? 0xFF : 0x00;
+            return 0xa0;
+        else if (r >= 0x08)
+            return (r > 0x0C) ? 0xff : 0x00;
         else
-            return (address & 0xF7);
+            return address & 0xf7;
     }
-    else if ((address & 0xF0) == 0xD0) {
-        BYTE r = (BYTE)(rand() & 0xFF);
-        if (r >= 0xC0)
-            return 0xC0;
+
+    // TODO: Fix this. It's slot 5 code.
+    if ((address & 0xf0) == 0xd0) {
+        uint8_t r = (uint8_t)rand();
+        if (r >= 0xc0)
+            return 0xc0;
         else if (r >= 0x80)
             return 0x80;
-        else if ((address == 0xD0) || (address == 0xDF))
-            return 0;
+        else if (address == 0xd0 || address == 0xdf)
+            return 0x00;
         else if (r >= 0x40)
             return 0x40;
         else if (r >= 0x30)
             return 0x90;
         else
-            return 0;
+            return 0x00;
+    }
+#endif
+}
+
+//===========================================================================
+static uint8_t IoSwitchC00xRead(uint8_t address, bool, uint8_t value) {
+    return KeybReadData(0, address, 0, 0);
+}
+
+//===========================================================================
+static uint8_t IoSwitchC00xWrite(uint8_t address, bool, uint8_t value) {
+    bool setVideoMode = false;
+    switch (address) {
+        case 0x00: s_switches &= ~SF_80STORE; setVideoMode = true; break;
+        case 0x01: s_switches |=  SF_80STORE; setVideoMode = true; break;
+        case 0x02: s_switches &= ~SF_RAMRD;     break;
+        case 0x03: s_switches |=  SF_RAMRD;     break;
+        case 0x04: s_switches &= ~SF_RAMWRT;    break;
+        case 0x05: s_switches |=  SF_RAMWRT;    break;
+        case 0x06: s_switches &= ~SF_INTCXROM;  break;
+        case 0x07: s_switches |=  SF_INTCXROM;  break;
+        case 0x08: s_switches &= ~SF_ALTZP;     break;
+        case 0x09: s_switches |=  SF_ALTZP;     break;
+        case 0x0a: s_switches &= ~SF_SLOTC3ROM; break;
+        case 0x0b: s_switches |=  SF_SLOTC3ROM; break;
+        default:   setVideoMode = true;         break;
+    }
+
+    UpdatePageTables();
+    if (setVideoMode)
+        VideoSetMode(0, address, 1, value);
+    return 0;
+}
+
+//===========================================================================
+static uint8_t IoSwitchC01xRead(uint8_t address, bool, uint8_t value) {
+    bool result = false;
+    switch (address) {
+        case 0x11: result = SW_BANK2();      break;
+        case 0x12: result = SW_HRAMRD();     break;
+        case 0x13: result = SW_RAMRD();      break;
+        case 0x14: result = SW_RAMWRT();     break;
+        case 0x15: result = SW_INTCXROM();   break;
+        case 0x16: result = SW_ALTZP();      break;
+        case 0x17: result = SW_SLOTC3ROM();  break;
+        case 0x18: result = SW_80STORE();    break;
+        case 0x1c: result = SW_PAGE2();      break;
+        case 0x1d: result = SW_HIRES();      break;
+
+        case 0x10:
+            return KeybReadFlag(0, address, 0, 0);
+        case 0x19:
+            return VideoCheckVbl(0, address, 0, 0);
+        case 0x1a:
+        case 0x1b:
+        case 0x1e:
+        case 0x1f:
+            return VideoCheckMode(0, address, 0, 0);
+    }
+    return KeybGetKeycode() | (result ? 0x80 : 0);
+}
+
+//===========================================================================
+static uint8_t IoSwitchC01xWrite(uint8_t address, bool, uint8_t value) {
+    return KeybReadFlag(0, address, 0, 0);
+}
+
+//===========================================================================
+static uint8_t IoSwitchC03x(uint8_t address, bool write, uint8_t value) {
+    return SpkrToggle(0, address, write, value);
+}
+
+//===========================================================================
+static uint8_t IoSwitchC05x(uint8_t address, bool write, uint8_t value) {
+    bool hiBit = true, setVideoMode = true;
+    switch (address) {
+        /*
+        case 0x50:
+        case 0x51:
+        case 0x52:
+        case 0x53:
+        case 0x5e:
+        case 0x5f:
+            setVideoMode = true;
+            break;
+        */
+
+        case 0x54:
+            s_switches &= ~SF_PAGE2;
+            hiBit = SW_PAGE2();
+            break;
+        case 0x55:
+            s_switches |= SF_PAGE2;
+            hiBit = SW_PAGE2();
+            break;
+        case 0x56:
+            s_switches &= ~SF_HIRES;
+            break;
+        case 0x57:
+            s_switches |= SF_HIRES;
+            break;
+        case 0x58:
+        case 0x59:
+        case 0x5a:
+        case 0x5b:
+        case 0x5c:
+        case 0x5d:
+            setVideoMode = false;
+            break;
+    }
+
+    UpdatePageTables();
+    if (setVideoMode)
+        VideoSetMode(0, address, write, value);
+    return write ? 0 : ReturnRandomData(hiBit);
+}
+
+//===========================================================================
+static uint8_t IoSwitchC06xRead(uint8_t address, bool, uint8_t value) {
+    switch (address) {
+        case 0x61:
+        case 0x62:
+        case 0x63:
+            return JoyReadButton(0, address, 0, 0);
+        case 0x64:
+        case 0x65:
+            return JoyReadPosition(0, address, 0, 0);
+        default:
+            return IoNull(address, 0, 0);
+    }
+}
+
+//===========================================================================
+static uint8_t IoSwitchC07x(uint8_t address, bool write, uint8_t value) {
+    switch (address) {
+        case 0x70:
+            return JoyResetPosition(0, address, 0, 0);
+        case 0x7f:
+            return write ? IoNull(address, true, value) : VideoCheckMode(0, address, 0, 0);
+        default:
+            return IoNull(address, 0, 0);
+    }
+}
+
+//===========================================================================
+static uint8_t IoSwitchC08x(uint8_t address, bool write, uint8_t value) {
+    uint8_t a0 = address & (1 << 0);
+    uint8_t a1 = address & (1 << 1);
+    uint8_t a3 = address & (1 << 3);
+
+    // Only enable hi-ram reads if a0 and a1 are the same.
+    if (a0 == (a1 >> 1))
+        s_switches |= SF_HRAMRD;
+    else
+        s_switches &= ~SF_HRAMRD;
+
+    // If reading an odd address, increment the "prewrite" counter. When the
+    // prewrite counter reaches 2, enable hi-ram writes. Reset the prewrite
+    // counter if a write is performed or if an even address is read. Disable
+    // writes to hi-ram only if an even address is accessed.
+    if (a0 && !write) {
+        if (SW_PREWRITE())
+            s_switches |= SF_HRAMWRT;
+        s_switches |= SF_PREWRITE;
     }
     else
-        return MemReturnRandomData(TRUE);
+        s_switches &= ~SF_PREWRITE;
+    if (!a0)
+        s_switches &= ~SF_HRAMWRT;
+
+    // Update the hi-ram memory bank selection based on address bit 3.
+    if (a3)
+        s_switches &= ~SF_BANK2;
+    else
+        s_switches |= SF_BANK2;
+
+    UpdatePageTables();
+
+    return write ? 0 : ReturnRandomData(true);
 }
 
 //===========================================================================
-static void ResetPaging(bool initialize) {
-    if (!initialize)
-        InitializePaging();
-    s_lastWriteRam = false;
-    s_memMode = MF_BANK2 | MF_SLOTCXROM | MF_WRITERAM;
-    UpdatePaging(initialize);
+static uint8_t IoSwitchDisk2(uint8_t address, bool write, uint8_t value) {
+    switch (address & 0x0f) {
+        case 0x8:
+        case 0x9:
+            return DiskControlMotor(0, address, write, value);
+        case 0xa:
+        case 0xb:
+            return DiskEnable(0, address, write, value);
+        case 0xc:
+            return DiskReadWrite(0, address, write, value);
+        case 0xd:
+            return DiskSetLatchValue(0, address, write, value);
+        case 0xe:
+            return DiskSetReadMode(0, address, write, value);
+        case 0xf:
+            return DiskSetWriteMode(0, address, write, value);
+        default:
+            return DiskControlStepper(0, address, write, value);
+    }
 }
 
 //===========================================================================
-static void UpdatePaging(bool initialize) {
-    LPBYTE oldShadow[256];
-    memcpy(oldShadow, s_memShadow, ARRSIZE(oldShadow) * sizeof(LPBYTE));
-
-    if (initialize) {
-        for (int page = 0; page < 0xC0; page++)
-            g_memWrite[page] = g_mem + (page << 8);
-        for (int page = 0xC0; page < 0xD0; page++)
-            g_memWrite[page] = NULL;
-    }
-    for (int page = 0; page < 2; page++) {
-        s_memShadow[page] = SW_ALTZP()
-            ? s_memAux  + (page << 8)
-            : s_memMain + (page << 8);
-    }
-    for (int page = 2; page < 0xC0; page++) {
-        s_memShadow[page] = SW_AUXREAD()
-            ? s_memAux  + (page << 8)
-            : s_memMain + (page << 8);
-        g_memWrite[page] = (SW_AUXREAD() == SW_AUXWRITE())
-            ? g_mem + (page << 8)
-            : SW_AUXWRITE()
-                ? s_memAux  + (page << 8)
-                : s_memMain + (page << 8);
-    }
-    for (int page = 0xC0; page < 0xC3; page++) {
-        s_memShadow[page] = SW_SLOTCXROM()
-            ? s_memRom + (page << 8) - 0xC000
-            : s_memRom + (page << 8) - 0xB000;
-    }
-    s_memShadow[0xC3] = (SW_SLOTC3ROM() && SW_SLOTCXROM())
-        ? s_memRom + 0x0300
-        : s_memRom + 0x1300;
-    for (int page = 0xC4; page < 0xC8; page++) {
-        s_memShadow[page] = SW_SLOTCXROM()
-            ? s_memRom + (page << 8) - 0xC000
-            : s_memRom + (page << 8) - 0xB000;
-    }
-    for (int page = 0xC8; page < 0xD0; page++)
-        s_memShadow[page] = s_memRom + (page << 8) - 0xB000;
-    for (int page = 0xD0; page < 0xE0; page++) {
-        int bankOffset = SW_BANK2() ? 0 : 0x1000;
-        s_memShadow[page] = SW_HIGHRAM()
-            ? SW_ALTZP()
-                ? s_memAux  + (page << 8) - bankOffset
-                : s_memMain + (page << 8) - bankOffset
-            : s_memRom + (page << 8) - 0xB000;
-        g_memWrite[page] = SW_WRITERAM()
-            ? SW_HIGHRAM()
-                ? g_mem + (page << 8)
-                : SW_ALTZP()
-                    ? s_memAux  + (page << 8) - bankOffset
-                    : s_memMain + (page << 8) - bankOffset
-            : NULL;
-    }
-    for (int page = 0xE0; page < 0x100; page++) {
-        s_memShadow[page] = SW_HIGHRAM()
-            ? SW_ALTZP()
-                ? s_memAux  + (page << 8)
-                : s_memMain + (page << 8)
-            : s_memRom + (page << 8) - 0xB000;
-        g_memWrite[page] = SW_WRITERAM()
-            ? SW_HIGHRAM()
-                ? g_mem + (page << 8)
-                : SW_ALTZP()
-                    ? s_memAux  + (page << 8)
-                    : s_memMain + (page << 8)
-            : NULL;
-    }
-
-    if (SW_80STORE()) {
-        for (int page = 4; page < 8; page++) {
-            s_memShadow[page] = SW_PAGE2()
-                ? s_memAux  + (page << 8)
-                : s_memMain + (page << 8);
-            g_memWrite[page] = g_mem + (page << 8);
-        }
-        if (SW_HIRES()) {
-            for (int page = 0x20; page < 0x40; page++) {
-                s_memShadow[page] = SW_PAGE2()
-                    ? s_memAux  + (page << 8)
-                    : s_memMain + (page << 8);
-                g_memWrite[page] = g_mem + (page << 8);
-            }
-        }
-    }
-
-    // MOVE MEMORY BACK AND FORTH AS NECESSARY BETWEEN THE SHADOW AREAS AND
-    // THE MAIN RAM IMAGE TO KEEP BOTH SETS OF MEMORY CONSISTENT WITH THE NEW
-    // PAGING SHADOW TABLE
-    for (int page = 0; page < 0x100; page++) {
-        if (initialize || (oldShadow[page] != s_memShadow[page])) {
-            if (!initialize && ((g_memDirty[page] & 1) || page <= 1)) {
-                g_memDirty[page] &= ~1;
-                memcpy(oldShadow[page], g_mem + (page << 8), 256);
-            }
-            memcpy(g_mem + (page << 8), s_memShadow[page], 256);
-        }
+static uint8_t IoSwitchSerial(uint8_t address, bool write, uint8_t value) {
+    switch (address & 0x0f) {
+        case 0x1:
+        case 0x2:
+            return write ? IoNull(address, 1, value) : CommDipSw(0, address, write, value);
+        case 0x8:
+            return write ? CommTransmit(0, address, 1, value) : CommReceive(0, address, 0, value);
+        case 0x9:
+            return CommStatus(0, address, write, value);
+        case 0xa:
+            return CommCommand(0, address, write, value);
+        case 0xb:
+            return CommControl(0, address, write, value);
+        default:
+            return IoNull(address, 0, 0);
     }
 }
+
+
+/****************************************************************************
+*
+*   I/O switch tables
+*
+***/
+
+static FIoSwitch s_switchRead[] = {
+    IoSwitchC00xRead,
+    IoSwitchC01xRead,
+    IoNull,         // $C02x
+    IoSwitchC03x,
+    IoNull,         // $C04x
+    IoSwitchC05x,
+    IoSwitchC06xRead,
+    IoSwitchC07x,
+    IoSwitchC08x,
+    IoNull,         // $C09x (slot 1)
+    IoNull,         // $C0Ax (slot 2)
+    IoNull,         // $C0Bx (slot 3)
+    IoNull,         // $C0Cx (slot 4)
+    IoNull,         // $C0Dx (slot 5)
+    IoNull,         // $C0Ex (slot 6)
+    IoNull,         // $C0Fx (slot 7)
+};
+
+static FIoSwitch s_switchWrite[] = {
+    IoSwitchC00xWrite,
+    IoSwitchC01xWrite,
+    IoNull,         // $C02x
+    IoSwitchC03x,
+    IoNull,         // $C04x
+    IoSwitchC05x,
+    IoNull,         // $C06x
+    IoSwitchC07x,
+    IoSwitchC08x,
+    IoNull,         // $C09x (slot 1)
+    IoNull,         // $C0Ax (slot 2)
+    IoNull,         // $C0Bx (slot 3)
+    IoNull,         // $C0Cx (slot 4)
+    IoNull,         // $C0Dx (slot 5)
+    IoNull,         // $C0Ex (slot 6)
+    IoNull,         // $C0Fx (slot 7)
+};
 
 
 /****************************************************************************
@@ -758,75 +523,49 @@ static void UpdatePaging(bool initialize) {
 ***/
 
 //===========================================================================
-void MemDestroy() {
-    delete[] g_mem;
-    delete[] g_memDirty;
-    delete[] s_memAux;
+void MemDestroy2() {
     delete[] s_memMain;
-    delete[] s_memRom;
-    g_mem      = NULL;
-    g_memDirty = NULL;
-    s_memAux   = NULL;
-    s_memMain  = NULL;
-    s_memRom   = NULL;
+    delete[] s_memAux;
+    delete[] s_memSystemRom;
+    delete[] s_memSlotRom;
+    delete[] s_memNull;
+    s_memMain      = nullptr;
+    s_memAux       = nullptr;
+    s_memSystemRom = nullptr;
+    s_memSlotRom   = nullptr;
+    s_memNull      = nullptr;
 }
 
 //===========================================================================
-LPBYTE MemGetAuxPtr(WORD offset) {
-    return (s_memShadow[(offset >> 8)] == (s_memAux + (offset & 0xFF00)))
-        ? g_mem + offset
-        : s_memAux + offset;
+uint8_t * MemGetAuxPtr () {
+    return s_memAux;
 }
 
 //===========================================================================
-LPBYTE MemGetMainPtr(WORD offset) {
-    return (s_memShadow[(offset >> 8)] == (s_memMain + (offset & 0xFF00)))
-        ? g_mem + offset
-        : s_memMain + offset;
-}
-
-//===========================================================================
-BYTE MemGetPaging(WORD, BYTE address, BYTE, BYTE) {
-    bool result;
-    switch (address) {
-        case 0x11: result = SW_BANK2();      break;
-        case 0x12: result = SW_HIGHRAM();    break;
-        case 0x13: result = SW_AUXREAD();    break;
-        case 0x14: result = SW_AUXWRITE();   break;
-        case 0x15: result = !SW_SLOTCXROM(); break;
-        case 0x16: result = SW_ALTZP();      break;
-        case 0x17: result = SW_SLOTC3ROM();  break;
-        case 0x18: result = SW_80STORE();    break;
-        case 0x1C: result = SW_PAGE2();      break;
-        case 0x1D: result = SW_HIRES();      break;
-        default:   result = false;           break;
-    }
-    return KeybGetKeycode() | (result ? 0x80 : 0);
+uint8_t * MemGetMainPtr() {
+    return s_memMain;
 }
 
 //===========================================================================
 void MemInitialize() {
-    g_mem      = new BYTE[0x10000];
-    s_memAux   = new BYTE[0x10000];
-    s_memMain  = new BYTE[0x10000];
-    s_memRom   = new BYTE[0x5000];
-    g_memDirty = new BYTE[0x100];
-    if (!g_mem || !s_memAux || !g_memDirty || !s_memMain || !s_memRom) {
-        MessageBox(
-            GetDesktopWindow(),
-            "The emulator was unable to allocate the memory it "
-            "requires.  Further execution is not possible.",
-            EmulatorGetTitle(),
-            MB_ICONSTOP | MB_SETFOREGROUND
-        );
-        ExitProcess(1);
-    }
-    memset(g_mem, 0, 0x10000);
-    memset(g_memDirty, 0, 0x100);
+    s_memMain       = new uint8_t[0x10000];
+    s_memAux        = new uint8_t[0x10000];
+    s_memSystemRom  = new uint8_t[0x4000];
+    s_memSlotRom    = new uint8_t[0x800];
+    s_memNull       = new uint8_t[0x100];
 
+    // Select a system rom resource.
+    static const char * s_romFiles[] = {
+        "APPLE2_SYSTEM_ROM",
+        "APPLE2PLUS_SYSTEM_ROM",
+        "APPLE2ENHANCED_SYSTEM_ROM",
+    };
+    static_assert(ARRSIZE(s_romFiles) == APPLE_TYPES, "Rom file array mismatch");
+
+    // Load the system rom.
     int size;
-    const char * name = EmulatorGetAppleType() == APPLE_TYPE_IIE ? "APPLE2E_ROM" : "APPLE2_ROM";
-    const void * rom  = ResourceLoad(name, "ROM", &size);
+    const char * name = s_romFiles[EmulatorGetAppleType()];
+    const void * rom = ResourceLoad(name, "ROM", &size);
     if (!rom) {
         MessageBox(
             GetDesktopWindow(),
@@ -837,7 +576,11 @@ void MemInitialize() {
         );
         ExitProcess(1);
     }
-    if (size != 0x5000) {
+    if (size == 0x4000)
+        memcpy(s_memSystemRom, rom, 0x4000);
+    else if (size == 0x3000)
+        memcpy(s_memSystemRom + 0x1000, rom, 0x3000);
+    else {
         MessageBox(
             GetDesktopWindow(),
             "Firmware ROM file was not the correct size.",
@@ -846,117 +589,127 @@ void MemInitialize() {
         );
         ExitProcess(1);
     }
-    memcpy(s_memRom, rom, size);
     ResourceFree(rom);
 
-    // Remove wait routine from the disk controller firmware.
-    s_memRom[0x064C] = 0xA9;
-    s_memRom[0x064D] = 0x00;
-    s_memRom[0x064E] = 0xEA;
+    // Clear the slot rom and I/O switches.
+    memset(s_memSlotRom, 0, 0x800);
+    for (int slot = 1; slot <= 7; ++slot)
+        s_switchRead[slot + 8] = s_switchWrite[slot + 8] = IoNull;
+
+    // Install the rom for a Disk ][ in slot 6, and patch out the wait call.
+    MemInstallPeripheralRom(6, "DISK2_ROM", IoSwitchDisk2);
+    s_memSlotRom[0x064c] = 0xa9;
+    s_memSlotRom[0x064d] = 0x00;
+    s_memSlotRom[0x064e] = 0xea;
 
     MemReset();
 }
 
 //===========================================================================
+bool MemIsPage2() {
+    return SW_PAGE2();
+}
+
+//===========================================================================
+void MemInstallPeripheralRom(int slot, const char * romResourceName, FIoSwitch switchFunc) {
+    int size;
+    const void * rom = ResourceLoad(romResourceName, "ROM", &size);
+    if (rom == nullptr) {
+        char msg[256];
+        StrPrintf(
+            msg,
+            ARRSIZE(msg),
+            "The emulator was unable to load the ROM resource"
+            "'%s' into memory.",
+            romResourceName
+        );
+        MessageBox(
+            GetDesktopWindow(),
+            msg,
+            EmulatorGetTitle(),
+            MB_ICONSTOP | MB_SETFOREGROUND
+        );
+        return;
+    }
+
+    if (size == 0x100) {
+        memcpy(s_memSlotRom + (size_t)slot * 0x100, rom, 0x100);
+        s_switchRead[slot + 8] = s_switchWrite[slot + 8] = switchFunc;
+    }
+    else {
+        MessageBox(
+            GetDesktopWindow(),
+            "Firmware ROM file was not the correct size.",
+            EmulatorGetTitle(),
+            MB_ICONSTOP | MB_SETFOREGROUND
+        );
+    }
+
+    ResourceFree(rom);
+}
+
+//===========================================================================
+uint8_t MemIoRead(uint16_t address) {
+    uint8_t offset = uint8_t(address);
+    return s_switchRead[offset >> 4](offset, false, 0);
+}
+
+//===========================================================================
+void MemIoWrite(uint16_t address, uint8_t value) {
+    uint8_t offset = uint8_t(address);
+    s_switchWrite[offset >> 4](offset, true, 0);
+}
+
+//===========================================================================
+uint8_t MemReadByte(uint16_t address) {
+    return g_pageRead[address >> 8][address & 0xff];
+}
+
+//===========================================================================
+uint16_t MemReadWord(uint16_t address) {
+    return *(uint16_t *)(g_pageRead[address >> 8] + (address & 0xff));
+}
+
+//===========================================================================
+uint32_t MemReadDword(uint16_t address) {
+    return *(uint32_t *)(g_pageRead[address >> 8] + (address & 0xff));
+}
+
+//===========================================================================
 void MemReset() {
-    InitializePaging();
+    // TODO: Call this from an EmulatorReset function, which also initializes
+    // the CPU.
 
-    memset(s_memShadow, 0, 256 * sizeof(LPBYTE));
-    memset(g_memWrite, 0, 256 * sizeof(LPBYTE));
-    memset(s_memAux, 0, 0x10000);
-    memset(s_memMain, 0, 0x10000);
+    memset(s_memMain,   0, 0x10000);
+    memset(s_memAux,    0, 0x10000);
+    memset(s_memNull,   0, 0x100);
+    memset(g_pageRead,  0, sizeof(g_pageRead));
+    memset(g_pageWrite, 0, sizeof(g_pageWrite));
 
-#if 0
+    // Initialize I/O switches and update memory page tables.
+    s_switches = SF_BANK2 | SF_HRAMWRT;
+    InitializePageTables();
+
+    // Initialize the CPU.
     CpuInitialize();
-#endif
-    ResetPaging(true);
-    regs.pc = *(LPWORD)(g_mem + 0xFFFC);
 }
 
 //===========================================================================
-void MemResetPaging() {
-    ResetPaging(false);
+uint8_t MemReturnRandomData(bool hiBit) {
+    return ReturnRandomData(hiBit);
 }
 
 //===========================================================================
-BYTE MemReturnRandomData(BOOL highbit) {
-    static const BYTE retval[16] = {
-        0x00, 0x2D, 0x2D, 0x30, 0x30, 0x32, 0x32, 0x34,
-        0x35, 0x39, 0x43, 0x43, 0x43, 0x60, 0x7F, 0x7F
-    };
-
-    BYTE r = (BYTE)(rand() & 0xFF);
-    if (r <= 170)
-        return 0x20 | (highbit ? 0x80 : 0);
-    else
-        return retval[r & 15] | (highbit ? 0x80 : 0);
+void MemWriteByte(uint16_t address, uint8_t value) {
+    g_pageWrite[address >> 8][address & 0xff] = value;
 }
 
 //===========================================================================
-BYTE MemSetPaging(WORD pc, BYTE address, BYTE write, BYTE value) {
-    DWORD lastMemMode = s_memMode;
+void MemWriteWord(uint16_t address, uint16_t value) {
+    *(uint16_t *)(g_pageWrite[address >> 8] + (address & 0xff)) = value;
+}
 
-    if ((address >= 0x80) && (address <= 0x8F)) {
-        bool writeRam = (address & 1) != 0;
-        s_memMode &= ~(MF_BANK2 | MF_HIGHRAM | MF_WRITERAM);
-        s_lastWriteRam = true; // note: because diags.do doesn't set switches twice!
-        if (s_lastWriteRam && writeRam)
-            s_memMode |= MF_WRITERAM;
-        if (!(address & 8))
-            s_memMode |= MF_BANK2;
-        if (((address & 2) >> 1) == (address & 1))
-            s_memMode |= MF_HIGHRAM;
-        s_lastWriteRam = writeRam;
-    }
-    else if (EmulatorGetAppleType() == APPLE_TYPE_IIE) {
-        switch (address) {
-            case 0x00: s_memMode &= ~MF_80STORE;    break;
-            case 0x01: s_memMode |=  MF_80STORE;    break;
-            case 0x02: s_memMode &= ~MF_AUXREAD;    break;
-            case 0x03: s_memMode |=  MF_AUXREAD;    break;
-            case 0x04: s_memMode &= ~MF_AUXWRITE;   break;
-            case 0x05: s_memMode |=  MF_AUXWRITE;   break;
-            case 0x06: s_memMode |=  MF_SLOTCXROM;  break;
-            case 0x07: s_memMode &= ~MF_SLOTCXROM;  break;
-            case 0x08: s_memMode &= ~MF_ALTZP;      break;
-            case 0x09: s_memMode |=  MF_ALTZP;      break;
-            case 0x0A: s_memMode &= ~MF_SLOTC3ROM;  break;
-            case 0x0B: s_memMode |=  MF_SLOTC3ROM;  break;
-            case 0x54: s_memMode &= ~MF_PAGE2;      break;
-            case 0x55: s_memMode |=  MF_PAGE2;      break;
-            case 0x56: s_memMode &= ~MF_HIRES;      break;
-            case 0x57: s_memMode |=  MF_HIRES;      break;
-        }
-    }
-
-    // IF THE EMULATED PROGRAM HAS JUST UPDATED THE MEMORY WRITE MODE AND IS
-    // ABOUT TO UPDATE THE MEMORY READ MODE, HOLD OFF ON ANY PROCESSING UNTIL IT
-    // DOES SO.
-    BOOL modeChanging = FALSE;
-    if ((address >= 4) && (address <= 5) &&
-        ((*(LPDWORD)(g_mem + pc) & 0x00FFFEFF) == 0x00C0028D)) {
-        modeChanging = TRUE;
-        return write ? 0 : MemReturnRandomData(TRUE);
-    }
-    if ((address >= 0x80) && (address <= 0x8F) && (pc < 0xC000) &&
-        (((*(LPDWORD)(g_mem + pc) & 0x00FFFEFF) == 0x00C0048D) ||
-        ((*(LPDWORD)(g_mem + pc) & 0x00FFFEFF) == 0x00C0028D))) {
-        modeChanging = TRUE;
-        return write ? 0 : MemReturnRandomData(TRUE);
-    }
-
-    // IF THE MEMORY PAGING MODE HAS CHANGED, UPDATE OUR MEMORY IMAGES AND
-    // WRITE TABLES.
-    if ((lastMemMode != s_memMode) || modeChanging) {
-        // KEEP ONLY ONE MEMORY IMAGE AND WRITE TABLE, AND UPDATE THEM
-        // EVERY TIME PAGING IS CHANGED.
-        UpdatePaging(false);
-    }
-
-    if ((address <= 1) || (address >= 0x54 && address <= 0x57))
-        VideoSetMode(pc, address, write, value);
-
-    return write
-        ? 0
-        : MemReturnRandomData((address == 0x54 || address == 0x55) ? SW_PAGE2() : TRUE);
+//===========================================================================
+void MemWriteDword(uint16_t address, uint32_t value) {
+    *(uint32_t *)(g_pageWrite[address >> 8] + (address & 0xff)) = value;
 }

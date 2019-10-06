@@ -413,9 +413,6 @@ static void DrawFrameWindow(BOOL paint) {
         case EMULATOR_MODE_LOGO:
             VideoDisplayLogo();
             break;
-        case EMULATOR_MODE_DEBUG:
-            DebugDisplay(TRUE);
-            break;
         default:
             VideoRefreshScreen();
             break;
@@ -508,8 +505,6 @@ static LRESULT CALLBACK FrameWndProc(
             break;
 
         case WM_CHAR:
-            if (EmulatorGetMode() == EMULATOR_MODE_DEBUG)
-                DebugProcessChar((char)wparam);
             break;
 
         case WM_CREATE:
@@ -537,7 +532,6 @@ static LRESULT CALLBACK FrameWndProc(
                 switch (mode) {
                     case EMULATOR_MODE_RUNNING:  EmulatorSetMode(EMULATOR_MODE_PAUSED);   break;
                     case EMULATOR_MODE_PAUSED:   EmulatorSetMode(EMULATOR_MODE_RUNNING);  break;
-                    case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
                 if ((mode != EMULATOR_MODE_LOGO) && (mode != EMULATOR_MODE_DEBUG))
                     VideoRefreshScreen();
@@ -550,8 +544,6 @@ static LRESULT CALLBACK FrameWndProc(
                 if (!JoyProcessKey((int)wparam, extended, 1, autorep) && EmulatorGetMode() != EMULATOR_MODE_LOGO)
                     KeybQueueKeypress((int)wparam, extended);
             }
-            else if ((EmulatorGetMode() == EMULATOR_MODE_DEBUG) || (EmulatorGetMode() == EMULATOR_MODE_STEPPING))
-                DebugProcessCommand((int)wparam);
             if (wparam == VK_F10) {
                 SetUsingCursor(0);
                 return 0;
@@ -786,8 +778,6 @@ static void ProcessButtonClick(int button) {
                 DiskBoot();
             else if (EmulatorGetMode() == EMULATOR_MODE_RUNNING)
                 ResetMachineState();
-            if ((EmulatorGetMode() == EMULATOR_MODE_DEBUG) || (EmulatorGetMode() == EMULATOR_MODE_STEPPING))
-                DebugEnd();
             EmulatorSetMode(EMULATOR_MODE_RUNNING);
             VideoRefreshScreen();
             break;
@@ -816,15 +806,6 @@ static void ProcessButtonClick(int button) {
                 MB_ICONINFORMATION | MB_SETFOREGROUND);
             break;
 
-        case BTN_DEBUG:
-            switch (EmulatorGetMode()) {
-                case EMULATOR_MODE_LOGO:     ResetMachineState();            break;
-                case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE); break;
-                case EMULATOR_MODE_DEBUG:    ProcessButtonClick(BTN_RUN);    break;
-                default:                     DebugBegin();                   break;
-            }
-            break;
-
         case BTN_SETUP:
             InitCommonControls();
             DialogBox(
@@ -841,7 +822,6 @@ static void ProcessButtonClick(int button) {
 //===========================================================================
 static void ResetMachineState() {
     MemReset();
-    MemReset2();
     DiskBoot();
     VideoResetState();
     CommReset();

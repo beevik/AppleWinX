@@ -290,7 +290,7 @@ void KeybQueueKeypress(int virtkey, BOOL extended) {
     if (((virtkey == VK_CANCEL) || (virtkey == VK_F12)) &&
         ((EmulatorGetAppleType() != APPLE_TYPE_IIE) || (GetKeyState(VK_CONTROL) < 0))) {
         if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
-            MemReset2();
+            MemReset();
         else
             regs.pc = *(uint16_t *)(g_pageRead[0xff] + 0xfc);
     }
@@ -315,7 +315,7 @@ void KeybQueueKeypressSdl(const SDL_Keysym & sym) {
     // ctrl-shift-backspace is the same as ctrl-openapple-reset.
     if (sym.scancode == SDL_SCANCODE_BACKSPACE && (sym.mod & KMOD_CTRL) && (sym.mod & KMOD_SHIFT)) {
         if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
-            MemReset2();
+            MemReset();
         else
             regs.pc = *(uint16_t *)(g_pageRead[0xff] + 0xfc);
     }

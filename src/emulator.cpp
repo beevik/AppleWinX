@@ -208,7 +208,6 @@ void EmulatorRequestRestart() {
 //===========================================================================
 void EmulatorReset() {
     MemReset();
-    MemReset2();
     DiskBoot();
     VideoResetState();
     CommReset();
@@ -273,17 +272,14 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         EmulatorSetSpeed(SPEED_NORMAL);
         ConfigLoad();
         LoadConfiguration();
-        DebugInitialize();
         JoyInitialize();
         MemInitialize();
-        MemInitialize2();
         VideoInitialize();
         FrameCreateWindow();
 
         while (s_mode != EMULATOR_MODE_SHUTDOWN) {
             switch (s_mode) {
                 case EMULATOR_MODE_RUNNING:  Advance();      break;
-                case EMULATOR_MODE_STEPPING: DebugAdvance(); break;
                 default:                     Sleep(1);       break;
             }
             WindowUpdate();
@@ -292,8 +288,6 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         VideoDestroy();
         CommDestroy();
         MemDestroy2();
-        //MemDestroy();
-        DebugDestroy();
         ConfigSave();
         TimerDestroy();
     } while (s_restartRequested);

@@ -61,15 +61,6 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
             DiskSelect(1);
             break;
 
-        case SDL_SCANCODE_F5:
-            switch (EmulatorGetMode()) {
-                case EMULATOR_MODE_LOGO:     EmulatorReset();                break;
-                case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE); break;
-                case EMULATOR_MODE_DEBUG:    StartEmulator();                break;
-                default:                     DebugBegin();                   break;
-            }
-            break;
-
         case SDL_SCANCODE_F10:
         case SDL_SCANCODE_PAUSE:
             if (IsUnmodified(key.keysym.mod)) {
@@ -77,7 +68,6 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
                 switch (mode) {
                     case EMULATOR_MODE_RUNNING:  EmulatorSetMode(EMULATOR_MODE_PAUSED);   break;
                     case EMULATOR_MODE_PAUSED:   EmulatorSetMode(EMULATOR_MODE_RUNNING);  break;
-                    case EMULATOR_MODE_STEPPING: DebugProcessCommand(VK_ESCAPE);  break;
                 }
                 if ((mode != EMULATOR_MODE_LOGO) && (mode != EMULATOR_MODE_DEBUG))
                     VideoRefreshScreen();
@@ -139,10 +129,6 @@ static void StartEmulator() {
             break;
         case EMULATOR_MODE_RUNNING:
             EmulatorReset();
-            break;
-        case EMULATOR_MODE_DEBUG:
-        case EMULATOR_MODE_STEPPING:
-            DebugEnd();
             break;
     }
 
