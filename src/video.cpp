@@ -783,10 +783,10 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
     switch (address) {
         case 0x00: newMode &= ~VF_MASK2;   break;
         case 0x01: newMode |=  VF_MASK2;   break;
-        case 0x0C: newMode &= ~VF_80COL;   break;
-        case 0x0D: newMode |=  VF_80COL;   break;
-        case 0x0E: s_charOffset = 0;       break;
-        case 0x0F: s_charOffset = 256;     break;
+        case 0x0c: newMode &= ~VF_80COL;   break;
+        case 0x0d: newMode |=  VF_80COL;   break;
+        case 0x0e: s_charOffset = 0;       break;
+        case 0x0f: s_charOffset = 256;     break;
         case 0x50: newMode &= ~VF_TEXT;    break;
         case 0x51: newMode |=  VF_TEXT;    break;
         case 0x52: newMode &= ~VF_MIXED;   break;
@@ -795,8 +795,8 @@ BYTE VideoSetMode(WORD, BYTE address, BYTE write, BYTE) {
         case 0x55: newMode |=  VF_PAGE2;   break;
         case 0x56: newMode &= ~VF_HIRES;   break;
         case 0x57: newMode |=  VF_HIRES;   break;
-        case 0x5E: newMode |=  VF_DHIRES;  break;
-        case 0x5F: newMode &= ~VF_DHIRES;  break;
+        case 0x5e: newMode |=  VF_DHIRES;  break;
+        case 0x5f: newMode &= ~VF_DHIRES;  break;
     }
     if (newMode & VF_MASK2)
         newMode &= ~VF_PAGE2;

@@ -8,12 +8,14 @@
 
 #pragma once
 
+using FIoSwitch = uint8_t (*)(uint8_t offset, bool write, uint8_t value);
+
 extern uint8_t * g_pageRead[0x100];
 extern uint8_t * g_pageWrite[0x100];
 
 void    MemDestroy2();
 void    MemInitialize2();
-void    MemInstallPeripheralRom(const char * romResourceName, int slot);
+void    MemInstallPeripheralRom(int slot, const char * romResourceName, FIoSwitch switchFunc);
 uint8_t MemIoRead(uint16_t address);
 void    MemIoWrite(uint16_t address, uint8_t value);
 void    MemReset2();

@@ -235,7 +235,7 @@ BYTE DiskControlStepper(WORD, BYTE address, BYTE, BYTE) {
             }
         }
     }
-    return (address == 0xE0) ? 0xFF : MemReturnRandomData(TRUE);
+    return ((address & 0x0f) == 0x00) ? 0xff : MemReturnRandomData(TRUE);
 }
 
 //===========================================================================

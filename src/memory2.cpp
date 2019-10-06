@@ -15,7 +15,7 @@
 *
 ***/
 
-// I/O switch flags
+// I/O switch MMU flags
 constexpr uint32_t SF_80STORE    = 1 << 0;  // 80-store mode
 constexpr uint32_t SF_RAMRD      = 1 << 1;  // read from aux
 constexpr uint32_t SF_RAMWRT     = 1 << 2;  // write to aux
@@ -30,7 +30,7 @@ constexpr uint32_t SF_HRAMWRT    = 1 << 10; // write high memory to ram
 constexpr uint32_t SF_UPDATEMASK = (1 << 11) - 1;
 constexpr uint32_t SF_PREWRITE   = 1 << 31; // toggle for high memory mode counter
 
-// I/O switch helper macros
+// I/O switch MMU helper macros
 #define  SW_80STORE()   ((s_switches & SF_80STORE)   != 0)
 #define  SW_RAMRD()     ((s_switches & SF_RAMRD)     != 0)
 #define  SW_RAMWRT()    ((s_switches & SF_RAMWRT)    != 0)
@@ -74,6 +74,11 @@ static void UpdatePageTables();
 //===========================================================================
 static void InitializePageTables() {
     s_switchesPrev = ~s_switches; // this forces all pages to update
+
+    // Initialize writes to $Cxxx to be ignored. This will never change.
+    for (size_t page = 0xc0; page < 0xd0; ++page)
+        g_pageWrite[page] = s_memNull;
+
     UpdatePageTables();
 }
 
@@ -150,8 +155,6 @@ static void UpdatePageTables() {
 
     // I/O range ($C000..$CFFF)
     if (updateMask & (SF_INTCXROM | SF_SLOTC3ROM)) {
-        for (int page = 0xc0; page < 0xd0; ++page)
-            g_pageWrite[page] = s_memNull;
         if (SW_INTCXROM()) {
             for (size_t page = 0xc0; page < 0xd0; ++page)
                 g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
@@ -207,9 +210,10 @@ static void UpdatePageTables() {
 
 //===========================================================================
 static uint8_t IoNull(uint8_t address, bool write, uint8_t value) {
-    if (write)
-        return 0;
+    return write ? 0 : ReturnRandomData(true);
 
+#if 0
+    // TODO: Fix this. It's serial peripheral code.
     if ((address & 0xf0) == 0xa0) {
         static const uint8_t retval[16] = {
             0x58, 0xfc, 0x5b, 0xff, 0x58, 0xfc, 0x5b, 0xff,
@@ -218,6 +222,7 @@ static uint8_t IoNull(uint8_t address, bool write, uint8_t value) {
         return retval[address & 0x0f];
     }
 
+    // TODO: Fix this. It's slot 3/4 code.
     if (address >= 0xb0 && address <= 0xcf) {
         uint8_t r = (uint8_t)rand();
         if (r >= 0x10)
@@ -228,6 +233,7 @@ static uint8_t IoNull(uint8_t address, bool write, uint8_t value) {
             return address & 0xf7;
     }
 
+    // TODO: Fix this. It's slot 5 code.
     if ((address & 0xf0) == 0xd0) {
         uint8_t r = (uint8_t)rand();
         if (r >= 0xc0)
@@ -243,21 +249,20 @@ static uint8_t IoNull(uint8_t address, bool write, uint8_t value) {
         else
             return 0x00;
     }
-
-    return ReturnRandomData(true);
+#endif
 }
 
 //===========================================================================
-static uint8_t IoSwitchReadC00x(uint8_t address, bool, uint8_t value) {
+static uint8_t IoSwitchC00xRead(uint8_t address, bool, uint8_t value) {
     return KeybReadData(0, address, 0, 0);
 }
 
 //===========================================================================
-static uint8_t IoSwitchWriteC00x(uint8_t address, bool, uint8_t value) {
-    bool updateVideo = false;
+static uint8_t IoSwitchC00xWrite(uint8_t address, bool, uint8_t value) {
+    bool setVideoMode = false;
     switch (address) {
-        case 0x00: s_switches &= ~SF_80STORE; updateVideo = true; break;
-        case 0x01: s_switches |=  SF_80STORE; updateVideo = true; break;
+        case 0x00: s_switches &= ~SF_80STORE; setVideoMode = true; break;
+        case 0x01: s_switches |=  SF_80STORE; setVideoMode = true; break;
         case 0x02: s_switches &= ~SF_RAMRD;     break;
         case 0x03: s_switches |=  SF_RAMRD;     break;
         case 0x04: s_switches &= ~SF_RAMWRT;    break;
@@ -268,17 +273,17 @@ static uint8_t IoSwitchWriteC00x(uint8_t address, bool, uint8_t value) {
         case 0x09: s_switches |=  SF_ALTZP;     break;
         case 0x0a: s_switches &= ~SF_SLOTC3ROM; break;
         case 0x0b: s_switches |=  SF_SLOTC3ROM; break;
-        default:   updateVideo = true;          break;
+        default:   setVideoMode = true;         break;
     }
 
     UpdatePageTables();
-    if (updateVideo)
+    if (setVideoMode)
         VideoSetMode(0, address, 1, value);
     return 0;
 }
 
 //===========================================================================
-static uint8_t IoSwitchReadC01x(uint8_t address, bool, uint8_t value) {
+static uint8_t IoSwitchC01xRead(uint8_t address, bool, uint8_t value) {
     bool result = false;
     switch (address) {
         case 0x11: result = SW_BANK2();      break;
@@ -306,7 +311,7 @@ static uint8_t IoSwitchReadC01x(uint8_t address, bool, uint8_t value) {
 }
 
 //===========================================================================
-static uint8_t IoSwitchWriteC01x(uint8_t address, bool, uint8_t value) {
+static uint8_t IoSwitchC01xWrite(uint8_t address, bool, uint8_t value) {
     return KeybReadFlag(0, address, 0, 0);
 }
 
@@ -317,34 +322,51 @@ static uint8_t IoSwitchC03x(uint8_t address, bool write, uint8_t value) {
 
 //===========================================================================
 static uint8_t IoSwitchC05x(uint8_t address, bool write, uint8_t value) {
-    if (address >= 0x54 && address <= 0x57) {
-        bool hiBit = true;
-        switch (address) {
-            case 0x54: s_switches &= ~SF_PAGE2; hiBit = SW_PAGE2(); break;
-            case 0x55: s_switches |=  SF_PAGE2; hiBit = SW_PAGE2(); break;
-            case 0x56: s_switches &= ~SF_HIRES; break;
-            case 0x57: s_switches |=  SF_HIRES; break;
-        }
-        UpdatePageTables();
-        VideoSetMode(0, address, write, value);
-        return write ? 0 : ReturnRandomData(hiBit);
-    }
-
+    bool hiBit = true, setVideoMode = true;
     switch (address) {
+        /*
         case 0x50:
         case 0x51:
         case 0x52:
         case 0x53:
         case 0x5e:
         case 0x5f:
-            return VideoSetMode(0, address, write, value);
+            setVideoMode = true;
+            break;
+        */
+
+        case 0x54:
+            s_switches &= ~SF_PAGE2;
+            hiBit = SW_PAGE2();
+            break;
+        case 0x55:
+            s_switches |= SF_PAGE2;
+            hiBit = SW_PAGE2();
+            break;
+        case 0x56:
+            s_switches &= ~SF_HIRES;
+            break;
+        case 0x57:
+            s_switches |= SF_HIRES;
+            break;
+        case 0x58:
+        case 0x59:
+        case 0x5a:
+        case 0x5b:
+        case 0x5c:
+        case 0x5d:
+            setVideoMode = false;
+            break;
     }
 
-    return IoNull(address, write, value);
+    UpdatePageTables();
+    if (setVideoMode)
+        VideoSetMode(0, address, write, value);
+    return write ? 0 : ReturnRandomData(hiBit);
 }
 
 //===========================================================================
-static uint8_t IoSwitchReadC06x(uint8_t address, bool, uint8_t value) {
+static uint8_t IoSwitchC06xRead(uint8_t address, bool, uint8_t value) {
     switch (address) {
         case 0x61:
         case 0x62:
@@ -408,43 +430,43 @@ static uint8_t IoSwitchC08x(uint8_t address, bool write, uint8_t value) {
 }
 
 //===========================================================================
-static uint8_t IoSwitchC0Ax(uint8_t address, bool write, uint8_t value) {
-    switch (address) {
-        case 0xa1:
-        case 0xa2:
-            return write ? IoNull(address, 1, value) : CommDipSw(0, address, write, value);
-        case 0xa8:
-            return write ? CommTransmit(0, address, 1, value) : CommReceive(0, address, 0, value);
-        case 0xa9:
-            return CommStatus(0, address, write, value);
-        case 0xaa:
-            return CommCommand(0, address, write, value);
-        case 0xab:
-            return CommControl(0, address, write, value);
+static uint8_t IoSwitchDisk2(uint8_t address, bool write, uint8_t value) {
+    switch (address & 0x0f) {
+        case 0x8:
+        case 0x9:
+            return DiskControlMotor(0, address, write, value);
+        case 0xa:
+        case 0xb:
+            return DiskEnable(0, address, write, value);
+        case 0xc:
+            return DiskReadWrite(0, address, write, value);
+        case 0xd:
+            return DiskSetLatchValue(0, address, write, value);
+        case 0xe:
+            return DiskSetReadMode(0, address, write, value);
+        case 0xf:
+            return DiskSetWriteMode(0, address, write, value);
         default:
-            return IoNull(address, 0, 0);
+            return DiskControlStepper(0, address, write, value);
     }
 }
 
 //===========================================================================
-static uint8_t IoSwitchC0Ex(uint8_t address, bool write, uint8_t value) {
-    switch (address) {
-        case 0xe8:
-        case 0xe9:
-            return DiskControlMotor(0, address, write, value);
-        case 0xea:
-        case 0xeb:
-            return DiskEnable(0, address, write, value);
-        case 0xec:
-            return DiskReadWrite(0, address, write, value);
-        case 0xed:
-            return DiskSetLatchValue(0, address, write, value);
-        case 0xee:
-            return DiskSetReadMode(0, address, write, value);
-        case 0xef:
-            return DiskSetWriteMode(0, address, write, value);
+static uint8_t IoSwitchSerial(uint8_t address, bool write, uint8_t value) {
+    switch (address & 0x0f) {
+        case 0x1:
+        case 0x2:
+            return write ? IoNull(address, 1, value) : CommDipSw(0, address, write, value);
+        case 0x8:
+            return write ? CommTransmit(0, address, 1, value) : CommReceive(0, address, 0, value);
+        case 0x9:
+            return CommStatus(0, address, write, value);
+        case 0xa:
+            return CommCommand(0, address, write, value);
+        case 0xb:
+            return CommControl(0, address, write, value);
         default:
-            return DiskControlStepper(0, address, write, value);
+            return IoNull(address, 0, 0);
     }
 }
 
@@ -455,30 +477,28 @@ static uint8_t IoSwitchC0Ex(uint8_t address, bool write, uint8_t value) {
 *
 ***/
 
-using FIoSwitch = uint8_t (*)(uint8_t offset, bool write, uint8_t value);
-
-static const FIoSwitch s_switchRead[] = {
-    IoSwitchReadC00x,
-    IoSwitchReadC01x,
+static FIoSwitch s_switchRead[] = {
+    IoSwitchC00xRead,
+    IoSwitchC01xRead,
     IoNull,         // $C02x
     IoSwitchC03x,
     IoNull,         // $C04x
     IoSwitchC05x,
-    IoSwitchReadC06x,
+    IoSwitchC06xRead,
     IoSwitchC07x,
     IoSwitchC08x,
-    IoNull,         // $C09x
-    IoSwitchC0Ax,
-    IoNull,         // $C0Bx
-    IoNull,         // $C0Cx
-    IoNull,         // $C0Dx
-    IoSwitchC0Ex,
-    IoNull,         // $C0Fx
+    IoNull,         // $C09x (slot 1)
+    IoNull,         // $C0Ax (slot 2)
+    IoNull,         // $C0Bx (slot 3)
+    IoNull,         // $C0Cx (slot 4)
+    IoNull,         // $C0Dx (slot 5)
+    IoNull,         // $C0Ex (slot 6)
+    IoNull,         // $C0Fx (slot 7)
 };
 
-static const FIoSwitch s_switchWrite[] = {
-    IoSwitchWriteC00x,
-    IoSwitchWriteC01x,
+static FIoSwitch s_switchWrite[] = {
+    IoSwitchC00xWrite,
+    IoSwitchC01xWrite,
     IoNull,         // $C02x
     IoSwitchC03x,
     IoNull,         // $C04x
@@ -486,13 +506,13 @@ static const FIoSwitch s_switchWrite[] = {
     IoNull,         // $C06x
     IoSwitchC07x,
     IoSwitchC08x,
-    IoNull,         // $C09x
-    IoSwitchC0Ax,
-    IoNull,         // $C0Bx
-    IoNull,         // $C0Cx
-    IoNull,         // $C0Dx
-    IoSwitchC0Ex,
-    IoNull,         // $C0Fx
+    IoNull,         // $C09x (slot 1)
+    IoNull,         // $C0Ax (slot 2)
+    IoNull,         // $C0Bx (slot 3)
+    IoNull,         // $C0Cx (slot 4)
+    IoNull,         // $C0Dx (slot 5)
+    IoNull,         // $C0Ex (slot 6)
+    IoNull,         // $C0Fx (slot 7)
 };
 
 
@@ -561,11 +581,13 @@ void MemInitialize2() {
     }
     ResourceFree(rom);
 
-    // Initialize the slot rom.
+    // Clear the slot rom and I/O switches.
     memset(s_memSlotRom, 0, 0x800);
+    for (int slot = 1; slot <= 7; ++slot)
+        s_switchRead[slot + 8] = s_switchWrite[slot + 8] = IoNull;
 
     // Install the rom for a Disk ][ in slot 6, and patch out the wait call.
-    MemInstallPeripheralRom("DISK2_ROM", 6);
+    MemInstallPeripheralRom(6, "DISK2_ROM", IoSwitchDisk2);
     s_memSlotRom[0x064c] = 0xa9;
     s_memSlotRom[0x064d] = 0x00;
     s_memSlotRom[0x064e] = 0xea;
@@ -574,7 +596,7 @@ void MemInitialize2() {
 }
 
 //===========================================================================
-void MemInstallPeripheralRom(const char * romResourceName, int slot) {
+void MemInstallPeripheralRom(int slot, const char * romResourceName, FIoSwitch switchFunc) {
     int size;
     const void * rom = ResourceLoad(romResourceName, "ROM", &size);
     if (rom == nullptr) {
@@ -595,8 +617,10 @@ void MemInstallPeripheralRom(const char * romResourceName, int slot) {
         return;
     }
 
-    if (size == 0x100)
+    if (size == 0x100) {
         memcpy(s_memSlotRom + (size_t)slot * 0x100, rom, 0x100);
+        s_switchRead[slot + 8] = s_switchWrite[slot + 8] = switchFunc;
+    }
     else {
         MessageBox(
             GetDesktopWindow(),

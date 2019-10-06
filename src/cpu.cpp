@@ -330,9 +330,9 @@ static inline uint16_t AbsoluteX() {
 
 //===========================================================================
 static inline uint16_t AbsoluteX(int * cycles) {
-    uint16_t oldaddr = regs.pc;
-    uint16_t addr = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff)) + uint16_t(regs.x);
-    if ((oldaddr ^ addr) & 0xff00)
+    uint16_t tmp  = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff));
+    uint16_t addr = tmp + uint16_t(regs.x);
+    if ((tmp ^ addr) & 0xff00)
         ++*cycles;
     regs.pc += 2;
     return addr;
@@ -347,9 +347,9 @@ static inline uint16_t AbsoluteY() {
 
 //===========================================================================
 static inline uint16_t AbsoluteY(int * cycles) {
-    uint16_t oldaddr = regs.pc;
-    uint16_t addr = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff)) + uint16_t(regs.y);
-    if ((oldaddr ^ addr) & 0xff00)
+    uint16_t tmp  = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff));
+    uint16_t addr = tmp + uint16_t(regs.y);
+    if ((tmp ^ addr) & 0xff00)
         ++*cycles;
     regs.pc += 2;
     return addr;
@@ -370,15 +370,14 @@ static inline uint16_t Indirect() {
 
 //===========================================================================
 static inline uint16_t Indirect6502() {
-    uint8_t v = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
+    uint16_t offset = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff));
     uint16_t addr;
-    if (v == 0xff) {
-        uint16_t addr0 = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff));
-        uint16_t addr1 = addr0 - 0xff;
-        addr = uint16_t(g_pageRead[addr0 >> 8][addr0 & 0xff]) | uint16_t(g_pageRead[addr1 >> 8][addr1 & 0xff]) << 8;
+    if ((offset & 0xff) == 0xff) {
+        uint16_t addr0 = g_pageRead[offset >> 8][0xff];
+        uint16_t addr1 = g_pageRead[offset >> 8][0x00];
+        addr = addr0 | addr1 << 8;
     }
     else {
-        uint16_t offset = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff));
         addr = *(uint16_t *)(g_pageRead[offset >> 8] + (offset & 0xff));
     }
     regs.pc += 2;
@@ -388,7 +387,7 @@ static inline uint16_t Indirect6502() {
 //===========================================================================
 static inline uint16_t IndirectX() {
     uint8_t  offset = g_pageRead[regs.pc >> 8][regs.pc & 0xff] + regs.x;
-    uint16_t addr   = *(uint16_t *)(g_pageRead[0] + (offset & 0xff));
+    uint16_t addr   = *(uint16_t *)(g_pageRead[0] + offset);
     ++regs.pc;
     return addr;
 }
@@ -396,17 +395,17 @@ static inline uint16_t IndirectX() {
 //===========================================================================
 static inline uint16_t IndirectY() {
     uint8_t  offset = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
-    uint16_t addr   = *(uint16_t *)(g_pageRead[0] + (offset & 0xff)) + (uint16_t)regs.y;
+    uint16_t addr   = *(uint16_t *)(g_pageRead[0] + offset) + (uint16_t)regs.y;
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t IndirectY(int * cycles) {
-    uint16_t oldaddr = regs.pc;
-    uint8_t  offset  = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
-    uint16_t addr    = *(uint16_t *)(g_pageRead[0] + (offset & 0xff)) + (uint16_t)regs.y;
-    if ((oldaddr ^ addr) & 0xff00)
+    uint8_t  offset = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
+    uint16_t tmp    = *(uint16_t *)(g_pageRead[0] + offset);
+    uint16_t addr   = tmp + uint16_t(regs.y);
+    if ((tmp ^ addr) & 0xff00)
         ++*cycles;
     ++regs.pc;
     return addr;
@@ -415,7 +414,7 @@ static inline uint16_t IndirectY(int * cycles) {
 //===========================================================================
 static inline uint16_t IndirectZeroPage() {
     uint8_t  offset = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
-    uint16_t addr   = *(uint16_t *)g_pageRead[0][offset];
+    uint16_t addr   = *(uint16_t *)(g_pageRead[0] + offset);
     ++regs.pc;
     return addr;
 }
@@ -930,9 +929,29 @@ int CpuStep6502() {
     if (cpuKill)
         return 1000;
 
-    //char buf[32];
-    //StrPrintf(buf, ARRSIZE(buf), "PC: %04X  Opcde: %02X\n", regs.pc, g_pageRead[regs.pc >> 8][regs.pc & 0xff]);
-    //OutputDebugString(buf);
+#if 0
+    constexpr uint16_t DISKADDR = 0xc500;
+    if (regs.pc >= DISKADDR && regs.pc <= DISKADDR + 0x100) {
+        static int s_count;
+        ++s_count;
+        if (s_count == 2232) {
+            int foo = 0;
+        }
+        char buf[64];
+        StrPrintf(
+            buf,
+            ARRSIZE(buf),
+            "%8d: PC=%04X Op=%02X A=%02X X=%02X Y=%02X\n",
+            s_count,
+            regs.pc - DISKADDR,
+            g_pageRead[regs.pc >> 8][regs.pc & 0xff],
+            regs.a,
+            regs.x,
+            regs.y
+        );
+        OutputDebugString(buf);
+    }
+#endif
 
 #if 0
     int stateoffset = stateindex - statestart;
