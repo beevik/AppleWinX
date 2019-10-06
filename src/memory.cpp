@@ -866,7 +866,9 @@ void MemReset() {
     memset(s_memAux, 0, 0x10000);
     memset(s_memMain, 0, 0x10000);
 
+#if 0
     CpuInitialize();
+#endif
     ResetPaging(true);
     regs.pc = *(LPWORD)(g_mem + 0xFFFC);
 }

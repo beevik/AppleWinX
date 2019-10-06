@@ -311,11 +311,12 @@ void KeybQueueKeypressSdl(const SDL_Keysym & sym) {
         FrameRefreshStatus();
     }
 
-    // ctrl-shift-backspace is the same as ctrl-apple-reset.
+    // ctrl-shift-backspace is the same as ctrl-openapple-reset.
     if (sym.scancode == SDL_SCANCODE_BACKSPACE && (sym.mod & KMOD_CTRL) && (sym.mod & KMOD_SHIFT)) {
         if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
-            MemResetPaging();
-        regs.pc = *(LPWORD)(g_mem + 0xFFFC);
+            MemReset2();
+        else
+            regs.pc = *(uint16_t *)(g_pageRead[0xff] + 0xfc);
     }
 
     if (sym.scancode > 0x64)

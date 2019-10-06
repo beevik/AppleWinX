@@ -316,14 +316,14 @@ const int statestart = 50000;
 
 //===========================================================================
 static inline uint16_t Absolute() {
-    uint16_t addr = *(uint16_t *)(g_mem + regs.pc);
+    uint16_t addr = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff));
     regs.pc += 2;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t AbsoluteX() {
-    uint16_t addr = *(uint16_t *)(g_mem + regs.pc) + uint16_t(regs.x);
+    uint16_t addr = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff)) + uint16_t(regs.x);
     regs.pc += 2;
     return addr;
 }
@@ -331,7 +331,7 @@ static inline uint16_t AbsoluteX() {
 //===========================================================================
 static inline uint16_t AbsoluteX(int * cycles) {
     uint16_t oldaddr = regs.pc;
-    uint16_t addr = *(uint16_t *)(g_mem + regs.pc) + uint16_t(regs.x);
+    uint16_t addr = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff)) + uint16_t(regs.x);
     if ((oldaddr ^ addr) & 0xff00)
         ++*cycles;
     regs.pc += 2;
@@ -340,7 +340,7 @@ static inline uint16_t AbsoluteX(int * cycles) {
 
 //===========================================================================
 static inline uint16_t AbsoluteY() {
-    uint16_t addr = *(uint16_t *)(g_mem + regs.pc) + uint16_t(regs.y);
+    uint16_t addr = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff)) + uint16_t(regs.y);
     regs.pc += 2;
     return addr;
 }
@@ -348,7 +348,7 @@ static inline uint16_t AbsoluteY() {
 //===========================================================================
 static inline uint16_t AbsoluteY(int * cycles) {
     uint16_t oldaddr = regs.pc;
-    uint16_t addr = *(uint16_t *)(g_mem + regs.pc) + uint16_t(regs.y);
+    uint16_t addr = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff)) + uint16_t(regs.y);
     if ((oldaddr ^ addr) & 0xff00)
         ++*cycles;
     regs.pc += 2;
@@ -362,35 +362,41 @@ static inline uint16_t Immediate() {
 
 //===========================================================================
 static inline uint16_t Indirect() {
-    uint16_t addr = *(uint16_t *)(g_mem + *(uint16_t *)(g_mem + regs.pc));
+    uint16_t offset = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff));
+    uint16_t addr   = *(uint16_t *)(g_pageRead[offset >> 8] + (offset & 0xff));
     regs.pc += 2;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t Indirect6502() {
+    uint8_t v = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
     uint16_t addr;
-    if (g_mem[regs.pc] == 0xff) {
-        uint16_t addr0 = *(uint16_t *)(g_mem + regs.pc);
+    if (v == 0xff) {
+        uint16_t addr0 = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff));
         uint16_t addr1 = addr0 - 0xff;
-        addr = uint16_t(g_mem[addr0]) | uint16_t(g_mem[addr1] << 8);
+        addr = uint16_t(g_pageRead[addr0 >> 8][addr0 & 0xff]) | uint16_t(g_pageRead[addr1 >> 8][addr1 & 0xff]) << 8;
     }
-    else
-        addr = *(uint16_t *)(g_mem + *(uint16_t *)(g_mem + regs.pc));
+    else {
+        uint16_t offset = *(uint16_t *)(g_pageRead[regs.pc >> 8] + (regs.pc & 0xff));
+        addr = *(uint16_t *)(g_pageRead[offset >> 8] + (offset & 0xff));
+    }
     regs.pc += 2;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t IndirectX() {
-    uint16_t addr = *(uint16_t *)(g_mem + ((g_mem[regs.pc] + regs.x) & 0xff));
+    uint8_t  offset = g_pageRead[regs.pc >> 8][regs.pc & 0xff] + regs.x;
+    uint16_t addr   = *(uint16_t *)(g_pageRead[0] + (offset & 0xff));
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t IndirectY() {
-    uint16_t addr = *(uint16_t *)(g_mem + g_mem[regs.pc]) + (uint16_t)regs.y;
+    uint8_t  offset = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
+    uint16_t addr   = *(uint16_t *)(g_pageRead[0] + (offset & 0xff)) + (uint16_t)regs.y;
     ++regs.pc;
     return addr;
 }
@@ -398,7 +404,8 @@ static inline uint16_t IndirectY() {
 //===========================================================================
 static inline uint16_t IndirectY(int * cycles) {
     uint16_t oldaddr = regs.pc;
-    uint16_t addr = *(uint16_t *)(g_mem + g_mem[regs.pc]) + (uint16_t)regs.y;
+    uint8_t  offset  = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
+    uint16_t addr    = *(uint16_t *)(g_pageRead[0] + (offset & 0xff)) + (uint16_t)regs.y;
     if ((oldaddr ^ addr) & 0xff00)
         ++*cycles;
     ++regs.pc;
@@ -407,35 +414,36 @@ static inline uint16_t IndirectY(int * cycles) {
 
 //===========================================================================
 static inline uint16_t IndirectZeroPage() {
-    uint16_t addr = *(uint16_t *)(g_mem + g_mem[regs.pc]);
+    uint8_t  offset = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
+    uint16_t addr   = *(uint16_t *)g_pageRead[0][offset];
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t Relative() {
-    int8_t offset = (int8_t)g_mem[regs.pc];
+    int8_t offset = (int8_t)g_pageRead[regs.pc >> 8][regs.pc & 0xff];
     ++regs.pc;
     return regs.pc + offset;
 }
 
 //===========================================================================
 static inline uint16_t ZeroPage() {
-    uint16_t addr = g_mem[regs.pc];
+    uint16_t addr = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t ZeroPageX() {
-    uint16_t addr = uint8_t(g_mem[regs.pc] + regs.x);
+    uint16_t addr = uint8_t(g_pageRead[regs.pc >> 8][regs.pc & 0xff] + regs.x);
     ++regs.pc;
     return addr;
 }
 
 //===========================================================================
 static inline uint16_t ZeroPageY() {
-    uint16_t addr = uint8_t(g_mem[regs.pc] + regs.y);
+    uint16_t addr = uint8_t(g_pageRead[regs.pc >> 8][regs.pc & 0xff] + regs.y);
     ++regs.pc;
     return addr;
 }
@@ -459,7 +467,7 @@ static inline void Branch(uint8_t condition, uint16_t addr, int * cycles) {
 //===========================================================================
 static inline uint8_t Pop8() {
     regs.sp = ((regs.sp + 1) & 0xff) | 0x100;
-    return g_mem[regs.sp];
+    return g_pageRead[regs.sp >> 8][regs.sp & 0xff];
 }
 
 //===========================================================================
@@ -471,33 +479,31 @@ static inline uint16_t Pop16() {
 
 //===========================================================================
 static inline void Push8(uint8_t value) {
-    g_mem[regs.sp] = value;
+    g_pageWrite[regs.sp >> 8][regs.sp & 0xff] = value;
     regs.sp = (regs.sp - 1) | 0x100;
 }
 
 //===========================================================================
 static inline uint8_t Read8(uint16_t addr) {
     if ((addr & 0xff00) == 0xc000)
-        return ioRead[addr & 0xff](regs.pc, (uint8_t)addr, 0, 0);
+        return MemIoRead(addr);
     else
-        return g_mem[addr];
+        return g_pageRead[addr >> 8][addr & 0xff];
 }
 
 //===========================================================================
 static inline uint16_t Read16(uint16_t addr) {
-    return *(uint16_t *)(g_mem + addr);
+    return *(uint16_t *)(g_pageRead[addr >> 8] + (addr & 0xff));
 }
 
 //===========================================================================
 static inline void Write8(uint16_t addr, uint8_t value) {
-    int       offset = addr & 0xff;
-    int       pageno = addr >> 8;
-    uint8_t * page   = g_memWrite[pageno];
-    g_memDirty[pageno] = 0xff;
-    if (page)
-        page[offset] = value;
-    else if (pageno == 0xc0)
-        ioWrite[offset](regs.pc, uint8_t(offset), 1, value);
+    int offset = addr & 0xff;
+    int page = addr >> 8;
+    if (page == 0xc0)
+        MemIoWrite(addr, value);
+    else
+        g_pageWrite[page][offset] = value;
 }
 
 
@@ -924,9 +930,9 @@ int CpuStep6502() {
     if (cpuKill)
         return 1000;
 
-//    char buf[32];
-//    StrPrintf(buf, ARRSIZE(buf), "PC: %04X  Opcde: %02X\n", regs.pc, mem[regs.pc]);
-//    OutputDebugString(buf);
+    //char buf[32];
+    //StrPrintf(buf, ARRSIZE(buf), "PC: %04X  Opcde: %02X\n", regs.pc, g_pageRead[regs.pc >> 8][regs.pc & 0xff]);
+    //OutputDebugString(buf);
 
 #if 0
     int stateoffset = stateindex - statestart;
@@ -944,7 +950,9 @@ int CpuStep6502() {
     }
 #endif
 
-    switch (g_mem[regs.pc++]) {
+    uint8_t opcode = g_pageRead[regs.pc >> 8][regs.pc & 0xff];
+    ++regs.pc;
+    switch (opcode) {
         case 0x00: // BRK
             Brk();
             cycles += 7;
@@ -2431,7 +2439,7 @@ void CpuInitialize() {
     regs.x  = 0;
     regs.y  = 0;
     regs.ps = 0x20;
-    regs.pc = *(uint16_t *)(g_mem + 0xfffc);
+    regs.pc = *(uint16_t *)(g_pageRead[0xff] + 0xfc);
     regs.sp = 0x01ff;
 }
 

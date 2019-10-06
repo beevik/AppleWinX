@@ -162,7 +162,7 @@ static void UpdatePageTables() {
             if (!SW_SLOTC3ROM())
                 g_pageRead[0xc3] = s_memSystemRom + 0x0300;
             for (size_t page = 0xc8; page < 0xd0; ++page)
-                g_pageRead[page] = nullptr; // should be I/O strobe rom
+                g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8); // need to handle slot strobe remapping here
         }
     }
 
@@ -262,8 +262,8 @@ static uint8_t IoSwitchWriteC00x(uint8_t address, bool, uint8_t value) {
         case 0x03: s_switches |=  SF_RAMRD;     break;
         case 0x04: s_switches &= ~SF_RAMWRT;    break;
         case 0x05: s_switches |=  SF_RAMWRT;    break;
-        case 0x06: s_switches |=  SF_INTCXROM;  break;
-        case 0x07: s_switches &= ~SF_INTCXROM;  break;
+        case 0x06: s_switches &= ~SF_INTCXROM;  break;
+        case 0x07: s_switches |=  SF_INTCXROM;  break;
         case 0x08: s_switches &= ~SF_ALTZP;     break;
         case 0x09: s_switches |=  SF_ALTZP;     break;
         case 0x0a: s_switches &= ~SF_SLOTC3ROM; break;
@@ -285,7 +285,7 @@ static uint8_t IoSwitchReadC01x(uint8_t address, bool, uint8_t value) {
         case 0x12: result = SW_HRAMRD();     break;
         case 0x13: result = SW_RAMRD();      break;
         case 0x14: result = SW_RAMWRT();     break;
-        case 0x15: result = !SW_INTCXROM();  break;
+        case 0x15: result = SW_INTCXROM();   break;
         case 0x16: result = SW_ALTZP();      break;
         case 0x17: result = SW_SLOTC3ROM();  break;
         case 0x18: result = SW_80STORE();    break;
@@ -528,7 +528,7 @@ void MemInitialize2() {
     static const char * s_romFiles[] = {
         "APPLE2_SYSTEM_ROM",
         "APPLE2PLUS_SYSTEM_ROM",
-        "APPLE2E_SYSTEM_ROM",
+        "APPLE2ENHANCED_SYSTEM_ROM",
     };
     static_assert(ARRSIZE(s_romFiles) == APPLE_TYPES, "Rom file array mismatch");
 
@@ -561,7 +561,52 @@ void MemInitialize2() {
     }
     ResourceFree(rom);
 
+    // Initialize the slot rom.
+    memset(s_memSlotRom, 0, 0x800);
+
+    // Install the rom for a Disk ][ in slot 6, and patch out the wait call.
+    MemInstallPeripheralRom("DISK2_ROM", 6);
+    s_memSlotRom[0x064c] = 0xa9;
+    s_memSlotRom[0x064d] = 0x00;
+    s_memSlotRom[0x064e] = 0xea;
+
     MemReset2();
+}
+
+//===========================================================================
+void MemInstallPeripheralRom(const char * romResourceName, int slot) {
+    int size;
+    const void * rom = ResourceLoad(romResourceName, "ROM", &size);
+    if (rom == nullptr) {
+        char msg[256];
+        StrPrintf(
+            msg,
+            ARRSIZE(msg),
+            "The emulator was unable to load the ROM resource"
+            "'%s' into memory.",
+            romResourceName
+        );
+        MessageBox(
+            GetDesktopWindow(),
+            msg,
+            EmulatorGetTitle(),
+            MB_ICONSTOP | MB_SETFOREGROUND
+        );
+        return;
+    }
+
+    if (size == 0x100)
+        memcpy(s_memSlotRom + (size_t)slot * 0x100, rom, 0x100);
+    else {
+        MessageBox(
+            GetDesktopWindow(),
+            "Firmware ROM file was not the correct size.",
+            EmulatorGetTitle(),
+            MB_ICONSTOP | MB_SETFOREGROUND
+        );
+    }
+
+    ResourceFree(rom);
 }
 
 //===========================================================================
@@ -573,11 +618,14 @@ uint8_t MemIoRead(uint16_t address) {
 //===========================================================================
 void MemIoWrite(uint16_t address, uint8_t value) {
     uint8_t offset = uint8_t(address);
-    s_switchWrite[offset >> 4](offset, false, 0);
+    s_switchWrite[offset >> 4](offset, true, 0);
 }
 
 //===========================================================================
 void MemReset2() {
+    // TODO: Call this from an EmulatorReset function, which also initializes
+    // the CPU.
+
     memset(s_memMain,   0, 0x10000);
     memset(s_memAux,    0, 0x10000);
     memset(s_memNull,   0, 0x100);
@@ -585,12 +633,9 @@ void MemReset2() {
     memset(g_pageWrite, 0, sizeof(g_pageWrite));
 
     // Initialize I/O switches and update memory page tables.
-    s_switches = SF_BANK2 | SF_INTCXROM | SF_HRAMWRT;
+    s_switches = SF_BANK2 | SF_HRAMWRT;
     InitializePageTables();
 
     // Initialize the CPU.
-#if 0
     CpuInitialize();
-    regs.pc = *(uint16_t *)(s_memMain + 0xFFFC);
-#endif
 }

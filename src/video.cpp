@@ -359,7 +359,11 @@ static BOOL LoadSourceLookup() {
 
 //===========================================================================
 static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
-    BYTE ch = s_textMainPtr[offset];
+    // TODO: Fix this. It's wrong.
+    uint16_t addr = 0x400 + offset;
+    BYTE ch = g_pageRead[addr >> 8][addr & 0xff];
+
+    //BYTE ch = s_textMainPtr[offset];
 
     // Handle flashing text (1.87Hz blink rate)
     constexpr DWORD BLINK_PERIOD = (DWORD)(CPU_CYCLES_PER_MS * 1000.0 / 1.87);

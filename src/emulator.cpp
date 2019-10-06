@@ -291,7 +291,7 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         VideoDestroy();
         CommDestroy();
         MemDestroy2();
-        MemDestroy();
+        //MemDestroy();
         DebugDestroy();
         ConfigSave();
         TimerDestroy();
