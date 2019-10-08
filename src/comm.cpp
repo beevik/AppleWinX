@@ -42,7 +42,7 @@ static BOOL CheckComm() {
         if (commhandle != INVALID_HANDLE_VALUE) {
             UpdateCommState();
             COMMTIMEOUTS ct;
-            ZeroMemory(&ct, sizeof(COMMTIMEOUTS));
+            memset(&ct, 0, sizeof(COMMTIMEOUTS));
             ct.ReadIntervalTimeout = MAXDWORD;
             SetCommTimeouts(commhandle, &ct);
         }
@@ -70,7 +70,7 @@ static void UpdateCommState() {
     if (commhandle == INVALID_HANDLE_VALUE)
         return;
     DCB dcb;
-    ZeroMemory(&dcb, sizeof(DCB));
+    memset(&dcb, 0, sizeof(DCB));
     dcb.DCBlength = sizeof(DCB);
     GetCommState(commhandle, &dcb);
     dcb.BaudRate = baudrate;

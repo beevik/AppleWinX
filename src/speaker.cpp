@@ -35,7 +35,7 @@ void SpkrInitialize() {
     SDL_InitSubSystem(SDL_INIT_AUDIO);
 
     SDL_AudioSpec want, have;
-    ZeroMemory(&want, sizeof(want));
+    memset(&want, 0, sizeof(want));
     want.freq     = 30994;
     want.format   = AUDIO_S8;
     want.channels = 1;

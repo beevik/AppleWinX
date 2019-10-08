@@ -125,7 +125,7 @@ void TimerDestroy() {
 //===========================================================================
 void TimerInitialize(int periodMs) {
     s_benchmarkIndex = 0;
-    ZeroMemory(s_benchmarks, sizeof(s_benchmarks));
+    memset(s_benchmarks, 0, sizeof(s_benchmarks));
 
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);

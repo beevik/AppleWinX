@@ -7,7 +7,7 @@
 ***/
 
 
-extern BOOL g_optMonochrome;
+extern bool g_optMonochrome;
 
 void VideoDestroy();
 void VideoDisplayLogo();

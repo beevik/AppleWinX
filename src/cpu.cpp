@@ -23,17 +23,6 @@ CpuRegisters regs    = { 0 };
 
 static ECpuType s_cpuType;
 
-#if 0
-struct State {
-    registers reg;
-    uint8_t   opcode;
-};
-
-static State state[256];
-static int stateindex = 0;
-const int statestart = 50000;
-#endif
-
 
 /****************************************************************************
 *
@@ -211,7 +200,7 @@ static inline void Push8(uint8_t value) {
 
 //===========================================================================
 static inline uint8_t Read8(uint16_t addr) {
-    if ((addr & 0xff00) == 0xc000)
+    if ((addr >> 8) == 0xc0)
         return MemIoRead(addr);
     else
         return g_pageRead[addr >> 8][addr & 0xff];
@@ -224,12 +213,10 @@ static inline uint16_t Read16(uint16_t addr) {
 
 //===========================================================================
 static inline void Write8(uint16_t addr, uint8_t value) {
-    int offset = addr & 0xff;
-    int page = addr >> 8;
-    if (page == 0xc0)
+    if (addr >> 8 == 0xc0)
         MemIoWrite(addr, value);
     else
-        g_pageWrite[page][offset] = value;
+        g_pageWrite[addr >> 8][addr & 0xff] = value;
 }
 
 
@@ -330,9 +317,9 @@ static inline void And(uint8_t val8) {
 //===========================================================================
 static inline void Arr(uint8_t val8) {
     regs.a &= val8;
-    uint8_t lobit = regs.a & 1;
+    uint8_t loBit = regs.a & 1;
     regs.a = regs.a >> 1 | ((regs.ps & PS_CARRY) << 7);
-    SetFlagTo(PS_CARRY, lobit);
+    SetFlagTo(PS_CARRY, loBit);
     UpdateNZ(regs.a);
 }
 
@@ -483,38 +470,38 @@ static inline void Pla() {
 
 //===========================================================================
 static inline uint8_t Rla(uint8_t val8) {
-    uint8_t hibit = val8 >> 7;
+    uint8_t hiBit = val8 >> 7;
     val8 = val8 << 1 | (regs.ps & PS_CARRY);
     val8 &= regs.a;
-    SetFlagTo(PS_CARRY, hibit);
+    SetFlagTo(PS_CARRY, hiBit);
     UpdateNZ(val8);
     return val8;
 }
 
 //===========================================================================
 static inline uint8_t Rol(uint8_t val8) {
-    uint8_t hibit = val8 >> 7;
+    uint8_t hiBit = val8 >> 7;
     val8 = val8 << 1 | (regs.ps & PS_CARRY);
-    SetFlagTo(PS_CARRY, hibit);
+    SetFlagTo(PS_CARRY, hiBit);
     UpdateNZ(val8);
     return val8;
 }
 
 //===========================================================================
 static inline uint8_t Ror(uint8_t val8) {
-    uint8_t lobit = val8 & 1;
+    uint8_t loBit = val8 & 1;
     val8 = val8 >> 1 | ((regs.ps & PS_CARRY) << 7);
-    SetFlagTo(PS_CARRY, lobit);
+    SetFlagTo(PS_CARRY, loBit);
     UpdateNZ(val8);
     return val8;
 }
 
 //===========================================================================
 static inline uint8_t Rra(uint8_t val8) {
-    uint8_t lobit = val8 & 1;
+    uint8_t loBit = val8 & 1;
     val8 = val8 >> 1 | ((regs.ps & PS_CARRY) << 7);
     val8 &= regs.a;
-    SetFlagTo(PS_CARRY, lobit);
+    SetFlagTo(PS_CARRY, loBit);
     UpdateNZ(val8);
     return val8;
 }
@@ -648,7 +635,7 @@ static inline void Tya() {
 ***/
 
 //===========================================================================
-int CpuStep6502() {
+static int CpuStep6502() {
     int      cycles = 0;
     uint16_t addr;
     uint8_t  val8;
@@ -677,22 +664,6 @@ int CpuStep6502() {
             regs.y
         );
         OutputDebugString(buf);
-    }
-#endif
-
-#if 0
-    int stateoffset = stateindex - statestart;
-    if (stateoffset >= 0 && stateoffset < ARRSIZE(state)) {
-        state[stateoffset].reg = regs;
-        state[stateoffset].opcode = mem[regs.pc];
-    }
-    ++stateindex;
-    if (stateoffset == ARRSIZE(state)) {
-        char buf[32];
-        for (int i = 0; i < ARRSIZE(state); ++i) {
-            StrPrintf(buf, ARRSIZE(buf), "%02X: %02X %02X%02X%02X%02X\n", i, state[i].opcode, state[i].reg.a, state[i].reg.x, state[i].reg.y, state[i].reg.ps);
-            OutputDebugString(buf);
-        }
     }
 #endif
 
@@ -1900,4 +1871,12 @@ void CpuInitialize() {
 //===========================================================================
 void CpuSetType (ECpuType type) {
     s_cpuType = type;
+}
+
+//===========================================================================
+int CpuStep() {
+    if (s_cpuType == CPU_TYPE_6502)
+        return CpuStep6502();
+    else
+        return CpuStep6502();   // TODO: Write CpuStep65C02
 }

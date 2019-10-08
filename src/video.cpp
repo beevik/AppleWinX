@@ -67,7 +67,7 @@ struct PngReadState {
 *
 ***/
 
-BOOL g_optMonochrome = FALSE;
+bool g_optMonochrome = false;
 
 static HBITMAP    s_deviceBitmap;
 static HDC        s_deviceDC;
@@ -651,7 +651,7 @@ void VideoInitialize() {
     // CREATE A BITMAPINFO STRUCTURE FOR THE FRAME BUFFER
     int infoSize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
     BITMAPINFO * frameBufferInfo = (BITMAPINFO *)new BYTE[infoSize];
-    ZeroMemory(frameBufferInfo, infoSize);
+    memset(frameBufferInfo, 0, infoSize);
     frameBufferInfo->bmiHeader.biSize     = sizeof(BITMAPINFOHEADER);
     frameBufferInfo->bmiHeader.biWidth    = SCREEN_CX;
     frameBufferInfo->bmiHeader.biHeight   = SCREEN_CY;
@@ -662,7 +662,7 @@ void VideoInitialize() {
     // CREATE A BIT BUFFER FOR THE SOURCE LOOKUP
     int sourceDwords = SRC_CX * SRC_CY;
     s_sourceLookup = new uint32_t[sourceDwords];
-    ZeroMemory(s_sourceLookup, sourceDwords * sizeof(uint32_t));
+    memset(s_sourceLookup, 0, sourceDwords * sizeof(uint32_t));
 
     // CREATE THE DEVICE DEPENDENT BITMAP AND DEVICE CONTEXT
     {

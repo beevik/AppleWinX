@@ -211,7 +211,7 @@ static void Decode62(LPBYTE imagePtr) {
     static BOOL tableGenerated = 0;
     static BYTE sixBitByte[0x80];
     if (!tableGenerated) {
-        ZeroMemory(sixBitByte, 0x80);
+        memset(sixBitByte, 0, ARRSIZE(sixBitByte));
         int loop = 0;
         while (loop < 0x40) {
             sixBitByte[s_diskByte[loop] - 0x80] = loop << 2;
@@ -270,7 +270,7 @@ static void Decode62(LPBYTE imagePtr) {
 
 //===========================================================================
 static void DenibblizeTrack(LPBYTE trackImage, BOOL dosOrder, int nibbles) {
-    ZeroMemory(s_workBuffer, 0x1000);
+    memset(s_workBuffer, 0, 0x1000);
 
     // SEARCH THROUGH THE TRACK IMAGE FOR EACH SECTOR.  FOR EVERY SECTOR
     // WE FIND, COPY THE NIBBLIZED DATA FOR THAT SECTOR INTO THE WORK
@@ -311,7 +311,7 @@ static void DenibblizeTrack(LPBYTE trackImage, BOOL dosOrder, int nibbles) {
 
 //===========================================================================
 static DWORD NibblizeTrack(LPBYTE trackImageBuffer, BOOL dosOrder, int track) {
-    ZeroMemory(s_workBuffer + 4096, 4096);
+    memset(s_workBuffer + 4096, 0, 4096);
     LPBYTE imagePtr = trackImageBuffer;
 
     // WRITE GAP ONE, WHICH CONTAINS 48 SELF-SYNC BYTES
@@ -356,7 +356,7 @@ static DWORD NibblizeTrack(LPBYTE trackImageBuffer, BOOL dosOrder, int track) {
         *imagePtr++ = 0xD5;
         *imagePtr++ = 0xAA;
         *imagePtr++ = 0xAD;
-        CopyMemory(imagePtr, Code62(s_sectorNumber[dosOrder][sector]), 343);
+        memcpy(imagePtr, Code62(s_sectorNumber[dosOrder][sector]), 343);
         imagePtr += 343;
         *imagePtr++ = 0xDE;
         *imagePtr++ = 0xAA;
@@ -372,9 +372,9 @@ static DWORD NibblizeTrack(LPBYTE trackImageBuffer, BOOL dosOrder, int track) {
 //===========================================================================
 static void SkewTrack(int track, int nibbles, LPBYTE trackImageBuffer) {
     int skewBytes = (track * 768) % nibbles;
-    CopyMemory(s_workBuffer, trackImageBuffer, nibbles);
-    CopyMemory(trackImageBuffer, s_workBuffer + skewBytes, nibbles - skewBytes);
-    CopyMemory(trackImageBuffer + nibbles - skewBytes, s_workBuffer, skewBytes);
+    memcpy(s_workBuffer, trackImageBuffer, nibbles);
+    memcpy(trackImageBuffer, s_workBuffer + skewBytes, nibbles - skewBytes);
+    memcpy(trackImageBuffer + nibbles - skewBytes, s_workBuffer, skewBytes);
 }
 
 
@@ -463,18 +463,18 @@ static DWORD DoDetect(LPBYTE imagePtr, DWORD imageSize) {
 static void DoRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
 
-    ZeroMemory(s_workBuffer, 4096);
+    memset(s_workBuffer, 0, 4096);
     if (fread(s_workBuffer, 4096, 1, ptr->file) != 1)
         return;
 
     *nibbles = NibblizeTrack(trackImageBuffer, 1, track);
-    if (!optEnhancedDisk)
+    if (!g_optEnhancedDisk)
         SkewTrack(track, *nibbles, trackImageBuffer);
 }
 
 //===========================================================================
 static void DoWrite(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
-    ZeroMemory(s_workBuffer, 4096);
+    memset(s_workBuffer, 0, 4096);
     DenibblizeTrack(trackImage, 1, nibbles);
 
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
@@ -519,7 +519,7 @@ static void IieRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackIm
         ptr->header = new BYTE[88];
         if (!ptr->header)
             return;
-        ZeroMemory(ptr->header, 88);
+        memset(ptr->header, 0, 88);
         fseek(ptr->file, 0, SEEK_SET);
         if (fread(ptr->header, ARRSIZE(ptr->header), 1, ptr->file) != 1)
             return;
@@ -529,7 +529,7 @@ static void IieRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackIm
     if (ptr->header[13] <= 2) {
         IieConvertSectorOrder(ptr->header + 14);
         fseek(ptr->file, (track << 12) + 30, SEEK_SET);
-        ZeroMemory(s_workBuffer, 4096);
+        memset(s_workBuffer, 0, 4096);
         if (fread(s_workBuffer, 4096, 1, ptr->file) != 1)
             return;
         *nibbles = NibblizeTrack(trackImageBuffer, 2, track);
@@ -543,7 +543,7 @@ static void IieRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackIm
         while (track--)
             offset += *(LPWORD)(ptr->header + (track << 1) + 14);
         fseek(ptr->file, offset, SEEK_SET);
-        ZeroMemory(trackImageBuffer, *nibbles);
+        memset(trackImageBuffer, 0, *nibbles);
         if (fread(trackImageBuffer, *nibbles, 1, ptr->file) != 1)
             return;
     }
@@ -645,17 +645,17 @@ static DWORD PoDetect(LPBYTE imagePtr, DWORD imageSize) {
 //===========================================================================
 static void PoRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
-    ZeroMemory(s_workBuffer, 4096);
+    memset(s_workBuffer, 0, 4096);
     if (fread(s_workBuffer, 4096, 1, ptr->file) != 1)
         return;
     *nibbles = NibblizeTrack(trackImageBuffer, 0, track);
-    if (!optEnhancedDisk)
+    if (!g_optEnhancedDisk)
         SkewTrack(track, *nibbles, trackImageBuffer);
 }
 
 //===========================================================================
 static void PoWrite(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
-    ZeroMemory(s_workBuffer, 4096);
+    memset(s_workBuffer, 0, 4096);
     DenibblizeTrack(trackImage, 0, nibbles);
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
     fwrite(s_workBuffer, 4096, 1, ptr->file);
@@ -740,76 +740,71 @@ void ImageDestroy() {
 //===========================================================================
 void ImageInitialize() {
     s_workBuffer = new BYTE[0x2000];
-    ZeroMemory(s_workBuffer, 0x2000);
+    memset(s_workBuffer, 0, 0x2000);
 }
 
 //===========================================================================
-BOOL ImageOpen (
+bool ImageOpen (
     const char *    imageFilename,
     HIMAGE *        imageHandle,
-    BOOL *          writeProtected,
-    BOOL            createIfNecessary
+    bool *          writeProtected,
+    bool            createIfNecessary
 ) {
     if (imageHandle)
         *imageHandle = (HIMAGE)NULL;
     if (writeProtected)
-        *writeProtected = FALSE;
+        *writeProtected = false;
     if (!(imageFilename && imageHandle && writeProtected && s_workBuffer))
-        return FALSE;
+        return false;
 
-    // TRY TO OPEN THE IMAGE FILE
-    BOOL readonly = FALSE;
+    // Try to open the image file
+    bool readonly = false;
     FILE * file = fopen(imageFilename, "rb+");
     if (!file) {
-        readonly = TRUE;
+        readonly = true;
         file = fopen(imageFilename, "rb");
     }
 
-    // IF WE ARE ABLE TO OPEN THE FILE, MAP IT INTO MEMORY FOR USE BY THE
-    // DETECTION FUNCTIONS
+    // If we are able to open the file, map it into memory for use by the
+    // detection functions
     if (file) {
         fseek(file, 0, SEEK_END);
-        fpos_t pos;
-        if (fgetpos(file, &pos) != 0) {
-            fclose(file);
-            return FALSE;
-        }
-
+        size_t size = (size_t)ftell(file);
         fseek(file, 0, SEEK_SET);
-        int size = (int)pos;
-        LPBYTE buf = new BYTE[size];
+
+        BYTE * buf = new BYTE[size];
         if (fread(buf, size, 1, file) != 1) {
             fclose(file);
-            return FALSE;
+            return false;
         }
 
-        LPBYTE imagePtr = buf;
-        DWORD  format = 0xFFFFFFFF;
+        BYTE * imagePtr = buf;
+        DWORD  format = 0xffffffff;
         if (imagePtr) {
 
-            // DETERMINE WHETHER THE FILE HAS A 128-BYTE MACBINARY HEADER
+            // Determine whether the file has a 128-byte macbinary header
             if ((size > 128) &&
                 (!*imagePtr) &&
                 (*(imagePtr + 1) < 120) &&
                 (!*(imagePtr + *(imagePtr + 1) + 2)) &&
-                (*(imagePtr + 0x7A) == 0x81) &&
-                (*(imagePtr + 0x7B) == 0x81))
+                (*(imagePtr + 0x7a) == 0x81) &&
+                (*(imagePtr + 0x7b) == 0x81))
             {
                 imagePtr += 128;
                 size -= 128;
             }
 
-            // DETERMINE THE FILE'S EXTENSION
+            // Determine the file's extension
             const char * ext = imageFilename;
             while (StrChr(ext, '\\'))
                 ext = StrChr(ext, '\\') + 1;
             while (StrChr(ext + 1, '.'))
                 ext = StrChr(ext + 1, '.');
 
-            // CALL THE DETECTION FUNCTIONS IN ORDER, LOOKING FOR A MATCH
-            DWORD possibleformat = 0xFFFFFFFF;
+            // Call the detection functions in order, looking for a match
+            DWORD possibleformat = 0xffffffff;
             int   loop = 0;
-            while ((loop < IMAGETYPES) && (format == 0xFFFFFFFF)) {
+            while ((loop < IMAGETYPES) && (format == 0xffffffff)) {
                 BOOL reject = 0;
                 if (ext && *ext) {
                     const char * rejectexts = s_spec[loop].rejectExts;
@@ -825,10 +820,10 @@ BOOL ImageOpen (
                 if (reject)
                     ++loop;
                 else {
-                    DWORD result = s_spec[loop].detect(imagePtr, size);
+                    DWORD result = s_spec[loop].detect(imagePtr, (DWORD)size);
                     if (result == 2)
                         format = loop;
-                    else if ((result == 1) && (possibleformat == 0xFFFFFFFF))
+                    else if ((result == 1) && (possibleformat == 0xffffffff))
                         possibleformat = loop++;
                     else
                         ++loop;
@@ -840,17 +835,17 @@ BOOL ImageOpen (
         DWORD offset = (DWORD)(imagePtr - buf);
         delete[] buf;
 
-        // IF THE FILE DOES NOT MATCH ANY KNOWN FORMAT, CLOSE IT AND RETURN
-        if (format == 0xFFFFFFFF) {
+        // If the file does not match any known format, close it and return
+        if (format == 0xffffffff) {
             fclose(file);
-            return FALSE;
+            return false;
         }
 
-        // OTHERWISE, CREATE A RECORD FOR THE FILE, AND RETURN AN IMAGE HANDLE
+        // Otherwise, create a record for the file, and return an image handle
         else {
             imageInfo * ptr = new imageInfo;
             if (ptr) {
-                ZeroMemory(ptr, sizeof(imageInfo));
+                memset(ptr, 0, sizeof(imageInfo));
                 ptr->format         = format;
                 ptr->file           = file;
                 ptr->offset         = offset;
@@ -859,16 +854,16 @@ BOOL ImageOpen (
                     *imageHandle = (HIMAGE)ptr;
                 if (writeProtected)
                     *writeProtected = readonly;
-                return TRUE;
+                return true;
             }
             else {
                 fclose(file);
-                return FALSE;
+                return false;
             }
         }
     }
 
-    return FALSE;
+    return false;
 }
 
 //===========================================================================

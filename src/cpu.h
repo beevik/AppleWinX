@@ -28,5 +28,4 @@ extern CpuRegisters regs;
 ECpuType CpuGetType();
 void     CpuInitialize();
 void     CpuSetType(ECpuType type);
-int      CpuStep6502();
-int      CpuStepTest();
+int      CpuStep();

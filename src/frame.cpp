@@ -65,7 +65,6 @@ static void    EnableTrackbar(HWND window, BOOL enable);
 static void    FillComboBox(HWND window, int controlid, const char * choices, int currentchoice);
 static HBITMAP LoadButtonBitmap(HINSTANCE instance, const char * bitmapname);
 static void    ProcessButtonClick(int button);
-static void    ResetMachineState();
 static void    SetUsingCursor(BOOL);
 
 //===========================================================================
@@ -100,8 +99,8 @@ static BOOL CALLBACK ConfigDlgProc(
                         afterclose = 0;
                         return 0;
                     }
-                    if (g_optMonochrome != newvidtype) {
-                        g_optMonochrome = newvidtype;
+                    if (g_optMonochrome != (newvidtype != 0)) {
+                        g_optMonochrome = newvidtype != 0;
                         VideoReinitialize();
                         VideoRefreshScreen();
                     }
@@ -167,7 +166,7 @@ static BOOL CALLBACK ConfigDlgProc(
 
         case WM_INITDIALOG:
             FillComboBox(window, 101, computerchoices, EmulatorGetAppleType());
-            FillComboBox(window, 105, videochoices, g_optMonochrome);
+            FillComboBox(window, 105, videochoices, (int)g_optMonochrome);
             FillComboBox(window, 102, joystickchoices, joyType);
             FillComboBox(window, 104, serialchoices, serialPort);
             SendDlgItemMessage(window, 108, TBM_SETRANGE, 1, MAKELONG(1, 80));
@@ -212,7 +211,7 @@ static BOOL CALLBACK ConfigDlgProc(
 
 //===========================================================================
 static void CreateGdiObjects() {
-    ZeroMemory(buttonbitmap, BUTTONS * sizeof(HBITMAP));
+    memset(buttonbitmap, 0, BUTTONS * sizeof(HBITMAP));
     buttonbitmap[BTN_HELP] = LoadButtonBitmap(g_instance, "HELP_BUTTON");
     buttonbitmap[BTN_RUN] = LoadButtonBitmap(g_instance, "RUN_BUTTON");
     buttonbitmap[BTN_DRIVE1] = LoadButtonBitmap(g_instance, "DRIVE1_BUTTON");
@@ -668,11 +667,11 @@ static LRESULT CALLBACK FrameWndProc(
                     MB_ICONQUESTION | MB_YESNO) == IDNO)
                     break;
             UpdateWindow(window);
-            ResetMachineState();
+            EmulatorReset();
             EmulatorSetMode(EMULATOR_MODE_LOGO);
             {
                 HCURSOR oldcursor = SetCursor(LoadCursor(0, IDC_WAIT));
-                ResetMachineState();
+                EmulatorReset();
                 SetCursor(oldcursor);
             }
             break;
@@ -777,7 +776,7 @@ static void ProcessButtonClick(int button) {
             if (EmulatorGetMode() == EMULATOR_MODE_LOGO)
                 DiskBoot();
             else if (EmulatorGetMode() == EMULATOR_MODE_RUNNING)
-                ResetMachineState();
+                EmulatorReset();
             EmulatorSetMode(EMULATOR_MODE_RUNNING);
             VideoRefreshScreen();
             break;
@@ -817,15 +816,6 @@ static void ProcessButtonClick(int button) {
             break;
     }
     TimerReset();
-}
-
-//===========================================================================
-static void ResetMachineState() {
-    MemReset();
-    DiskBoot();
-    VideoResetState();
-    CommReset();
-    JoyReset();
 }
 
 //===========================================================================
@@ -920,7 +910,7 @@ void FrameRefreshStatus() {
 //===========================================================================
 void FrameRegisterClass() {
     WNDCLASSEX wndclass;
-    ZeroMemory(&wndclass, sizeof(WNDCLASSEX));
+    memset(&wndclass, 0, sizeof(WNDCLASSEX));
     wndclass.cbSize        = sizeof(WNDCLASSEX);
     wndclass.style         = CS_OWNDC | CS_BYTEALIGNCLIENT;
     wndclass.lpfnWndProc   = FrameWndProc;

@@ -52,7 +52,7 @@ static void AdvanceNormal() {
         // Step the CPU until the next scheduled event.
         int64_t nextEventCycle = MIN(SchedulerPeekTime(), stopCycle);
         while (g_cyclesEmulated < nextEventCycle)
-            g_cyclesEmulated += CpuStep6502();
+            g_cyclesEmulated += CpuStep();
 
         // Process all scheduled events happening before or on the current
         // cycle.
@@ -77,7 +77,7 @@ static void AdvanceFullSpeed() {
         // Step the CPU until the next scheduled event.
         int64_t nextEventCycle = MIN(SchedulerPeekTime(), stopCycle);
         while (g_cyclesEmulated < nextEventCycle)
-            g_cyclesEmulated += CpuStep6502();
+            g_cyclesEmulated += CpuStep();
 
         // Process all scheduled events happening before or on the current
         // cycle.
@@ -102,34 +102,6 @@ static void Advance() {
 }
 
 //===========================================================================
-static LRESULT CALLBACK DlgProc(
-    HWND    window,
-    UINT    message,
-    WPARAM  wparam,
-    LPARAM  lparam
-) {
-    if (message == WM_CREATE) {
-        RECT rect;
-        GetWindowRect(window, &rect);
-        SIZE size;
-        size.cx     = rect.right - rect.left;
-        size.cy     = rect.bottom - rect.top;
-        rect.left   = (GetSystemMetrics(SM_CXSCREEN) - size.cx) >> 1;
-        rect.top    = (GetSystemMetrics(SM_CYSCREEN) - size.cy) >> 1;
-        rect.right  = rect.left + size.cx;
-        rect.bottom = rect.top + size.cy;
-        MoveWindow(window,
-            rect.left,
-            rect.top,
-            rect.right - rect.left,
-            rect.bottom - rect.top,
-            0);
-        ShowWindow(window, SW_SHOW);
-    }
-    return DefWindowProc(window, message, wparam, lparam);
-}
-
-//===========================================================================
 static void UpdateEmulator(int64_t cycle) {
     // Interrupt the emulator once every millisecond.
     SchedulerEnqueue(cycle + CPU_CYCLES_PER_MS, UpdateEmulator);
@@ -150,6 +122,8 @@ static void GetProgramDirectory() {
 
 //===========================================================================
 static void LoadConfiguration() {
+    ConfigLoad();
+
     int speed, appleType, enhancedDisk, monochrome;
     ConfigGetValue("Computer Emulation", &appleType, APPLE_TYPE_IIE);
     ConfigGetValue("Joystick Emulation", &joyType, 0);
@@ -157,10 +131,11 @@ static void LoadConfiguration() {
     ConfigGetValue("Emulation Speed", &speed, SPEED_NORMAL);
     ConfigGetValue("Enhance Disk Speed", &enhancedDisk, 1);
     ConfigGetValue("Monochrome Video", &monochrome, 0);
+
     EmulatorSetAppleType(EAppleType(MIN(appleType, APPLE_TYPES - 1)));
-    EmulatorSetSpeed((int)speed);
-    optEnhancedDisk = enhancedDisk != 0;
-    g_optMonochrome = monochrome != 0;
+    EmulatorSetSpeed(speed);
+    g_optEnhancedDisk = enhancedDisk != 0;
+    g_optMonochrome   = monochrome != 0;
 }
 
 
@@ -208,6 +183,7 @@ void EmulatorRequestRestart() {
 //===========================================================================
 void EmulatorReset() {
     MemReset();
+    CpuInitialize();
     DiskBoot();
     VideoResetState();
     CommReset();
@@ -251,11 +227,10 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     g_instance = inst;
     GdiSetBatchLimit(512);
     GetProgramDirectory();
+    LoadConfiguration();
     FrameRegisterClass();
     ImageInitialize();
     if (!WindowInitialize())
-        return 1;
-    if (!DiskInitialize())
         return 1;
     SpkrInitialize();
 
@@ -270,31 +245,35 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
 
         EmulatorSetMode(EMULATOR_MODE_LOGO);
         EmulatorSetSpeed(SPEED_NORMAL);
-        ConfigLoad();
-        LoadConfiguration();
         JoyInitialize();
         MemInitialize();
+        CpuInitialize();
+        DiskInitialize();
         VideoInitialize();
         FrameCreateWindow();
 
         while (s_mode != EMULATOR_MODE_SHUTDOWN) {
             switch (s_mode) {
-                case EMULATOR_MODE_RUNNING:  Advance();      break;
-                default:                     Sleep(1);       break;
+                case EMULATOR_MODE_RUNNING:
+                    Advance();
+                    break;
+                default:
+                    Sleep(1);
+                    break;
             }
             WindowUpdate();
         }
 
         VideoDestroy();
         CommDestroy();
-        MemDestroy2();
-        ConfigSave();
+        DiskDestroy();
+        MemDestroy();
         TimerDestroy();
     } while (s_restartRequested);
 
     SpkrDestroy();
-    DiskDestroy();
     ImageDestroy();
     WindowDestroy();
+    ConfigSave();
     return 0;
 }

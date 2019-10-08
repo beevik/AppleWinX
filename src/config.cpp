@@ -49,34 +49,16 @@ void ConfigLoad() {
     s_strings.clear();
     s_values.clear();
 
-    char filename[MAX_PATH];
+    char filename[260];
     GetConfigFilename(filename, ARRSIZE(filename));
 
-    char * buf = nullptr;
     FILE * fp = fopen(filename, "r");
     if (!fp)
         goto exit;
 
-    fseek(fp, 0, SEEK_END);
-    fpos_t size;
-    if (fgetpos(fp, &size) != 0)
-        goto exit;
-
-    fseek(fp, 0, SEEK_SET);
-    buf = new char[size];
-    size_t bytesRead = fread(buf, 1, size, fp);
-
-    const char * ptr  = buf;
-    const char * term = buf + bytesRead;
-    while (ptr < term) {
-        const char * linePtr = ptr;
-        while (ptr < term && *ptr != '\n' && *ptr != '\r')
-            ++ptr;
-
-        std::string line(linePtr, int(ptr - linePtr));
-
-        while (ptr < term && (*ptr == '\n' || *ptr == '\r'))
-            ++ptr;
+    char lineBuf[512];
+    while (fgets(lineBuf, ARRSIZE(lineBuf), fp)) {
+        std::string line(lineBuf);
 
         int equalsIndex = (int)line.find_first_of('=');
         if (equalsIndex == -1 || line.length() < equalsIndex + 1)
@@ -96,22 +78,20 @@ void ConfigLoad() {
     }
 
   exit:
-    if (buf)
-        delete[] buf;
     if (fp)
         fclose(fp);
 }
 
 //===========================================================================
 void ConfigSave() {
-    char filename[MAX_PATH];
+    char filename[260];
     GetConfigFilename(filename, ARRSIZE(filename));
 
     FILE * fp = fopen(filename, "w");
     if (!fp)
         goto exit;
 
-    char buf[256];
+    char buf[512];
     for (auto & pair : s_strings) {
         StrPrintf(buf, ARRSIZE(buf), "%s=\"%s\"\n", pair.first.c_str(), pair.second.c_str());
         fwrite(buf, StrLen(buf), 1, fp);
@@ -141,7 +121,7 @@ bool ConfigGetString(
     }
 
     StrCopy(buffer, val->second.c_str(), bufferSize);
-    return false;
+    return true;
 }
 
 //===========================================================================
@@ -164,4 +144,14 @@ void ConfigSetString(const char * key, const char * value) {
 //===========================================================================
 void ConfigSetValue(const char * key, int value) {
     s_values[std::string(key)] = value;
+}
+
+//===========================================================================
+bool ConfigRemoveString(const char * key) {
+    return s_strings.erase(key) != 0;
+}
+
+//===========================================================================
+bool ConfigRemoveValue(const char * key) {
+    return s_values.erase(key) != 0;
 }

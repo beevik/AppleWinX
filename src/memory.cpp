@@ -430,29 +430,8 @@ static uint8_t IoSwitchC08x(uint8_t address, bool write, uint8_t value) {
 }
 
 //===========================================================================
-static uint8_t IoSwitchDisk2(uint8_t address, bool write, uint8_t value) {
-    switch (address & 0x0f) {
-        case 0x8:
-        case 0x9:
-            return DiskControlMotor(0, address, write, value);
-        case 0xa:
-        case 0xb:
-            return DiskEnable(0, address, write, value);
-        case 0xc:
-            return DiskReadWrite(0, address, write, value);
-        case 0xd:
-            return DiskSetLatchValue(0, address, write, value);
-        case 0xe:
-            return DiskSetReadMode(0, address, write, value);
-        case 0xf:
-            return DiskSetWriteMode(0, address, write, value);
-        default:
-            return DiskControlStepper(0, address, write, value);
-    }
-}
-
-//===========================================================================
 static uint8_t IoSwitchSerial(uint8_t address, bool write, uint8_t value) {
+    // TODO: Move this to the comm.cpp file
     switch (address & 0x0f) {
         case 0x1:
         case 0x2:
@@ -523,7 +502,7 @@ static FIoSwitch s_switchWrite[] = {
 ***/
 
 //===========================================================================
-void MemDestroy2() {
+void MemDestroy() {
     delete[] s_memMain;
     delete[] s_memAux;
     delete[] s_memSystemRom;
@@ -544,6 +523,11 @@ uint8_t * MemGetAuxPtr () {
 //===========================================================================
 uint8_t * MemGetMainPtr() {
     return s_memMain;
+}
+
+//===========================================================================
+uint8_t * MemGetSlotRomPtr() {
+    return s_memSlotRom;
 }
 
 //===========================================================================
@@ -595,12 +579,6 @@ void MemInitialize() {
     memset(s_memSlotRom, 0, 0x800);
     for (int slot = 1; slot <= 7; ++slot)
         s_switchRead[slot + 8] = s_switchWrite[slot + 8] = IoNull;
-
-    // Install the rom for a Disk ][ in slot 6, and patch out the wait call.
-    MemInstallPeripheralRom(6, "DISK2_ROM", IoSwitchDisk2);
-    s_memSlotRom[0x064c] = 0xa9;
-    s_memSlotRom[0x064d] = 0x00;
-    s_memSlotRom[0x064e] = 0xea;
 
     MemReset();
 }
@@ -677,9 +655,6 @@ uint32_t MemReadDword(uint16_t address) {
 
 //===========================================================================
 void MemReset() {
-    // TODO: Call this from an EmulatorReset function, which also initializes
-    // the CPU.
-
     memset(s_memMain,   0, 0x10000);
     memset(s_memAux,    0, 0x10000);
     memset(s_memNull,   0, 0x100);
@@ -689,9 +664,6 @@ void MemReset() {
     // Initialize I/O switches and update memory page tables.
     s_switches = SF_BANK2 | SF_HRAMWRT;
     InitializePageTables();
-
-    // Initialize the CPU.
-    CpuInitialize();
 }
 
 //===========================================================================
