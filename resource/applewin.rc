@@ -163,10 +163,6 @@ LOGO                    IMAGE                   "applewinx.png"
 // ROM
 //
 
-APPLE2_ROM              ROM                     "apple2.rom"
-
-APPLE2E_ROM             ROM                     "apple2e.rom"
-
 APPLE2_SYSTEM_ROM       ROM                     "rom/apple2.rom"
 
 APPLE2PLUS_SYSTEM_ROM   ROM                     "rom/apple2plus.rom"

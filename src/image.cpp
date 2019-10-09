@@ -15,7 +15,7 @@
 /* PO logical order  0 E D C B A 9 8 7 6 5 4 3 2 1 F */
 /*    physical order 0 2 4 6 8 A C E 1 3 5 7 9 B D F */
 
-struct imageInfo {
+struct ImageInfo {
     DWORD      format;
     FILE *     file;
     DWORD      offset;
@@ -24,46 +24,43 @@ struct imageInfo {
     LPBYTE     header;
 };
 
-typedef BOOL  (* fboot)(imageInfo * info);
-typedef DWORD (* fdetect)(LPBYTE imagePtr, DWORD size);
-typedef void  (* freadinfo)(imageInfo * info, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
-typedef void  (* fwriteinfo)(imageInfo * info, int track, int quarterTrack, LPBYTE buffer, int nibbles);
+typedef BOOL  (* FBoot)(ImageInfo * info);
+typedef DWORD (* FDetect)(LPBYTE imagePtr, DWORD size);
+typedef void  (* FReadInfo)(ImageInfo * info, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
+typedef void  (* FWriteInfo)(ImageInfo * info, int track, int quarterTrack, LPBYTE buffer, int nibbles);
 
-static BOOL  AplBoot(imageInfo * ptr);
+static BOOL  AplBoot(ImageInfo * ptr);
 static DWORD AplDetect(LPBYTE imagePtr, DWORD imageSize);
 static DWORD DoDetect(LPBYTE imagePtr, DWORD imageSize);
-static void  DoRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
-static void  DoWrite(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int nibbles);
-static DWORD IieDetect(LPBYTE imagePtr, DWORD imageSize);
-static void  IieRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
-static void  IieWrite(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int nibbles);
+static void  DoRead(ImageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
+static void  DoWrite(ImageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int nibbles);
 static DWORD Nib1Detect(LPBYTE imagePtr, DWORD imageSize);
-static void  Nib1Read(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
-static void  Nib1Write(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int nibbles);
+static void  Nib1Read(ImageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
+static void  Nib1Write(ImageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int nibbles);
 static DWORD Nib2Detect(LPBYTE imagePtr, DWORD imageSize);
-static void  Nib2Read(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
-static void  Nib2Write(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int nibbles);
+static void  Nib2Read(ImageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
+static void  Nib2Write(ImageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int nibbles);
 static DWORD PoDetect(LPBYTE imagePtr, DWORD imageSize);
-static void  PoRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
-static void  PoWrite(imageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int nibbles);
-static BOOL  PrgBoot(imageInfo * ptr);
+static void  PoRead(ImageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int * nibbles);
+static void  PoWrite(ImageInfo * ptr, int track, int quarterTrack, LPBYTE buffer, int nibbles);
+static BOOL  PrgBoot(ImageInfo * ptr);
 static DWORD PrgDetect(LPBYTE imagePtr, DWORD imageSize);
 
 struct ImageSpec {
     const char * createExts;
     const char * rejectExts;
-    fdetect      detect;
-    fboot        boot;
-    freadinfo    read;
-    fwriteinfo   write;
+    FDetect      detect;
+    FBoot        boot;
+    FReadInfo    read;
+    FWriteInfo   write;
 };
 
-constexpr int IMAGETYPES = 7;
+constexpr int IMAGE_TYPES = 6;
 
-static const ImageSpec s_spec[IMAGETYPES] = {
+static const ImageSpec s_spec[IMAGE_TYPES] = {
     {
         "",
-        ".do;.dsk;.iie;.nib;.po",
+        ".do;.dsk;.nib;.po",
         PrgDetect,
         PrgBoot,
         NULL,
@@ -71,7 +68,7 @@ static const ImageSpec s_spec[IMAGETYPES] = {
     },
     {
         ".do;.dsk",
-        ".nib;.iie;.po;.prg",
+        ".nib;.po;.prg",
         DoDetect,
         NULL,
         DoRead,
@@ -79,7 +76,7 @@ static const ImageSpec s_spec[IMAGETYPES] = {
     },
     {
         ".po",
-        ".do;.iie;.nib;.prg",
+        ".do;.nib;.prg",
         PoDetect,
         NULL,
         PoRead,
@@ -87,7 +84,7 @@ static const ImageSpec s_spec[IMAGETYPES] = {
     },
     {
         "",
-        ".do;.dsk;.iie;.nib;.po",
+        ".do;.dsk;.nib;.po",
         AplDetect,
         AplBoot,
         NULL,
@@ -95,7 +92,7 @@ static const ImageSpec s_spec[IMAGETYPES] = {
     },
     {
         "",
-        ".do;.iie;.po;.prg",
+        ".do;.po;.prg",
         Nib1Detect,
         NULL,
         Nib1Read,
@@ -103,20 +100,12 @@ static const ImageSpec s_spec[IMAGETYPES] = {
     },
     {
         ".nib",
-        ".do;.iie;.po;.prg",
+        ".do;.po;.prg",
         Nib2Detect,
         NULL,
         Nib2Read,
         Nib2Write
     },
-    {
-        ".iie",
-        ".do.;.nib;.po;.prg",
-        IieDetect,
-        NULL,
-        IieRead,
-        IieWrite
-    }
 };
 
 static const BYTE s_diskByte[0x40] = {
@@ -133,7 +122,6 @@ static const BYTE s_diskByte[0x40] = {
 static BYTE s_sectorNumber[3][16] = {
     { 0x00, 0x08, 0x01, 0x09, 0x02, 0x0a, 0x03, 0x0b, 0x04, 0x0c, 0x05, 0x0d, 0x06, 0x0e, 0x07, 0x0f },
     { 0x00, 0x07, 0x0e, 0x06, 0x0d, 0x05, 0x0c, 0x04, 0x0b, 0x03, 0x0a, 0x02, 0x09, 0x01, 0x08, 0x0f },
-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 };
 
 static LPBYTE s_workBuffer = NULL;
@@ -148,8 +136,8 @@ static LPBYTE s_workBuffer = NULL;
 //===========================================================================
 static LPBYTE Code62(int sector) {
 
-    // CONVERT THE 256 8-BIT BYTES INTO 342 6-BIT BYTES, WHICH WE STORE
-    // STARTING AT 4K INTO THE WORK BUFFER.
+    // Convert the 256 8-bit bytes into 342 6-bit bytes, which we store
+    // starting at 4k into the work buffer.
     {
         LPBYTE sectorBase = s_workBuffer + (sector << 8);
         LPBYTE resultPtr = s_workBuffer + 0x1000;
@@ -172,9 +160,9 @@ static LPBYTE Code62(int sector) {
         while (offset);
     }
 
-    // EXCLUSIVE-OR THE ENTIRE DATA BLOCK WITH ITSELF OFFSET BY ONE BYTE,
-    // CREATING A 343RD BYTE WHICH IS USED AS A CHECKSUM.  STORE THE NEW
-    // BLOCK OF 343 BYTES STARTING AT 5K INTO THE WORK BUFFER.
+    // Exclusive-or the entire data block with itself offset by one byte,
+    // creating a 343rd byte which is used as a checksum.  Store the new block
+    // of 343 bytes starting at 5k into the work buffer.
     {
         BYTE   savedVal = 0;
         LPBYTE sourcePtr = s_workBuffer + 0x1000;
@@ -187,11 +175,11 @@ static LPBYTE Code62(int sector) {
         *resultPtr = savedVal;
     }
 
-    // USING A LOOKUP TABLE, CONVERT THE 6-BIT BYTES INTO DISK BYTES.  A VALID
-    // DISK BYTE IS A BYTE THAT HAS THE HIGH BIT SET, AT LEAST TWO ADJACENT BITS
-    // SET (EXCLUDING THE HIGH BIT), AND AT MOST ONE PAIR OF CONSECUTIVE ZERO
-    // BITS.  THE CONVERTED BLOCK OF 343 BYTES IS STORED STARTING AT 4K INTO THE
-    // WORK BUFFER.
+    // Using a lookup table, convert the 6-bit bytes into disk bytes.  A valid
+    // disk byte is a byte that has the high bit set, at least two adjacent bits
+    // set (excluding the high bit), and at most one pair of consecutive zero
+    // bits.  The converted block of 343 bytes is stored starting at 4k into the
+    // work buffer.
     {
         LPBYTE sourcePtr = s_workBuffer + 0x1400;
         LPBYTE resultPtr = s_workBuffer + 0x1000;
@@ -206,8 +194,8 @@ static LPBYTE Code62(int sector) {
 //===========================================================================
 static void Decode62(LPBYTE imagePtr) {
 
-    // IF WE HAVEN'T ALREADY DONE SO, GENERATE A TABLE FOR CONVERTING
-    // DISK BYTES BACK INTO 6-BIT BYTES
+    // If we haven't already done so, generate a table for converting
+    // disk bytes back into 6-bit bytes.
     static BOOL tableGenerated = 0;
     static BYTE sixBitByte[0x80];
     if (!tableGenerated) {
@@ -220,7 +208,7 @@ static void Decode62(LPBYTE imagePtr) {
         tableGenerated = 1;
     }
 
-    // USING OUR TABLE, CONVERT THE DISK BYTES BACK INTO 6-BIT BYTES
+    // Using our table, convert the disk bytes back into 6-bit bytes.
     {
         LPBYTE sourcePtr = s_workBuffer + 0x1000;
         LPBYTE resultPtr = s_workBuffer + 0x1400;
@@ -229,8 +217,8 @@ static void Decode62(LPBYTE imagePtr) {
             * (resultPtr++) = sixBitByte[*sourcePtr++ & 0x7F];
     }
 
-    // EXCLUSIVE-OR THE ENTIRE DATA BLOCK WITH ITSELF OFFSET BY ONE BYTE
-    // TO UNDO THE EFFECTS OF THE CHECKSUMMING PROCESS
+    // Exclusive-or the entire data block with itself offset by one byte
+    // to undo the effects of the checksumming process.
     {
         BYTE   savedVal = 0;
         LPBYTE sourcePtr = s_workBuffer + 0x1400;
@@ -242,7 +230,7 @@ static void Decode62(LPBYTE imagePtr) {
         }
     }
 
-    // CONVERT THE 342 6-BIT BYTES INTO 256 8-BIT BYTES
+    // Convert the 342 6-bit bytes into 256 8-bit bytes.
     {
         LPBYTE lowBitsPtr = s_workBuffer + 0x1000;
         LPBYTE sectorBase = s_workBuffer + 0x1056;
@@ -265,53 +253,58 @@ static void Decode62(LPBYTE imagePtr) {
             lowBitsPtr++;
         }
     }
-
 }
 
 //===========================================================================
-static void DenibblizeTrack(LPBYTE trackImage, BOOL dosOrder, int nibbles) {
+static void DenibblizeTrack(LPBYTE trackImage, int dosOrder, int nibbles) {
     memset(s_workBuffer, 0, 0x1000);
 
-    // SEARCH THROUGH THE TRACK IMAGE FOR EACH SECTOR.  FOR EVERY SECTOR
-    // WE FIND, COPY THE NIBBLIZED DATA FOR THAT SECTOR INTO THE WORK
-    // BUFFER AT OFFSET 4K.  THEN CALL DECODE62() TO DENIBBLIZE THE DATA
-    // IN THE BUFFER AND WRITE IT INTO THE FIRST PART OF THE WORK BUFFER
-    // OFFSET BY THE SECTOR NUMBER.
-    int offset = 0;
-    int sector = 0;
-    for (int partsLeft = 53; partsLeft--; ) {
-        BYTE byteVal[3] = { 0,0,0 };
-        int  byteNum = 0;
-        int  loop = nibbles;
-        while ((loop--) && (byteNum < 3)) {
-            if (byteNum)
-                byteVal[byteNum++] = trackImage[offset++];
-            else if (trackImage[offset++] == 0xd5)
-                byteNum = 1;
-            if (offset >= nibbles)
-                offset = 0;
+    int offset      = 0;
+    int sector      = -1;
+    int firstSector = -1;
+    for (int scan = 0; scan < 64; ++scan) {
+
+        // Search for a D5 XX XX sequence.
+        uint8_t sequence[3] = { 0xd5, 0x00, 0x00 };
+        for (int i = 0, count = 0; i < nibbles && count < 3; i++) {
+            if (count > 0)
+                sequence[count++] = trackImage[offset];
+            else if (trackImage[offset] == 0xd5)
+                count = 1;
+            offset = (offset + 1) % nibbles;
         }
-        if ((byteNum == 3) && (byteVal[1] == 0xAA)) {
-            int loop = 0;
-            int tempOffset = offset;
-            while (loop < 384) {
-                s_workBuffer[0x1000 + loop++] = trackImage[tempOffset++];
-                if (tempOffset >= nibbles)
-                    tempOffset = 0;
-            }
-            if (byteVal[2] == 0x96)
+
+        if (sequence[1] == 0xaa) {
+
+            // D5 AA 96 indicates a sector header.
+            if (sequence[2] == 0x96) {
+                for (int i = 0, tmpOffset = offset; i < 6; ++i) {
+                    s_workBuffer[0x1000 + i] = trackImage[tmpOffset];
+                    tmpOffset = (tmpOffset + 1) % nibbles;
+                }
                 sector = (s_workBuffer[0x1004] & 0x55) << 1 | (s_workBuffer[0x1005] & 0x55);
-            else if (byteVal[2] == 0xad) {
+                if (sector == firstSector)
+                    break;
+                if (firstSector == -1)
+                    firstSector = sector;
+            }
+
+            // D5 AA AD indicates a sector data field.
+            else if (sequence[2] == 0xad && sector >= -1) {
+                for (int i = 0, tmpOffset = offset; i < 384; ++i) {
+                    s_workBuffer[0x1000 + i] = trackImage[tmpOffset];
+                    tmpOffset = (tmpOffset + 1) % nibbles;
+                }
                 Decode62(s_workBuffer + ((size_t)s_sectorNumber[dosOrder][sector] << 8));
-                sector = 0;
+                sector = -1;
             }
         }
     }
 }
 
 //===========================================================================
-static DWORD NibblizeTrack(LPBYTE trackImageBuffer, BOOL dosOrder, int track) {
-    memset(s_workBuffer + 4096, 0, 4096);
+static DWORD NibblizeTrack(LPBYTE trackImageBuffer, int dosOrder, int track) {
+    memset(s_workBuffer + 0x1000, 0, 0x1000);
     LPBYTE imagePtr = trackImageBuffer;
 
     // WRITE GAP ONE, WHICH CONTAINS 48 SELF-SYNC BYTES
@@ -385,7 +378,7 @@ static void SkewTrack(int track, int nibbles, LPBYTE trackImageBuffer) {
 ***/
 
 //===========================================================================
-static BOOL AplBoot(imageInfo * ptr) {
+static BOOL AplBoot(ImageInfo * ptr) {
     fseek(ptr->file, 0, SEEK_SET);
 
     WORD address = 0;
@@ -460,11 +453,11 @@ static DWORD DoDetect(LPBYTE imagePtr, DWORD imageSize) {
 }
 
 //===========================================================================
-static void DoRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
+static void DoRead(ImageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
 
-    memset(s_workBuffer, 0, 4096);
-    if (fread(s_workBuffer, 4096, 1, ptr->file) != 1)
+    memset(s_workBuffer, 0, 0x1000);
+    if (fread(s_workBuffer, 0x1000, 1, ptr->file) != 1)
         return;
 
     *nibbles = NibblizeTrack(trackImageBuffer, 1, track);
@@ -473,86 +466,10 @@ static void DoRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackIma
 }
 
 //===========================================================================
-static void DoWrite(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
-    memset(s_workBuffer, 0, 4096);
+static void DoWrite(ImageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
     DenibblizeTrack(trackImage, 1, nibbles);
-
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
-    fwrite(s_workBuffer, 4096, 1, ptr->file);
-}
-
-
-/****************************************************************************
-*
-*  SIMSYSTEM IIE (IIE) FORMAT IMPLEMENTATION
-*
-***/
-
-//===========================================================================
-static void IieConvertSectorOrder(LPBYTE sourceOrder) {
-    int loop = 16;
-    while (loop--) {
-        BYTE found = 0xFF;
-        int  loop2 = 16;
-        while (loop2-- && (found == 0xFF))
-            if (*(sourceOrder + loop2) == loop)
-                found = loop2;
-        if (found == 0xFF)
-            found = 0;
-        s_sectorNumber[2][loop] = found;
-    }
-}
-
-//===========================================================================
-static DWORD IieDetect(LPBYTE imagePtr, DWORD imageSize) {
-    if (strncmp((const char *)imagePtr, "SIMSYSTEM_IIE", 13) ||
-        (*(imagePtr + 13) > 3))
-        return 0;
-    return 2;
-}
-
-//===========================================================================
-static void IieRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
-
-    // IF WE HAVEN'T ALREADY DONE SO, READ THE IMAGE FILE HEADER
-    if (!ptr->header) {
-        ptr->header = new BYTE[88];
-        if (!ptr->header)
-            return;
-        memset(ptr->header, 0, 88);
-        fseek(ptr->file, 0, SEEK_SET);
-        if (fread(ptr->header, ARRSIZE(ptr->header), 1, ptr->file) != 1)
-            return;
-    }
-
-    // IF THIS IMAGE CONTAINS USER DATA, READ THE TRACK AND NIBBLIZE IT
-    if (ptr->header[13] <= 2) {
-        IieConvertSectorOrder(ptr->header + 14);
-        fseek(ptr->file, (track << 12) + 30, SEEK_SET);
-        memset(s_workBuffer, 0, 4096);
-        if (fread(s_workBuffer, 4096, 1, ptr->file) != 1)
-            return;
-        *nibbles = NibblizeTrack(trackImageBuffer, 2, track);
-    }
-
-    // OTHERWISE, IF THIS IMAGE CONTAINS NIBBLE INFORMATION, READ IT
-    // DIRECTLY INTO THE TRACK BUFFER
-    else {
-        *nibbles = *(LPWORD)(ptr->header + (track << 1) + 14);
-        DWORD offset = 88;
-        while (track--)
-            offset += *(LPWORD)(ptr->header + (track << 1) + 14);
-        fseek(ptr->file, offset, SEEK_SET);
-        memset(trackImageBuffer, 0, *nibbles);
-        if (fread(trackImageBuffer, *nibbles, 1, ptr->file) != 1)
-            return;
-    }
-
-}
-
-//===========================================================================
-static void IieWrite(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
-  // note: unimplemented
+    fwrite(s_workBuffer, 0x1000, 1, ptr->file);
 }
 
 
@@ -568,13 +485,13 @@ static DWORD Nib1Detect(LPBYTE imagePtr, DWORD imageSize) {
 }
 
 //===========================================================================
-static void Nib1Read(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
+static void Nib1Read(ImageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
     fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
     *nibbles = (int)fread(trackImageBuffer, 1, 6656, ptr->file);
 }
 
 //===========================================================================
-static void Nib1Write(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
+static void Nib1Write(ImageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
     fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
     fwrite(trackImage, nibbles, 1, ptr->file);
 }
@@ -592,13 +509,13 @@ static DWORD Nib2Detect(LPBYTE imagePtr, DWORD imageSize) {
 }
 
 //===========================================================================
-static void Nib2Read(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
+static void Nib2Read(ImageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
     fseek(ptr->file, ptr->offset + track * 6384, SEEK_SET);
     *nibbles = (int)fread(trackImageBuffer, 1, 6384, NULL);
 }
 
 //===========================================================================
-static void Nib2Write(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
+static void Nib2Write(ImageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
     fseek(ptr->file, ptr->offset + track * 6384, SEEK_SET);
     fwrite(trackImage, nibbles, 1, ptr->file);
 }
@@ -643,10 +560,10 @@ static DWORD PoDetect(LPBYTE imagePtr, DWORD imageSize) {
 }
 
 //===========================================================================
-static void PoRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
+static void PoRead(ImageInfo * ptr, int track, int quarterTrack, LPBYTE trackImageBuffer, int * nibbles) {
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
-    memset(s_workBuffer, 0, 4096);
-    if (fread(s_workBuffer, 4096, 1, ptr->file) != 1)
+    memset(s_workBuffer, 0, 0x1000);
+    if (fread(s_workBuffer, 0x1000, 1, ptr->file) != 1)
         return;
     *nibbles = NibblizeTrack(trackImageBuffer, 0, track);
     if (!g_optEnhancedDisk)
@@ -654,11 +571,10 @@ static void PoRead(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackIma
 }
 
 //===========================================================================
-static void PoWrite(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
-    memset(s_workBuffer, 0, 4096);
+static void PoWrite(ImageInfo * ptr, int track, int quarterTrack, LPBYTE trackImage, int nibbles) {
     DenibblizeTrack(trackImage, 0, nibbles);
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
-    fwrite(s_workBuffer, 4096, 1, ptr->file);
+    fwrite(s_workBuffer, 0x1000, 1, ptr->file);
 }
 
 
@@ -669,7 +585,7 @@ static void PoWrite(imageInfo * ptr, int track, int quarterTrack, LPBYTE trackIm
 ***/
 
 //===========================================================================
-static BOOL PrgBoot(imageInfo * ptr) {
+static BOOL PrgBoot(ImageInfo * ptr) {
     fseek(ptr->file, 5, SEEK_SET);
 
     uint16_t address = 0;
@@ -712,7 +628,7 @@ static DWORD PrgDetect(LPBYTE imagePtr, DWORD imageSize) {
 
 //===========================================================================
 BOOL ImageBoot(HIMAGE imageHandle) {
-    imageInfo * ptr = (imageInfo *)imageHandle;
+    ImageInfo * ptr = (ImageInfo *)imageHandle;
     BOOL result = FALSE;
     if (s_spec[ptr->format].boot)
         result = s_spec[ptr->format].boot(ptr);
@@ -723,7 +639,7 @@ BOOL ImageBoot(HIMAGE imageHandle) {
 
 //===========================================================================
 void ImageClose(HIMAGE imageHandle) {
-    imageInfo * ptr = (imageInfo *)imageHandle;
+    ImageInfo * ptr = (ImageInfo *)imageHandle;
     if (ptr->file)
         fclose(ptr->file);
     if (ptr->header)
@@ -750,12 +666,10 @@ bool ImageOpen (
     bool *          writeProtected,
     bool            createIfNecessary
 ) {
-    if (imageHandle)
-        *imageHandle = (HIMAGE)NULL;
-    if (writeProtected)
-        *writeProtected = false;
-    if (!(imageFilename && imageHandle && writeProtected && s_workBuffer))
+    if (!imageFilename || !imageHandle || !writeProtected || !s_workBuffer)
         return false;
+    *imageHandle = nullptr;
+    *writeProtected = false;
 
     // Try to open the image file
     bool readonly = false;
@@ -803,11 +717,11 @@ bool ImageOpen (
 
             // Call the detection functions in order, looking for a match
             DWORD possibleformat = 0xffffffff;
-            int   loop = 0;
-            while ((loop < IMAGETYPES) && (format == 0xffffffff)) {
+            int   itype = 0;
+            while ((itype < IMAGE_TYPES) && (format == 0xffffffff)) {
                 BOOL reject = 0;
                 if (ext && *ext) {
-                    const char * rejectexts = s_spec[loop].rejectExts;
+                    const char * rejectexts = s_spec[itype].rejectExts;
                     while (rejectexts && *rejectexts && !reject) {
                         if (!StrCmpLenI(ext, rejectexts, StrLen(ext)))
                             reject = 1;
@@ -818,15 +732,15 @@ bool ImageOpen (
                     }
                 }
                 if (reject)
-                    ++loop;
+                    ++itype;
                 else {
-                    DWORD result = s_spec[loop].detect(imagePtr, (DWORD)size);
+                    DWORD result = s_spec[itype].detect(imagePtr, (DWORD)size);
                     if (result == 2)
-                        format = loop;
+                        format = itype;
                     else if ((result == 1) && (possibleformat == 0xffffffff))
-                        possibleformat = loop++;
+                        possibleformat = itype++;
                     else
-                        ++loop;
+                        ++itype;
                 }
             }
             if (format == 0xFFFFFFFF)
@@ -843,9 +757,9 @@ bool ImageOpen (
 
         // Otherwise, create a record for the file, and return an image handle
         else {
-            imageInfo * ptr = new imageInfo;
+            ImageInfo * ptr = new ImageInfo;
             if (ptr) {
-                memset(ptr, 0, sizeof(imageInfo));
+                memset(ptr, 0, sizeof(ImageInfo));
                 ptr->format         = format;
                 ptr->file           = file;
                 ptr->offset         = offset;
@@ -875,7 +789,7 @@ void ImageReadTrack(
     int *   nibbles
 ) {
     *nibbles = 0;
-    imageInfo * ptr = (imageInfo *)imageHandle;
+    ImageInfo * ptr = (ImageInfo *)imageHandle;
     if (s_spec[ptr->format].read)
         s_spec[ptr->format].read(ptr, track, quarterTrack, trackImageBuffer, nibbles);
 }
@@ -888,7 +802,7 @@ void ImageWriteTrack (
     LPBYTE  trackImage,
     int     nibbles
 ) {
-    imageInfo * ptr = (imageInfo *)imageHandle;
+    ImageInfo * ptr = (ImageInfo *)imageHandle;
     if (s_spec[ptr->format].write && !ptr->writeProtected)
         s_spec[ptr->format].write(ptr, track, quarterTrack, trackImage, nibbles);
 }

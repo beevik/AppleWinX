@@ -635,7 +635,7 @@ uint8_t MemIoRead(uint16_t address) {
 //===========================================================================
 void MemIoWrite(uint16_t address, uint8_t value) {
     uint8_t offset = uint8_t(address);
-    s_switchWrite[offset >> 4](offset, true, 0);
+    s_switchWrite[offset >> 4](offset, true, value);
 }
 
 //===========================================================================
