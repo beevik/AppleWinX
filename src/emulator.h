@@ -31,6 +31,9 @@ constexpr int BUILD_NUMBER  = 4;
 constexpr int SPEED_NORMAL  = 10;
 constexpr int SPEED_MAX     = 80;
 
+constexpr int SLOT_MIN = 1;
+constexpr int SLOT_MAX = 7;
+
 constexpr double  CPU_HZ            = 1020484.32;
 constexpr DWORD   CPU_CYCLES_PER_MS = DWORD(CPU_HZ * 0.001);
 constexpr double  CPU_CYCLES_PER_US = CPU_HZ * 0.000001;
