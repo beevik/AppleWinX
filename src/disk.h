@@ -10,11 +10,17 @@
 
 extern bool g_optEnhancedDisk;
 
+enum EDiskStatus {
+    DISKSTATUS_OFF   = 0,
+    DISKSTATUS_READ  = 1,
+    DISKSTATUS_WRITE = 2,
+};
+
 void         DiskBoot();
 void         DiskDestroy();
-void         DiskGetLightStatus(int * drive1, int * drive2);
+void         DiskGetStatus(EDiskStatus * statusDrive1, EDiskStatus * statusDrive2);
 const char * DiskGetName(int drive);
 void         DiskInitialize();
 bool         DiskIsSpinning();
 void         DiskSelect(int drive);
-void         DiskUpdatePosition(DWORD cycles);
+void         DiskUpdatePosition(int cyclesSinceLastUpdate);

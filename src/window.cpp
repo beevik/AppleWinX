@@ -76,7 +76,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
             break;
 
         case SDL_SCANCODE_HOME:
-            TimerUpdateFullSpeedSetting(FULL_SPEED_SETTING_KEYDOWN, true);
+            TimerUpdateFullSpeed(FULLSPEED_KEYDOWN, true);
             break;
 
         case SDL_SCANCODE_1:
@@ -116,7 +116,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
 static void ProcessEventKeyUp(const SDL_KeyboardEvent & key)  {
     switch (key.keysym.scancode) {
         case SDL_SCANCODE_HOME:
-            TimerUpdateFullSpeedSetting(FULL_SPEED_SETTING_KEYDOWN, false);
+            TimerUpdateFullSpeed(FULLSPEED_KEYDOWN, false);
             break;
     }
 }

@@ -188,7 +188,7 @@ void TimerSleepUs(int us) {
 }
 
 //===========================================================================
-void TimerUpdateFullSpeedSetting(EFullSpeedSetting reason, bool on) {
+void TimerUpdateFullSpeed(EFullSpeed reason, bool on) {
     if (on)
         s_fullSpeedBits |= (1 << reason);
     else

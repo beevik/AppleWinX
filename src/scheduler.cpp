@@ -15,7 +15,7 @@ static int   s_eventCount = 0;
 static Event s_eventQueue[MAX_EVENTS];
 
 //===========================================================================
-bool SchedulerDequeue (int64_t elapsedCycles, Event * event) {
+bool SchedulerDequeue(int64_t elapsedCycles, Event * event) {
     if (s_eventCount == 0 || s_eventQueue[0].cycle > elapsedCycles)
         return false;
 

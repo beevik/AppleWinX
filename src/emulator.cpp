@@ -104,6 +104,7 @@ static void Advance() {
 //===========================================================================
 static void UpdateEmulator(int64_t cycle) {
     // Interrupt the emulator once every millisecond.
+    DiskUpdatePosition(CPU_CYCLES_PER_MS);
     SchedulerEnqueue(cycle + CPU_CYCLES_PER_MS, UpdateEmulator);
 }
 

@@ -12,9 +12,9 @@ enum ETimerMode {
     TIMER_MODE_FULLSPEED,
 };
 
-enum EFullSpeedSetting {
-    FULL_SPEED_SETTING_KEYDOWN,
-    FULL_SPEED_SETTING_DISK_MOTOR_ON,
+enum EFullSpeed {
+    FULLSPEED_KEYDOWN,
+    FULLSPEED_DISK_MOTOR_ON,
 };
 
 extern ETimerMode g_timerMode;
@@ -30,6 +30,6 @@ void    TimerReset();
 void    TimerSetMode(ETimerMode mode);
 void    TimerSetSpeedMultiplier(float multiplier);
 void    TimerSleepUs(int us);
-void    TimerUpdateFullSpeedSetting(EFullSpeedSetting reason, bool on);
+void    TimerUpdateFullSpeed(EFullSpeed reason, bool on);
 int64_t TimerUpdateElapsedCycles();
 void    TimerWait();

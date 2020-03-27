@@ -8,12 +8,12 @@
 
 #pragma once
 
-typedef void * HIMAGE;
+struct Image;
 
-BOOL ImageBoot(HIMAGE image);
-void ImageClose(HIMAGE image);
+bool ImageBoot(Image * image);
+void ImageClose(Image * image);
 void ImageDestroy();
 void ImageInitialize();
-bool ImageOpen(const char * imageFilename, HIMAGE * image, bool * writeProtected, bool createIfNecessary);
-void ImageReadTrack(HIMAGE image, int track, int quarterTrack, LPBYTE trackImage, int * nibbles);
-void ImageWriteTrack(HIMAGE image, int track, int quarterTrack, LPBYTE trackImage, int nibbles);
+bool ImageOpen(const char * imageFilename, Image ** image, bool * writeProtected);
+void ImageReadTrack(Image * image, int track, int quarterTrack, uint8_t * trackImage, int * nibbles);
+void ImageWriteTrack(Image * image, int track, int quarterTrack, uint8_t * trackImage, int nibbles);

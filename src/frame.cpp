@@ -440,11 +440,11 @@ static void DrawStatusArea(HDC passdc, BOOL drawbackground) {
 
     {
         RECT rect = { 0,0,8,8 };
-        int  drive1 = 0;
-        int  drive2 = 0;
-        DiskGetLightStatus(&drive1, &drive2);
-        DrawBitmapRect(dc, x + 12, y + 8, &rect, diskbitmap[drive1]);
-        DrawBitmapRect(dc, x + 30, y + 8, &rect, diskbitmap[drive2]);
+        EDiskStatus statusDrive1;
+        EDiskStatus statusDrive2;
+        DiskGetStatus(&statusDrive1, &statusDrive2);
+        DrawBitmapRect(dc, x + 12, y + 8, &rect, diskbitmap[statusDrive1]);
+        DrawBitmapRect(dc, x + 30, y + 8, &rect, diskbitmap[statusDrive2]);
     }
 
     if (EmulatorGetAppleType() == APPLE_TYPE_IIE) {
