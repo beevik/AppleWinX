@@ -17,6 +17,7 @@ enum EImageMatch {
 
 struct Image {
     int        format;
+    char       name[64];
     FILE *     file;
     int        offset;
     bool       writeProtected;
@@ -345,6 +346,52 @@ static void SkewTrack(int track, int nibbles, uint8_t * trackImageBuffer) {
 
 /****************************************************************************
 *
+*  Other helper functions
+*
+***/
+
+//===========================================================================
+static void GetImageName(const char * filename, char * imageName, size_t imageNameChars) {
+    const char * startPos = filename;
+    {
+        const char * ptr;
+        while ((ptr = StrChrConst(startPos, '\\')) != nullptr)
+            startPos = ptr + 1;
+    }
+
+    // Strip the directory and extension.
+    char imageTitle[128];
+    StrCopy(imageTitle, startPos, ARRSIZE(imageTitle));
+    if (imageTitle[0]) {
+        char * dot = imageTitle;
+        char * ptr;
+        while ((ptr = StrChr(dot + 1, '.')) != nullptr)
+            dot = ptr;
+        if (dot > imageTitle)
+            *dot = '\0';
+    }
+
+    // Convert all-caps disk names to mixed case.
+    bool isAllCaps = true;
+    int indexFirstLowercase = 0;
+    for (; imageTitle[indexFirstLowercase]; ++indexFirstLowercase) {
+        if (imageTitle[indexFirstLowercase] >= 'a' && imageTitle[indexFirstLowercase] <= 'z') {
+            isAllCaps = false;
+            break;
+        }
+    }
+    if (isAllCaps && indexFirstLowercase > 1) {
+        for (int i = 1; imageTitle[i] != '\0'; ++i)
+            imageTitle[i] = (imageTitle[i] >= 'A' && imageTitle[i] <= 'Z')
+                ? imageTitle[i] - 'A' + 'a'
+                : imageTitle[i];
+    }
+
+    StrCopy(imageName, imageTitle, imageNameChars);
+}
+
+/****************************************************************************
+*
 *  DOS order (DO)
 *
 ***/
@@ -503,6 +550,11 @@ void ImageDestroy() {
 }
 
 //===========================================================================
+const char * ImageGetName(Image * image) {
+    return image->name;
+}
+
+//===========================================================================
 void ImageInitialize() {
     s_workBuffer = new uint8_t[0x2000];
     memset(s_workBuffer, 0, 0x2000);
@@ -599,18 +651,18 @@ bool ImageOpen(
     // If the file matches a known format, create a record for the file, and return an image handle
     if (format != IMAGEFORMAT_UNKNOWN) {
         Image * ptr = new Image;
-        if (ptr) {
-            memset(ptr, 0, sizeof(Image));
-            ptr->format         = format;
-            ptr->file           = file;
-            ptr->offset         = offset;
-            ptr->writeProtected = readonly;
-            if (image)
-                *image = (Image *)ptr;
-            if (writeProtected)
-                *writeProtected = readonly;
-            return true;
-        }
+        memset(ptr, 0, sizeof(Image));
+        ptr->format         = format;
+        ptr->file           = file;
+        ptr->offset         = offset;
+        ptr->writeProtected = readonly;
+        if (image)
+            *image = (Image *)ptr;
+        if (writeProtected)
+            *writeProtected = readonly;
+
+        GetImageName(imageFilename, ptr->name, ARRSIZE(ptr->name));
+        return true;
     }
 
     fclose(file);

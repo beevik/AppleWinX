@@ -21,18 +21,17 @@ constexpr int NIBBLES       = 6384;
 constexpr int TRACKS        = 35;
 
 struct Floppy {
-    char      imageName[64];
     Image *   image;
-    int       track;
     uint8_t * trackImage;
+    int       track;
     int       phase;
     int       byte;
     bool      motorOn;
     bool      writeProtected;
-    bool      trackImageData;
-    bool      trackImageDirty;
-    int32_t   spinCounter;
-    int32_t   writeCounter;
+    bool      hasImageData;
+    bool      imageDirty;
+    int       spinCounter;
+    int       writeCounter;
     int       nibbles;
 };
 
@@ -72,8 +71,7 @@ static void    WriteTrack(Floppy * floppy);
 ***/
 
 //===========================================================================
-static void CheckSpinning(int slot) {
-    Controller * controller = s_controller[slot];
+static void CheckSpinning(Controller * controller) {
     Floppy * floppy = &controller->floppy[controller->selectedDrive];
     bool modeChange = (floppy->motorOn && !floppy->spinCounter);
     if (floppy->motorOn)
@@ -83,73 +81,24 @@ static void CheckSpinning(int slot) {
 }
 
 //===========================================================================
-static void GetImageTitle(const char * filename, char * imageName, size_t imageNameChars) {
-    const char * startPos = filename;
-    {
-        const char * ptr;
-        while ((ptr = StrChrConst(startPos, '\\')) != nullptr)
-            startPos = ptr + 1;
-    }
-
-    // Strip the directory and extension.
-    char imageTitle[128];
-    StrCopy(imageTitle, startPos, ARRSIZE(imageTitle));
-    if (imageTitle[0]) {
-        char * dot = imageTitle;
-        char * ptr;
-        while ((ptr = StrChr(dot + 1, '.')) != nullptr)
-            dot = ptr;
-        if (dot > imageTitle)
-            *dot = '\0';
-    }
-
-    // Convert all-caps disk names to mixed case.
-    bool isAllCaps = true;
-    int indexFirstLowercase = 0;
-    for (; imageTitle[indexFirstLowercase]; ++indexFirstLowercase) {
-        if (imageTitle[indexFirstLowercase] >= 'a' && imageTitle[indexFirstLowercase] <= 'z') {
-            isAllCaps = false;
-            break;
-        }
-    }
-    if (isAllCaps && indexFirstLowercase > 1) {
-        for (int i = 1; imageTitle[i] != '\0'; ++i)
-            imageTitle[i] = (imageTitle[i] >= 'A' && imageTitle[i] <= 'Z')
-                ? imageTitle[i] - 'A' + 'a'
-                : imageTitle[i];
-    }
-
-    StrCopy(imageName, imageTitle, imageNameChars);
-}
-
-//===========================================================================
-static bool InsertDisk(int slot, int drive, const char * imageFilename) {
-    Controller * controller = s_controller[slot];
+static bool InsertDisk(Controller * controller, int drive, const char * imageFilename) {
     Floppy * floppy = &controller->floppy[drive];
     if (floppy->image)
         RemoveDisk(floppy);
 
     memset(floppy, 0, sizeof(Floppy));
-    bool success = ImageOpen(
-        imageFilename,
-        &floppy->image,
-        &floppy->writeProtected
-    );
-    if (success)
-        GetImageTitle(imageFilename, floppy->imageName, ARRSIZE(floppy->imageName));
-
-    return success;
+    return ImageOpen(imageFilename, &floppy->image, &floppy->writeProtected);
 }
 
 //===========================================================================
-static void InstallDiskController(int slot) {
+static void InstallController(int slot) {
     // Configure the slot's floppy disk controller.
     Controller * controller = s_controller[slot] = new Controller;
-    controller->slot = (uint8_t)slot;
-    controller->writeMode = false;
-    controller->diskAccessed = false;
-    controller->latchValue = 0;
-    controller->selectedDrive = 0;
+    controller->slot               = (uint8_t)slot;
+    controller->writeMode          = false;
+    controller->diskAccessed       = false;
+    controller->latchValue         = 0;
+    controller->selectedDrive      = 0;
     controller->nextControllerSlot = 0;
     memset(controller->floppy, 0, sizeof(controller->floppy));
 
@@ -160,7 +109,7 @@ static void InstallDiskController(int slot) {
     if (g_optEnhancedDisk) {
         uint8_t * rom = MemGetSlotRomPtr();
         uint16_t offset = slot << 8;
-        rom[offset + 0x4c] = 0xa9;
+        rom[offset + 0x4c] = 0xa9; // replace JSR $FCA8 (WAIT) with LDA #$00; NOP
         rom[offset + 0x4d] = 0x00;
         rom[offset + 0x4e] = 0xea;
     }
@@ -169,7 +118,7 @@ static void InstallDiskController(int slot) {
 //===========================================================================
 static void ReadTrack(Floppy * floppy) {
     if (floppy->track >= TRACKS) {
-        floppy->trackImageData = false;
+        floppy->hasImageData = false;
         return;
     }
     if (!floppy->trackImage)
@@ -182,14 +131,14 @@ static void ReadTrack(Floppy * floppy) {
             floppy->trackImage,
             &floppy->nibbles
         );
-        floppy->trackImageData = (floppy->nibbles != 0);
+        floppy->hasImageData = (floppy->nibbles != 0);
     }
 }
 
 //===========================================================================
 static void NotifyInvalidImage(const char * imageFilename) {
-    FILE * file = fopen(imageFilename, "rb");
     char buffer[260 + 128];
+    FILE * file = fopen(imageFilename, "rb");
     if (!file)
         StrPrintf(buffer, ARRSIZE(buffer), "Unable to open the file %s.", imageFilename);
     else {
@@ -208,7 +157,7 @@ static void NotifyInvalidImage(const char * imageFilename) {
 //===========================================================================
 static void RemoveDisk(Floppy * floppy) {
     if (floppy->image) {
-        if (floppy->trackImage && floppy->trackImageDirty)
+        if (floppy->trackImage && floppy->imageDirty)
             WriteTrack(floppy);
         ImageClose(floppy->image);
         floppy->image = nullptr;
@@ -216,7 +165,7 @@ static void RemoveDisk(Floppy * floppy) {
     if (floppy->trackImage) {
         delete[] floppy->trackImage;
         floppy->trackImage = nullptr;
-        floppy->trackImageData = false;
+        floppy->hasImageData = false;
     }
 }
 
@@ -234,8 +183,7 @@ static void RemoveStepperDelay() {
 }
 
 //===========================================================================
-static void UpdateFloppyMotor(int slot, int drive, bool on) {
-    Controller * controller = s_controller[slot];
+static void UpdateFloppyMotor(Controller * controller, int drive, bool on) {
     Floppy * floppy = &controller->floppy[drive];
     if (floppy->motorOn == on)
         return;
@@ -262,7 +210,7 @@ static void WriteTrack(Floppy * floppy) {
             floppy->nibbles
         );
     }
-    floppy->trackImageDirty = false;
+    floppy->imageDirty = false;
 }
 
 
@@ -273,22 +221,20 @@ static void WriteTrack(Floppy * floppy) {
 ***/
 
 //===========================================================================
-static uint8_t GetSetLatchValue(int slot, bool write, uint8_t value) {
-    Controller * controller = s_controller[slot];
+static uint8_t GetSetLatchValue(Controller * controller, bool write, uint8_t value) {
     if (write)
         controller->latchValue = value;
     return controller->latchValue;
 }
 
 //===========================================================================
-static uint8_t ReadWriteDisk(int slot) {
-    Controller * controller = s_controller[slot];
+static uint8_t ReadWriteDisk(Controller * controller) {
     controller->diskAccessed = true;
 
     Floppy * floppy = &controller->floppy[controller->selectedDrive];
-    if ((!floppy->trackImageData) && floppy->image)
+    if (!floppy->hasImageData && floppy->image)
         ReadTrack(floppy);
-    if (!floppy->trackImageData)
+    if (!floppy->hasImageData)
         return 0xff;
 
     uint8_t result = 0;
@@ -296,7 +242,7 @@ static uint8_t ReadWriteDisk(int slot) {
         if (controller->writeMode) {
             if (controller->latchValue & 0x80) {
                 floppy->trackImage[floppy->byte] = controller->latchValue;
-                floppy->trackImageDirty = true;
+                floppy->imageDirty = true;
             }
             else
                 return 0;
@@ -310,38 +256,34 @@ static uint8_t ReadWriteDisk(int slot) {
 }
 
 //===========================================================================
-static uint8_t SelectDrive(int slot, int drive) {
-    UpdateFloppyMotor(slot, drive == 0 ? 1 : 0, false); // Turn off other drive motor
-    s_controller[slot]->selectedDrive = drive;
-    CheckSpinning(slot);
+static uint8_t SelectDrive(Controller * controller, int drive) {
+    UpdateFloppyMotor(controller, drive == 0 ? 1 : 0, false); // Turn off other drive motor
+    controller->selectedDrive = drive;
+    CheckSpinning(controller);
     return 0;
 }
 
 //===========================================================================
-static uint8_t SetMotorOn(int slot) {
-    Controller * controller = s_controller[slot];
-    UpdateFloppyMotor(slot, controller->selectedDrive, true);
+static uint8_t SetMotorOn(Controller * controller) {
+    UpdateFloppyMotor(controller, controller->selectedDrive, true);
     return MemReturnRandomData(true);
 }
 
 //===========================================================================
-static uint8_t SetMotorsOff(int slot) {
-    Controller * controller = s_controller[slot];
-    UpdateFloppyMotor(slot, 0, false);
-    UpdateFloppyMotor(slot, 1, false);
+static uint8_t SetMotorsOff(Controller * controller) {
+    UpdateFloppyMotor(controller, 0, false);
+    UpdateFloppyMotor(controller, 1, false);
     return MemReturnRandomData(true);
 }
 
 //===========================================================================
-static uint8_t SetReadMode(int slot) {
-    Controller * controller = s_controller[slot];
+static uint8_t SetReadMode(Controller * controller) {
     controller->writeMode = false;
     return MemReturnRandomData(controller->floppy[controller->selectedDrive].writeProtected);
 }
 
 //===========================================================================
-static uint8_t SetWriteMode(int slot) {
-    Controller * controller = s_controller[slot];
+static uint8_t SetWriteMode(Controller * controller) {
     controller->writeMode = true;
 
     Floppy * floppy = &controller->floppy[controller->selectedDrive];
@@ -354,12 +296,11 @@ static uint8_t SetWriteMode(int slot) {
 }
 
 //===========================================================================
-static uint8_t UpdateStepper(int slot, int phase) {
+static uint8_t UpdateStepper(Controller * controller, int phase) {
     if (g_optEnhancedDisk)
         RemoveStepperDelay();
 
-    Controller * controller = s_controller[slot];
-    CheckSpinning(slot);
+    CheckSpinning(controller);
 
     Floppy * floppy = &controller->floppy[controller->selectedDrive];
     int direction = 0;
@@ -373,10 +314,10 @@ static uint8_t UpdateStepper(int slot, int phase) {
         if ((floppy->phase & 1) == 0) {
             int newTrack = MIN(TRACKS - 1, floppy->phase >> 1);
             if (newTrack != floppy->track) {
-                if (floppy->trackImage && floppy->trackImageDirty)
+                if (floppy->trackImage && floppy->imageDirty)
                     WriteTrack(floppy);
                 floppy->track = newTrack;
-                floppy->trackImageData = false;
+                floppy->hasImageData = false;
             }
         }
     }
@@ -387,23 +328,27 @@ static uint8_t UpdateStepper(int slot, int phase) {
 //===========================================================================
 static uint8_t IoSwitchDisk2(uint8_t address, bool write, uint8_t value) {
     int slot = ((address >> 4) & 0xf) - 8;
+    Controller * controller = s_controller[slot];
+    if (!controller)
+        return MemReturnRandomData(true);
+
     switch (address & 0x0f) {
         case 0x0:   return 0xff;
-        case 0x1:   return UpdateStepper(slot, 0);
+        case 0x1:   return UpdateStepper(controller, 0);
         case 0x2:   return MemReturnRandomData(true);
-        case 0x3:   return UpdateStepper(slot, 1);
+        case 0x3:   return UpdateStepper(controller, 1);
         case 0x4:   return MemReturnRandomData(true);
-        case 0x5:   return UpdateStepper(slot, 2);
+        case 0x5:   return UpdateStepper(controller, 2);
         case 0x6:   return MemReturnRandomData(true);
-        case 0x7:   return UpdateStepper(slot, 3);
-        case 0x8:   return SetMotorsOff(slot);
-        case 0x9:   return SetMotorOn(slot);
-        case 0xa:   return SelectDrive(slot, 0);
-        case 0xb:   return SelectDrive(slot, 1);
-        case 0xc:   return ReadWriteDisk(slot);
-        case 0xd:   return GetSetLatchValue(slot, write, value);
-        case 0xe:   return SetReadMode(slot);
-        case 0xf:   return SetWriteMode(slot);
+        case 0x7:   return UpdateStepper(controller, 3);
+        case 0x8:   return SetMotorsOff(controller);
+        case 0x9:   return SetMotorOn(controller);
+        case 0xa:   return SelectDrive(controller, 0);
+        case 0xb:   return SelectDrive(controller, 1);
+        case 0xc:   return ReadWriteDisk(controller);
+        case 0xd:   return GetSetLatchValue(controller, write, value);
+        case 0xe:   return SetReadMode(controller);
+        case 0xf:   return SetWriteMode(controller);
         default:    return 0;
     }
 }
@@ -424,8 +369,7 @@ void DiskDestroy() {
             s_controller[slot] = nullptr;
         }
     }
-    s_firstControllerSlot = 0;
-    s_lastControllerSlot = 0;
+    s_firstControllerSlot = s_lastControllerSlot = 0;
 }
 
 //===========================================================================
@@ -454,13 +398,15 @@ const char * DiskGetName(int drive) {
     Controller * controller = s_controller[s_lastControllerSlot];
     if (!controller)
         return "";
-    return controller->floppy[drive].imageName;
+    Image * image = controller->floppy[drive].image;
+    if (image == nullptr)
+        return "";
+    return ImageGetName(image);
 }
 
 //===========================================================================
 void DiskInitialize() {
     // Check the config for slots containing Disk2 controllers.
-    bool slotUsed[SLOT_MAX + 1] = {};
     bool installed = false;
     int  prevSlot = 0;
     for (int slot = SLOT_MIN; slot <= SLOT_MAX; ++slot) {
@@ -468,19 +414,17 @@ void DiskInitialize() {
         StrPrintf(slotConfig, ARRSIZE(slotConfig), "Slot%d", slot);
 
         char peripheral[16];
-        if (!ConfigGetString(slotConfig, peripheral, ARRSIZE(peripheral), "")) {
-            slotUsed[slot] = false;
+        if (!ConfigGetString(slotConfig, peripheral, ARRSIZE(peripheral), ""))
             continue;
-        }
 
         if (!StrCmp(peripheral, "Disk][")) {
-            InstallDiskController(slot);
+            InstallController(slot);
             if (prevSlot)
                 s_controller[prevSlot]->nextControllerSlot = (uint8_t)slot;
-            installed = true;
             if (s_firstControllerSlot == 0)
                 s_firstControllerSlot = slot;
             prevSlot = slot;
+            installed = true;
         }
     }
     s_lastControllerSlot = prevSlot;
@@ -489,8 +433,8 @@ void DiskInitialize() {
     // slot starting from slot 6 and install one there.
     if (!installed) {
         for (int slot = 6; slot >= 4; --slot) {
-            if (!slotUsed[slot]) {
-                InstallDiskController(slot);
+            if (!s_controller[slot]) {
+                InstallController(slot);
                 s_firstControllerSlot = s_lastControllerSlot = slot;
                 char slotConfig[16];
                 StrPrintf(slotConfig, ARRSIZE(slotConfig), "Slot%d", slot);
@@ -505,16 +449,16 @@ void DiskInitialize() {
     for (int slot = s_firstControllerSlot; s_controller[slot]; slot = s_controller[slot]->nextControllerSlot) {
         Controller * controller = s_controller[slot];
         for (int drive = 0; drive < 2; ++drive) {
-            char startDiskConfig[16];
-            StrPrintf(startDiskConfig, ARRSIZE(startDiskConfig), "Disk%d,%d", slot, drive);
+            char diskConfig[16];
+            StrPrintf(diskConfig, ARRSIZE(diskConfig), "Disk%d,%d", slot, drive);
 
             char filename[260];
-            ConfigGetString(startDiskConfig, filename, ARRSIZE(filename), "");
+            ConfigGetString(diskConfig, filename, ARRSIZE(filename), "");
 
             if (filename[0] != '\0') {
-                bool success = InsertDisk(slot, drive, filename);
+                bool success = InsertDisk(controller, drive, filename);
                 if (!success) {
-                    ConfigRemoveString(startDiskConfig);
+                    ConfigRemoveString(diskConfig);
                     NotifyInvalidImage(filename);
                 }
             }
@@ -548,8 +492,8 @@ void DiskSelect(int drive) {
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner       = frameWindow;
     ofn.hInstance       = g_instance;
-    ofn.lpstrFilter     = "All Images\0*.apl;*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
-                          "Disk Images (*.bin,*.do,*.dsk,*.iie,*.nib,*.po)\0*.bin;*.do;*.dsk;*.iie;*.nib;*.po\0"
+    ofn.lpstrFilter     = "All Images\0*.dsk;*.do;*.nib;*.po\0"
+                          "Disk Images (*.dsk,*.do*.nib,*.po)\0*.dsk;*.do;*.nib;*.po\0"
                           "All Files\0*.*\0";
     ofn.lpstrFile       = filename;
     ofn.nMaxFile        = ARRSIZE(filename);
@@ -561,7 +505,7 @@ void DiskSelect(int drive) {
         if ((!ofn.nFileExtension) || !filename[ofn.nFileExtension])
             StrCat(filename, ".dsk", ARRSIZE(filename));
 
-        if (InsertDisk(s_lastControllerSlot, drive, filename)) {
+        if (InsertDisk(s_controller[s_lastControllerSlot], drive, filename)) {
             char diskConfig[16];
             StrPrintf(diskConfig, ARRSIZE(diskConfig), "Disk%d,%d", s_lastControllerSlot, drive);
             ConfigSetString(diskConfig, filename);
