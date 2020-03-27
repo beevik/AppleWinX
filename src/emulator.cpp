@@ -185,7 +185,6 @@ void EmulatorRequestRestart() {
 void EmulatorReset() {
     MemReset();
     CpuInitialize();
-    DiskBoot();
     VideoResetState();
     CommReset();
     JoyReset();

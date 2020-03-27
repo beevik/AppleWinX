@@ -10,7 +10,7 @@
 #pragma  hdrstop
 
 enum EImageMatch {
-    IMAGEMATCH_FAIL = 0,
+    IMAGEMATCH_FAIL  = 0,
     IMAGEMATCH_MAYBE = 1,
     IMAGEMATCH_FOUND = 2,
 };
@@ -22,35 +22,24 @@ struct Image {
     bool       writeProtected;
 };
 
-typedef bool        (* FBoot)(Image * info);
 typedef EImageMatch (* FDetect)(uint8_t * imagePtr, int imageSize);
 typedef void        (* FReadInfo)(Image * info, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
 typedef void        (* FWriteInfo)(Image * info, int track, int quarterTrack, uint8_t * buffer, int nibbles);
 
-static bool        AplBoot(Image * ptr);
-static EImageMatch AplDetect(uint8_t * imagePtr, int imageSize);
 static EImageMatch DoDetect(uint8_t * imagePtr, int imageSize);
 static void        DoRead(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
 static void        DoWrite(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int nibbles);
-static EImageMatch Nib1Detect(uint8_t * imagePtr, int imageSize);
-static void        Nib1Read(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
-static void        Nib1Write(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int nibbles);
-static EImageMatch Nib2Detect(uint8_t * imagePtr, int imageSize);
-static void        Nib2Read(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
-static void        Nib2Write(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int nibbles);
+static EImageMatch NibDetect(uint8_t * imagePtr, int imageSize);
+static void        NibRead(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
+static void        NibWrite(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int nibbles);
 static EImageMatch PoDetect(uint8_t * imagePtr, int imageSize);
 static void        PoRead(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
 static void        PoWrite(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int nibbles);
-static bool        PrgBoot(Image * ptr);
-static EImageMatch PrgDetect(uint8_t * imagePtr, int imageSize);
 
 enum EImageFormat {
-    IMAGEFORMAT_PRG,
     IMAGEFORMAT_DSK,
     IMAGEFORMAT_PO,
-    IMAGEFORMAT_APL,
-    IMAGEFORMAT_NIB1,
-    IMAGEFORMAT_NIB2,
+    IMAGEFORMAT_NIB,
     IMAGEFORMATS,
 
     IMAGEFORMAT_UNKNOWN = IMAGEFORMATS
@@ -58,61 +47,33 @@ enum EImageFormat {
 
 struct ImageFormatData {
     const char * primaryExt;
-    const char * excludedExts[4];
+    const char * excludedExts[3];
     FDetect      detect;
-    FBoot        boot;
     FReadInfo    read;
     FWriteInfo   write;
 };
 
 static const ImageFormatData s_imageFormatData[] = {
     {
-        ".prg",
-        { ".do", ".dsk", ".nib", ".po" },
-        PrgDetect,
-        PrgBoot,
-        nullptr,
-        nullptr
-    },
-    {
         ".dsk",
-        { ".nib", ".po", ".prg" },
+        { ".nib", ".po" },
         DoDetect,
-        nullptr,
         DoRead,
         DoWrite
     },
     {
         ".po",
-        { ".do", ".nib", ".prg" },
+        { ".dsk", ".do", ".nib" },
         PoDetect,
-        nullptr,
         PoRead,
         PoWrite
     },
     {
-        ".apl",
-        { ".do", ".dsk", ".nib", ".po" },
-        AplDetect,
-        AplBoot,
-        nullptr,
-        nullptr
-    },
-    {
         ".nib",
-        { ".do", ".po", ".prg" },
-        Nib1Detect,
-        nullptr,
-        Nib1Read,
-        Nib1Write
-    },
-    {
-        ".nb2",
-        { ".do", ".po", ".prg" },
-        Nib2Detect,
-        nullptr,
-        Nib2Read,
-        Nib2Write
+        { ".dsk", ".do", ".po" },
+        NibDetect,
+        NibRead,
+        NibWrite
     },
 };
 
@@ -130,13 +91,12 @@ static const uint8_t s_diskByte[0x40] = {
 };
 
 /*
-    DOS:
-        logical order  0 1 2 3 4 5 6 7 8 9 A B C D E F
-        physical order 0 D B 9 7 5 3 1 E C A 8 6 4 2 F
-
     ProDOS:
         logical order  0 E D C B A 9 8 7 6 5 4 3 2 1 F
         physical order 0 2 4 6 8 A C E 1 3 5 7 9 B D F
+    DOS:
+        logical order  0 1 2 3 4 5 6 7 8 9 A B C D E F
+        physical order 0 D B 9 7 5 3 1 E C A 8 6 4 2 F
 */
 
 static uint8_t s_sectorNumber[3][16] = {
@@ -213,25 +173,21 @@ static void Decode62(uint8_t * imagePtr) {
 
     // If we haven't already done so, generate a table for converting
     // disk bytes back into 6-bit bytes.
-    static bool tableGenerated = false;
-    static uint8_t sixBitByte[0x80];
-    if (!tableGenerated) {
-        memset(sixBitByte, 0, ARRSIZE(sixBitByte));
-        int loop = 0;
-        while (loop < 0x40) {
-            sixBitByte[s_diskByte[loop] - 0x80] = loop << 2;
-            loop++;
-        }
-        tableGenerated = true;
+    static bool s_tableGenerated = false;
+    static uint8_t s_sixBitByte[0x80];
+    if (!s_tableGenerated) {
+        memset(s_sixBitByte, 0, ARRSIZE(s_sixBitByte));
+        for (int loop = 0; loop < 0x40; ++loop)
+            s_sixBitByte[s_diskByte[loop] - 0x80] = loop << 2;
+        s_tableGenerated = true;
     }
 
     // Using our table, convert the disk bytes back into 6-bit bytes.
     {
         uint8_t * sourcePtr = s_workBuffer + 0x1000;
         uint8_t * resultPtr = s_workBuffer + 0x1400;
-        int    loop = 343;
-        while (loop--)
-            * (resultPtr++) = sixBitByte[*sourcePtr++ & 0x7f];
+        for (int loop = 343; loop--; )
+            *resultPtr++ = s_sixBitByte[*sourcePtr++ & 0x7f];
     }
 
     // Exclusive-or the entire data block with itself offset by one byte
@@ -240,8 +196,7 @@ static void Decode62(uint8_t * imagePtr) {
         uint8_t   savedVal = 0;
         uint8_t * sourcePtr = s_workBuffer + 0x1400;
         uint8_t * resultPtr = s_workBuffer + 0x1000;
-        int       loop = 342;
-        while (loop--) {
+        for (int loop = 342; loop--; ) {
             *resultPtr = savedVal ^ *sourcePtr++;
             savedVal = *resultPtr++;
         }
@@ -390,56 +345,6 @@ static void SkewTrack(int track, int nibbles, uint8_t * trackImageBuffer) {
 
 /****************************************************************************
 *
-*  Raw Apple program image (APL)
-*
-***/
-
-//===========================================================================
-static bool AplBoot(Image * ptr) {
-    fseek(ptr->file, 0, SEEK_SET);
-
-    uint16_t addr16 = 0;
-    if (fread(&addr16, sizeof(addr16), 1, ptr->file) != 1)
-        return false;
-    uint32_t address = addr16;
-
-    uint16_t length16 = 0;
-    if (fread(&length16, sizeof(length16), 1, ptr->file) != 1)
-        return false;
-    uint32_t length = length16;
-
-    if (address >= 0xc000 || address + length - 1 >= 0xc000)
-        return false;
-
-    uint8_t * buf = new uint8_t[length];
-    if (fread(buf, length, 1, ptr->file) != 1) {
-        delete[] buf;
-        return false;
-    }
-
-    uint32_t a = address;
-    for (int i = 0; i < (int)length; ++i, ++a)
-        g_pageRead[a >> 8][a & 0xff] = buf[i];
-    delete[] buf;
-
-    regs.pc = addr16;
-    return true;
-}
-
-//===========================================================================
-static EImageMatch AplDetect(uint8_t * imagePtr, int imageSize) {
-    int length = *(uint16_t *)(imagePtr + 2);
-    if (((length + 4) == imageSize) ||
-        ((length + 4 + ((256 - ((length + 4) & 255)) & 255)) == imageSize))
-    {
-        return IMAGEMATCH_MAYBE;
-    }
-    return IMAGEMATCH_FAIL;
-}
-
-
-/****************************************************************************
-*
 *  DOS order (DO)
 *
 ***/
@@ -505,43 +410,19 @@ static void DoWrite(Image * ptr, int track, int quarterTrack, uint8_t * trackIma
 ***/
 
 //===========================================================================
-static EImageMatch Nib1Detect(uint8_t * imagePtr, int imageSize) {
+static EImageMatch NibDetect(uint8_t * imagePtr, int imageSize) {
     return (imageSize == 232960) ? IMAGEMATCH_FOUND : IMAGEMATCH_FAIL;
 }
 
 //===========================================================================
-static void Nib1Read(Image * ptr, int track, int quarterTrack, uint8_t * trackImageBuffer, int * nibbles) {
+static void NibRead(Image * ptr, int track, int quarterTrack, uint8_t * trackImageBuffer, int * nibbles) {
     fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
     *nibbles = (int)fread(trackImageBuffer, 1, 6656, ptr->file);
 }
 
 //===========================================================================
-static void Nib1Write(Image * ptr, int track, int quarterTrack, uint8_t * trackImage, int nibbles) {
+static void NibWrite(Image * ptr, int track, int quarterTrack, uint8_t * trackImage, int nibbles) {
     fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
-    fwrite(trackImage, nibbles, 1, ptr->file);
-}
-
-
-/****************************************************************************
-*
-*  Nibblized 6384-Nibble (NB2)
-*
-***/
-
-//===========================================================================
-static EImageMatch Nib2Detect(uint8_t * imagePtr, int imageSize) {
-    return (imageSize == 223440) ? IMAGEMATCH_FOUND : IMAGEMATCH_FAIL;
-}
-
-//===========================================================================
-static void Nib2Read(Image * ptr, int track, int quarterTrack, uint8_t * trackImageBuffer, int * nibbles) {
-    fseek(ptr->file, ptr->offset + track * 6384, SEEK_SET);
-    *nibbles = (int)fread(trackImageBuffer, 1, 6384, ptr->file);
-}
-
-//===========================================================================
-static void Nib2Write(Image * ptr, int track, int quarterTrack, uint8_t * trackImage, int nibbles) {
-    fseek(ptr->file, ptr->offset + track * 6384, SEEK_SET);
     fwrite(trackImage, nibbles, 1, ptr->file);
 }
 
@@ -604,63 +485,9 @@ static void PoWrite(Image * ptr, int track, int quarterTrack, uint8_t * trackIma
 }
 
 
-/****************************************************************************
-*
-*  ProDOS program image (PRG)
-*
-***/
-
-//===========================================================================
-static bool PrgBoot(Image * ptr) {
-    fseek(ptr->file, 5, SEEK_SET);
-
-    uint16_t address = 0;
-    if (fread(&address, sizeof(uint16_t), 1, ptr->file) != 1)
-        return false;
-
-    uint16_t length = 0;
-    if (fread(&length, sizeof(uint16_t), 1, ptr->file) != 1)
-        return false;
-
-    length <<= 1;
-    if (address + length <= address || address >= 0xc000 || address + length - 1 >= 0xc000)
-        return false;
-
-    fseek(ptr->file, 128, SEEK_SET);
-    uint8_t * buf = new uint8_t[length];
-    if (fread(buf, length, 1, ptr->file) != 1) {
-        delete[] buf;
-        return false;
-    }
-
-    uint16_t a = address;
-    for (int i = 0; i < length; ++i, ++a)
-        g_pageRead[a >> 8][a & 0xff] = buf[i];
-    delete[] buf;
-
-    regs.pc = address;
-    return true;
-}
-
-//===========================================================================
-static EImageMatch PrgDetect(uint8_t * imagePtr, int imageSize) {
-    return (*(uint32_t *)imagePtr == 0x214c470a) ? IMAGEMATCH_FOUND : IMAGEMATCH_FAIL;
-}
-
-
 //
 // ----- ALL GLOBALLY ACCESSIBLE FUNCTIONS ARE BELOW THIS LINE -----
 //
-
-//===========================================================================
-bool ImageBoot(Image * image) {
-    bool result = false;
-    if (s_imageFormatData[image->format].boot)
-        result = s_imageFormatData[image->format].boot(image);
-    if (result)
-        image->writeProtected = true;
-    return result;
-}
 
 //===========================================================================
 void ImageClose(Image * image) {
@@ -744,7 +571,7 @@ bool ImageOpen(
             bool reject = false;
             if (ext && ext[0] != '\0') {
                 const char * const * excludedExts = s_imageFormatData[currFormat].excludedExts;
-                for (int f = 0; f < 4 && excludedExts[f] != nullptr; ++f) {
+                for (int f = 0; f < 3 && excludedExts[f] != nullptr; ++f) {
                     if (!StrCmpI(ext, excludedExts[f])) {
                         reject = true;
                         break;

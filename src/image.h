@@ -10,7 +10,6 @@
 
 struct Image;
 
-bool ImageBoot(Image * image);
 void ImageClose(Image * image);
 void ImageDestroy();
 void ImageInitialize();

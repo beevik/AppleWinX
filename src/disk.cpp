@@ -372,14 +372,6 @@ static uint8_t IoSwitchDisk2(uint8_t address, bool write, uint8_t value) {
 ***/
 
 //===========================================================================
-void DiskBoot() {
-    // This function reloads a program image if one is loaded in drive one.
-    // if a disk image or no image is loaded in drive one, it does nothing.
-    if (s_floppyDrive[0].image && ImageBoot(s_floppyDrive[0].image))
-        UpdateFloppyMotorOn(false);
-}
-
-//===========================================================================
 void DiskDestroy() {
     RemoveDisk(0);
     RemoveDisk(1);

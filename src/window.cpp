@@ -124,9 +124,6 @@ static void ProcessEventKeyUp(const SDL_KeyboardEvent & key)  {
 //===========================================================================
 static void StartEmulator() {
     switch (EmulatorGetMode()) {
-        case EMULATOR_MODE_LOGO:
-            DiskBoot();
-            break;
         case EMULATOR_MODE_RUNNING:
             EmulatorReset();
             break;

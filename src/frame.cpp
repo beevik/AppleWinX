@@ -773,9 +773,7 @@ static void ProcessButtonClick(int button) {
             break;
 
         case BTN_RUN:
-            if (EmulatorGetMode() == EMULATOR_MODE_LOGO)
-                DiskBoot();
-            else if (EmulatorGetMode() == EMULATOR_MODE_RUNNING)
+            if (EmulatorGetMode() == EMULATOR_MODE_RUNNING)
                 EmulatorReset();
             EmulatorSetMode(EMULATOR_MODE_RUNNING);
             VideoRefreshScreen();

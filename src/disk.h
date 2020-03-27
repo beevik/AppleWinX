@@ -16,7 +16,6 @@ enum EDiskStatus {
     DISKSTATUS_WRITE = 2,
 };
 
-void         DiskBoot();
 void         DiskDestroy();
 void         DiskGetStatus(EDiskStatus * statusDrive1, EDiskStatus * statusDrive2);
 const char * DiskGetName(int drive);
