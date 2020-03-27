@@ -731,10 +731,11 @@ bool ImageOpen(
 
         // Determine the file's extension
         const char * ext = imageFilename;
-        while (StrChr(ext, '\\'))
-            ext = StrChr(ext, '\\') + 1;
-        while (StrChr(ext + 1, '.'))
-            ext = StrChr(ext + 1, '.');
+        const char * ptr;
+        while ((ptr = StrChrConst(ext, '\\')) != nullptr)
+            ext = ptr + 1;
+        while ((ptr = StrChrConst(ext + 1, '.')) != nullptr)
+            ext = ptr;
 
         // Call the detection functions in order, looking for a match
         EImageFormat possibleFormat = IMAGEFORMAT_UNKNOWN;

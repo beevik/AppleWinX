@@ -56,7 +56,7 @@ char * StrChr(char * str, char ch) {
 }
 
 //===========================================================================
-const char * StrChr(const char * str, char ch) {
+const char * StrChrConst(const char * str, char ch) {
     const char * ptr = str;
     while (*ptr != '\0') {
         if (*ptr == ch)
@@ -195,7 +195,7 @@ char * StrStr(char * str1, const char * str2) {
 }
 
 //===========================================================================
-const char * StrStr(const char * str1, const char * str2) {
+const char * StrStrConst(const char * str1, const char * str2) {
     if (*str2 == '\0')
         return str1;
     for (const char * ptr1 = str1; *ptr1 != '\0'; ++ptr1) {

@@ -44,8 +44,16 @@ if _ACTION == "clean" then
     return
 end
 
+-- Visual Studio always means windows.
 if string.match(_ACTION, "vs.*") then
     _OPTIONS['os'] = "windows"
+end
+
+-- For gmake/ninja biulds, use clang instead of gcc.
+if _ACTION == "gmake" or _ACTION == "ninja" then
+    premake.gcc.cc   = "clang"
+    premake.gcc.cxx  = "clang++"
+    premake.gcc.ar   = "llvm-ar"
 end
 
 
@@ -66,8 +74,8 @@ solution("AppleWinX")
     }
 
     platforms {
-        "x32",
         "x64",
+        "x32",
     }
 
     flags {
@@ -129,53 +137,55 @@ project("AppleWinX")
     uuid(os.uuid("app-AppleWinX"))
     set_output_dirs("AppleWinX")
 
-    flags {
-        "WinMain",
-    }
-
-    -- Add -D compile options
-    defines {
-        "_CRT_SECURE_NO_WARNINGS",
-    }
-
-    -- Add additional compile options
-    buildoptions {
-        "/utf-8",
-    }
-
-    -- List include paths
+    -- Include paths
     includedirs {
         path.join(srcDir),
     }
 
-    -- List all files that should appear in the project
+    -- All files that should appear in the project
     files {
         path.join(srcDir, "*.h"),
         path.join(srcDir, "*.cpp"),
         path.join(rsrcDir, "*.rc"),
     }
 
-    -- Libraries that must be linked to build the executable
-    links {
-        "advapi32",
-        "comctl32",
-        "comdlg32",
-        "dinput8",
-        "dsound",
-        "dxguid",
-        "gdi32",
-        "htmlhelp",
-        "ole32",
-        "shell32",
-        "strmiids",
-        "user32",
-        "version",
-        "winmm",
-        "wsock32",
-    }
+    configuration { "vs*"}
 
-    -- Set up precompiled headers
-    configuration { "vs*" }
+        flags {
+            "WinMain",
+        }
+
+        -- Add -D compile options
+        defines {
+            "_CRT_SECURE_NO_WARNINGS",
+        }
+
+        -- Add additional compile options
+        buildoptions {
+            "/utf-8",
+        }
+
+        -- Libraries that must be linked to build the executable
+        links {
+            "advapi32",
+            "comctl32",
+            "comdlg32",
+            "dinput8",
+            "dsound",
+            "dxguid",
+            "gdi32",
+            "htmlhelp",
+            "ole32",
+            "shell32",
+            "strmiids",
+            "user32",
+            "version",
+            "winmm",
+            "wsock32",
+        }
+
+        -- Set up precompiled headers
         pchheader("pch.h")
         pchsource(path.join(srcDir, "pch.cpp"))
+
     configuration {} -- reset

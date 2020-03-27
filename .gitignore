@@ -1,6 +1,11 @@
 .vs/
+.vscode/
 build/
+
+genie/*.sln
+genie/*.vcxproj*
+genie/Makefile
+genie/*.make
+
 *.APS
-*.sln
-*.vcxproj*
 *.res

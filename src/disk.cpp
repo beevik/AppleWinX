@@ -75,17 +75,20 @@ static void CheckSpinning() {
 //===========================================================================
 static void GetImageTitle(const char * filename, char * imageName, size_t imageNameChars) {
     const char * startPos = filename;
-    const char * ptr;
-    while ((ptr = StrChr(startPos, '\\')) != nullptr)
-        startPos = ptr + 1;
+    {
+        const char * ptr;
+        while ((ptr = StrChrConst(startPos, '\\')) != nullptr)
+            startPos = ptr + 1;
+    }
 
     // Strip the directory and extension.
     char imageTitle[128];
     StrCopy(imageTitle, startPos, ARRSIZE(imageTitle));
     if (imageTitle[0]) {
         char * dot = imageTitle;
+        char * ptr;
         while ((ptr = StrChr(dot + 1, '.')) != nullptr)
-            dot = (char *)ptr;
+            dot = ptr;
         if (dot > imageTitle)
             *dot = '\0';
     }
@@ -101,7 +104,9 @@ static void GetImageTitle(const char * filename, char * imageName, size_t imageN
     }
     if (isAllCaps && indexFirstLowercase > 1) {
         for (int i = 1; imageTitle[i] != '\0'; ++i)
-            imageTitle[i] = (imageTitle[i] >= 'A' && imageTitle[i] <= 'Z') ? imageTitle[i] - 'A' + 'a' : imageTitle[i];
+            imageTitle[i] = (imageTitle[i] >= 'A' && imageTitle[i] <= 'Z')
+                ? imageTitle[i] - 'A' + 'a'
+                : imageTitle[i];
     }
 
     StrCopy(imageName, imageTitle, imageNameChars);
