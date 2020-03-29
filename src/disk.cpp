@@ -25,7 +25,7 @@ struct Floppy {
     uint8_t * trackImage;
     int       track;
     int       phase;
-    int       byte;
+    int       byteCounter;
     bool      motorOn;
     bool      writeProtected;
     bool      hasImageData;
@@ -39,7 +39,7 @@ struct Controller {
     uint8_t slot;
     bool    writeMode;
     bool    diskAccessed;
-    uint8_t latchValue;
+    uint8_t dataRegister;
     uint8_t selectedDrive;
     uint8_t nextControllerSlot;
     Floppy  floppy[DRIVES];
@@ -58,6 +58,7 @@ static Controller * s_controller[SLOT_MAX + 1];
 static int          s_firstControllerSlot;
 static int          s_lastControllerSlot;
 
+static inline Floppy * GetSelectedDriveFloppy(Controller * controller);
 static uint8_t IoSwitchDisk2(uint8_t address, bool write, uint8_t value);
 static void    ReadTrack(Floppy * floppy);
 static void    RemoveDisk(Floppy * floppy);
@@ -72,12 +73,17 @@ static void    WriteTrack(Floppy * floppy);
 
 //===========================================================================
 static void CheckSpinning(Controller * controller) {
-    Floppy * floppy = &controller->floppy[controller->selectedDrive];
+    Floppy * floppy = GetSelectedDriveFloppy(controller);
     bool modeChange = (floppy->motorOn && !floppy->spinCounter);
     if (floppy->motorOn)
         floppy->spinCounter = INDICATOR_LAG;
     if (modeChange)
         FrameRefreshStatus();
+}
+
+//===========================================================================
+static inline Floppy * GetSelectedDriveFloppy(Controller * controller) {
+    return &controller->floppy[controller->selectedDrive];
 }
 
 //===========================================================================
@@ -97,7 +103,7 @@ static void InstallController(int slot) {
     controller->slot               = (uint8_t)slot;
     controller->writeMode          = false;
     controller->diskAccessed       = false;
-    controller->latchValue         = 0;
+    controller->dataRegister       = 0;
     controller->selectedDrive      = 0;
     controller->nextControllerSlot = 0;
     memset(controller->floppy, 0, sizeof(controller->floppy));
@@ -171,12 +177,24 @@ static void RemoveDisk(Floppy * floppy) {
 
 //===========================================================================
 static void RemoveStepperDelay() {
-    // note: make sure this works for the latest version of prodos
+    // Patch DOS to remove head stepper positioning delays.
+    // NOTE: make sure this works for the latest version of ProDOS.
+
     if (MemReadDword(0xba00) == 0xd0ca11a2 && MemReadByte(0xba04) == 0xfd) {
+        // Replace the following 87 cycle delay with 5 NOPs (10 cycles):
+        //   BA00: LDX #$11
+        //   BA02: DEX
+        //   BA03: BNE $BA02
+
         MemWriteDword(0xba00, 0xeaeaeaea);
         MemWriteByte(0xba04, 0xea);
     }
     if (MemReadDword(0xbd9e) == 0xd08812a0 && MemReadByte(0xbda2) == 0xfd) {
+        // Replace the following 92 cycle delay with 5 NOPs (10 cycles):
+        //   BD9E: LDY #$12
+        //   BDA0: DEY
+        //   BDA1: BNE $BDA0
+
         MemWriteDword(0xbd9e, 0xeaeaeaea);
         MemWriteByte(0xbda2, 0xea);
     }
@@ -221,17 +239,35 @@ static void WriteTrack(Floppy * floppy) {
 ***/
 
 //===========================================================================
-static uint8_t GetSetLatchValue(Controller * controller, bool write, uint8_t value) {
-    if (write)
-        controller->latchValue = value;
-    return controller->latchValue;
+static inline uint8_t GetDataRegister(Controller * controller) {
+    return controller->dataRegister;
 }
 
 //===========================================================================
-static uint8_t ReadWriteDisk(Controller * controller) {
+static uint8_t Load_ReadWriteProtect(Controller * controller, bool write, uint8_t value) {
+    // In write mode, load contents of the data bus into the controller data register.
+    // In read mode, shift the write-protect bit into the MSB of the data register.
+
+    if (controller->writeMode) {
+        if (write)
+            controller->dataRegister = value;
+        else
+            controller->dataRegister = MemReturnRandomData(false); // undefined data bus contents
+    }
+    else {
+        controller->dataRegister = GetSelectedDriveFloppy(controller)->writeProtected ? 0xff : 0x00;
+    }
+    return MemReturnRandomData(false);
+}
+
+//===========================================================================
+static uint8_t Shift_Read(Controller * controller) {
+    // In write mode, shift-left the contents of the controller data register.
+    // In read mode, load data from the controller data register.
+
     controller->diskAccessed = true;
 
-    Floppy * floppy = &controller->floppy[controller->selectedDrive];
+    Floppy * floppy = GetSelectedDriveFloppy(controller);
     if (!floppy->hasImageData && floppy->image)
         ReadTrack(floppy);
     if (!floppy->hasImageData)
@@ -240,18 +276,21 @@ static uint8_t ReadWriteDisk(Controller * controller) {
     uint8_t result = 0;
     if (!controller->writeMode || !floppy->writeProtected) {
         if (controller->writeMode) {
-            if (controller->latchValue & 0x80) {
-                floppy->trackImage[floppy->byte] = controller->latchValue;
+            if (controller->dataRegister & 0x80) {
+                floppy->trackImage[floppy->byteCounter] = controller->dataRegister;
                 floppy->imageDirty = true;
             }
             else
                 return 0;
         }
         else
-            result = floppy->trackImage[floppy->byte];
+            result = floppy->trackImage[floppy->byteCounter];
     }
-    if (++floppy->byte >= floppy->nibbles)
-        floppy->byte = 0;
+
+    ++floppy->byteCounter;
+    if (floppy->byteCounter >= floppy->nibbles)
+        floppy->byteCounter = 0;
+
     return result;
 }
 
@@ -260,33 +299,34 @@ static uint8_t SelectDrive(Controller * controller, int drive) {
     UpdateFloppyMotor(controller, drive == 0 ? 1 : 0, false); // Turn off other drive motor
     controller->selectedDrive = drive;
     CheckSpinning(controller);
-    return 0;
+    return drive == 0 ? controller->dataRegister : MemReturnRandomData(false);
 }
 
 //===========================================================================
 static uint8_t SetMotorOn(Controller * controller) {
     UpdateFloppyMotor(controller, controller->selectedDrive, true);
-    return MemReturnRandomData(true);
+    return MemReturnRandomData(false);
 }
 
 //===========================================================================
 static uint8_t SetMotorsOff(Controller * controller) {
     UpdateFloppyMotor(controller, 0, false);
     UpdateFloppyMotor(controller, 1, false);
-    return MemReturnRandomData(true);
+    return controller->dataRegister;
 }
 
 //===========================================================================
 static uint8_t SetReadMode(Controller * controller) {
     controller->writeMode = false;
-    return MemReturnRandomData(controller->floppy[controller->selectedDrive].writeProtected);
+    return controller->dataRegister;
 }
 
 //===========================================================================
 static uint8_t SetWriteMode(Controller * controller) {
     controller->writeMode = true;
 
-    Floppy * floppy = &controller->floppy[controller->selectedDrive];
+    // Update write-indicator display counter
+    Floppy * floppy = GetSelectedDriveFloppy(controller);
     bool modeChange = (floppy->writeCounter == 0);
     floppy->writeCounter = INDICATOR_LAG;
     if (modeChange)
@@ -302,7 +342,7 @@ static uint8_t UpdateStepper(Controller * controller, int phase) {
 
     CheckSpinning(controller);
 
-    Floppy * floppy = &controller->floppy[controller->selectedDrive];
+    Floppy * floppy = GetSelectedDriveFloppy(controller);
     int direction = 0;
     if (phase == ((floppy->phase + 1) & 3))
         direction = 1;
@@ -312,7 +352,7 @@ static uint8_t UpdateStepper(Controller * controller, int phase) {
     if (direction != 0) {
         floppy->phase = MAX(0, MIN(79, floppy->phase + direction));
         if ((floppy->phase & 1) == 0) {
-            int newTrack = MIN(TRACKS - 1, floppy->phase >> 1);
+            int newTrack = MIN(TRACKS - 1, floppy->phase / 2);
             if (newTrack != floppy->track) {
                 if (floppy->trackImage && floppy->imageDirty)
                     WriteTrack(floppy);
@@ -333,20 +373,20 @@ static uint8_t IoSwitchDisk2(uint8_t address, bool write, uint8_t value) {
         return MemReturnRandomData(true);
 
     switch (address & 0x0f) {
-        case 0x0:   return 0xff;
+        case 0x0:   return GetDataRegister(controller);
         case 0x1:   return UpdateStepper(controller, 0);
-        case 0x2:   return MemReturnRandomData(true);
+        case 0x2:   return GetDataRegister(controller);
         case 0x3:   return UpdateStepper(controller, 1);
-        case 0x4:   return MemReturnRandomData(true);
+        case 0x4:   return GetDataRegister(controller);
         case 0x5:   return UpdateStepper(controller, 2);
-        case 0x6:   return MemReturnRandomData(true);
+        case 0x6:   return GetDataRegister(controller);
         case 0x7:   return UpdateStepper(controller, 3);
         case 0x8:   return SetMotorsOff(controller);
         case 0x9:   return SetMotorOn(controller);
         case 0xa:   return SelectDrive(controller, 0);
         case 0xb:   return SelectDrive(controller, 1);
-        case 0xc:   return ReadWriteDisk(controller);
-        case 0xd:   return GetSetLatchValue(controller, write, value);
+        case 0xc:   return Shift_Read(controller);
+        case 0xd:   return Load_ReadWriteProtect(controller, write, value);
         case 0xe:   return SetReadMode(controller);
         case 0xf:   return SetWriteMode(controller);
         default:    return 0;
@@ -538,9 +578,9 @@ void DiskUpdatePosition(int cyclesSinceLastUpdate) {
                     FrameRefreshStatus();
             }
             if (!g_optEnhancedDisk && !controller->diskAccessed && floppy->spinCounter) {
-                floppy->byte += (cyclesSinceLastUpdate >> 5);
-                if (floppy->byte >= floppy->nibbles)
-                    floppy->byte -= floppy->nibbles;
+                floppy->byteCounter += (cyclesSinceLastUpdate >> 5);
+                if (floppy->byteCounter >= floppy->nibbles)
+                    floppy->byteCounter -= floppy->nibbles;
             }
         }
         controller->diskAccessed = false;
