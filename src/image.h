@@ -15,5 +15,5 @@ void ImageDestroy();
 const char * ImageGetName(Image * image);
 void ImageInitialize();
 bool ImageOpen(const char * imageFilename, Image ** image, bool * writeProtected);
-void ImageReadTrack(Image * image, int track, int quarterTrack, uint8_t * trackImage, int * nibbles);
-void ImageWriteTrack(Image * image, int track, int quarterTrack, uint8_t * trackImage, int nibbles);
+void ImageReadTrack(Image * image, int quarterTrack, uint8_t * trackBuffer, int * nibbles);
+void ImageWriteTrack(Image * image, int quarterTrack, uint8_t * trackBuffer, int nibbles);

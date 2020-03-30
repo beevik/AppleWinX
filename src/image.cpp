@@ -24,18 +24,18 @@ struct Image {
 };
 
 typedef EImageMatch (* FDetect)(uint8_t * imagePtr, int imageSize);
-typedef void        (* FReadInfo)(Image * info, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
-typedef void        (* FWriteInfo)(Image * info, int track, int quarterTrack, uint8_t * buffer, int nibbles);
+typedef void        (* FReadInfo)(Image * info, int quarterTrack, uint8_t * buffer, int * nibbles);
+typedef void        (* FWriteInfo)(Image * info, int quarterTrack, uint8_t * buffer, int nibbles);
 
 static EImageMatch DoDetect(uint8_t * imagePtr, int imageSize);
-static void        DoRead(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
-static void        DoWrite(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int nibbles);
+static void        DoRead(Image * ptr, int quarterTrack, uint8_t * buffer, int * nibbles);
+static void        DoWrite(Image * ptr, int quarterTrack, uint8_t * buffer, int nibbles);
 static EImageMatch NibDetect(uint8_t * imagePtr, int imageSize);
-static void        NibRead(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
-static void        NibWrite(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int nibbles);
+static void        NibRead(Image * ptr, int quarterTrack, uint8_t * buffer, int * nibbles);
+static void        NibWrite(Image * ptr, int quarterTrack, uint8_t * buffer, int nibbles);
 static EImageMatch PoDetect(uint8_t * imagePtr, int imageSize);
-static void        PoRead(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int * nibbles);
-static void        PoWrite(Image * ptr, int track, int quarterTrack, uint8_t * buffer, int nibbles);
+static void        PoRead(Image * ptr, int quarterTrack, uint8_t * buffer, int * nibbles);
+static void        PoWrite(Image * ptr, int quarterTrack, uint8_t * buffer, int nibbles);
 
 enum EImageFormat {
     IMAGEFORMAT_DSK,
@@ -229,7 +229,7 @@ static void Decode62(uint8_t * imagePtr) {
 }
 
 //===========================================================================
-static void DenibblizeTrack(uint8_t * trackImage, int dosOrder, int nibbles) {
+static void DenibblizeTrack(uint8_t * trackBuffer, int dosOrder, int nibbles) {
     memset(s_workBuffer, 0, 0x1000);
 
     int offset      = 0;
@@ -241,8 +241,8 @@ static void DenibblizeTrack(uint8_t * trackImage, int dosOrder, int nibbles) {
         uint8_t sequence[3] = { 0xd5, 0x00, 0x00 };
         for (int i = 0, count = 0; i < nibbles && count < 3; i++) {
             if (count > 0)
-                sequence[count++] = trackImage[offset];
-            else if (trackImage[offset] == 0xd5)
+                sequence[count++] = trackBuffer[offset];
+            else if (trackBuffer[offset] == 0xd5)
                 count = 1;
             offset = (offset + 1) % nibbles;
         }
@@ -252,7 +252,7 @@ static void DenibblizeTrack(uint8_t * trackImage, int dosOrder, int nibbles) {
             // D5 AA 96 indicates a sector header.
             if (sequence[2] == 0x96) {
                 for (int i = 0, tmpOffset = offset; i < 6; ++i) {
-                    s_workBuffer[0x1000 + i] = trackImage[tmpOffset];
+                    s_workBuffer[0x1000 + i] = trackBuffer[tmpOffset];
                     tmpOffset = (tmpOffset + 1) % nibbles;
                 }
                 sector = (s_workBuffer[0x1004] & 0x55) << 1 | (s_workBuffer[0x1005] & 0x55);
@@ -265,7 +265,7 @@ static void DenibblizeTrack(uint8_t * trackImage, int dosOrder, int nibbles) {
             // D5 AA AD indicates a sector data field.
             else if (sequence[2] == 0xad && sector >= -1) {
                 for (int i = 0, tmpOffset = offset; i < 384; ++i) {
-                    s_workBuffer[0x1000 + i] = trackImage[tmpOffset];
+                    s_workBuffer[0x1000 + i] = trackBuffer[tmpOffset];
                     tmpOffset = (tmpOffset + 1) % nibbles;
                 }
                 Decode62(s_workBuffer + ((uintptr_t)s_sectorNumber[dosOrder][sector] << 8));
@@ -276,9 +276,9 @@ static void DenibblizeTrack(uint8_t * trackImage, int dosOrder, int nibbles) {
 }
 
 //===========================================================================
-static int NibblizeTrack(uint8_t * trackImageBuffer, int dosOrder, int track) {
+static int NibblizeTrack(uint8_t * trackBuffer, int dosOrder, int track) {
     memset(s_workBuffer + 0x1000, 0, 0x1000);
-    uint8_t * imagePtr = trackImageBuffer;
+    uint8_t * imagePtr = trackBuffer;
 
     // Write gap one, which contains 48 self-sync bytes
     for (int loop = 0; loop < 48; loop++)
@@ -332,21 +332,21 @@ static int NibblizeTrack(uint8_t * trackImageBuffer, int dosOrder, int track) {
         for (int loop = 0; loop < 27; loop++)
             *imagePtr++ = 0xff;
     }
-    return (int)(imagePtr - trackImageBuffer);
+    return (int)(imagePtr - trackBuffer);
 }
 
 //===========================================================================
-static void SkewTrack(int track, int nibbles, uint8_t * trackImageBuffer) {
+static void SkewTrack(int track, int nibbles, uint8_t * trackBuffer) {
     int skewBytes = (track * 768) % nibbles;
-    memcpy(s_workBuffer, trackImageBuffer, nibbles);
-    memcpy(trackImageBuffer, s_workBuffer + skewBytes, nibbles - skewBytes);
-    memcpy(trackImageBuffer + nibbles - skewBytes, s_workBuffer, skewBytes);
+    memcpy(s_workBuffer, trackBuffer, nibbles);
+    memcpy(trackBuffer, s_workBuffer + skewBytes, nibbles - skewBytes);
+    memcpy(trackBuffer + nibbles - skewBytes, s_workBuffer, skewBytes);
 }
 
 
 /****************************************************************************
 *
-*  Other helper functions
+*  Helper functions
 *
 ***/
 
@@ -390,9 +390,10 @@ static void GetImageName(const char * filename, char * imageName, size_t imageNa
     StrCopy(imageName, imageTitle, imageNameChars);
 }
 
+
 /****************************************************************************
 *
-*  DOS order (DO)
+*  DOS order (DO) format
 *
 ***/
 
@@ -430,21 +431,23 @@ static EImageMatch DoDetect(uint8_t * imagePtr, int imageSize) {
 }
 
 //===========================================================================
-static void DoRead(Image * ptr, int track, int quarterTrack, uint8_t * trackImageBuffer, int * nibbles) {
+static void DoRead(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int * nibbles) {
+    int track = quarterTrack / 4;
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
 
     memset(s_workBuffer, 0, 0x1000);
     if (fread(s_workBuffer, 0x1000, 1, ptr->file) != 1)
         return;
 
-    *nibbles = NibblizeTrack(trackImageBuffer, 1, track);
+    *nibbles = NibblizeTrack(trackBuffer, 1, track);
     if (!g_optEnhancedDisk)
-        SkewTrack(track, *nibbles, trackImageBuffer);
+        SkewTrack(track, *nibbles, trackBuffer);
 }
 
 //===========================================================================
-static void DoWrite(Image * ptr, int track, int quarterTrack, uint8_t * trackImage, int nibbles) {
-    DenibblizeTrack(trackImage, 1, nibbles);
+static void DoWrite(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int nibbles) {
+    int track = quarterTrack / 4;
+    DenibblizeTrack(trackBuffer, 1, nibbles);
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
     fwrite(s_workBuffer, 0x1000, 1, ptr->file);
 }
@@ -452,7 +455,7 @@ static void DoWrite(Image * ptr, int track, int quarterTrack, uint8_t * trackIma
 
 /****************************************************************************
 *
-*  Nibblized 6656-Nibble (NIB)
+*  Nibblized 6656-Nibble (NIB) format
 *
 ***/
 
@@ -462,21 +465,23 @@ static EImageMatch NibDetect(uint8_t * imagePtr, int imageSize) {
 }
 
 //===========================================================================
-static void NibRead(Image * ptr, int track, int quarterTrack, uint8_t * trackImageBuffer, int * nibbles) {
+static void NibRead(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int * nibbles) {
+    int track = quarterTrack / 4;
     fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
-    *nibbles = (int)fread(trackImageBuffer, 1, 6656, ptr->file);
+    *nibbles = (int)fread(trackBuffer, 1, 6656, ptr->file);
 }
 
 //===========================================================================
-static void NibWrite(Image * ptr, int track, int quarterTrack, uint8_t * trackImage, int nibbles) {
+static void NibWrite(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int nibbles) {
+    int track = quarterTrack / 4;
     fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
-    fwrite(trackImage, nibbles, 1, ptr->file);
+    fwrite(trackBuffer, nibbles, 1, ptr->file);
 }
 
 
 /****************************************************************************
 *
-*  ProDOS Order (PO)
+*  ProDOS Order (PO) format
 *
 ***/
 
@@ -514,19 +519,21 @@ static EImageMatch PoDetect(uint8_t * imagePtr, int imageSize) {
 }
 
 //===========================================================================
-static void PoRead(Image * ptr, int track, int quarterTrack, uint8_t * trackImageBuffer, int * nibbles) {
+static void PoRead(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int * nibbles) {
+    int track = quarterTrack / 4;
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
     memset(s_workBuffer, 0, 0x1000);
     if (fread(s_workBuffer, 0x1000, 1, ptr->file) != 1)
         return;
-    *nibbles = NibblizeTrack(trackImageBuffer, 0, track);
+    *nibbles = NibblizeTrack(trackBuffer, 0, track);
     if (!g_optEnhancedDisk)
-        SkewTrack(track, *nibbles, trackImageBuffer);
+        SkewTrack(track, *nibbles, trackBuffer);
 }
 
 //===========================================================================
-static void PoWrite(Image * ptr, int track, int quarterTrack, uint8_t * trackImage, int nibbles) {
-    DenibblizeTrack(trackImage, 0, nibbles);
+static void PoWrite(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int nibbles) {
+    int track = quarterTrack / 4;
+    DenibblizeTrack(trackBuffer, 0, nibbles);
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
     fwrite(s_workBuffer, 0x1000, 1, ptr->file);
 }
@@ -672,24 +679,22 @@ bool ImageOpen(
 //===========================================================================
 void ImageReadTrack(
     Image *     image,
-    int         track,
     int         quarterTrack,
-    uint8_t *   trackImageBuffer,
+    uint8_t *   trackBuffer,
     int *       nibbles
 ) {
     *nibbles = 0;
     if (s_imageFormatData[image->format].read)
-        s_imageFormatData[image->format].read(image, track, quarterTrack, trackImageBuffer, nibbles);
+        s_imageFormatData[image->format].read(image, quarterTrack, trackBuffer, nibbles);
 }
 
 //===========================================================================
 void ImageWriteTrack(
     Image *     image,
-    int         track,
     int         quarterTrack,
-    uint8_t *   trackImage,
+    uint8_t *   trackBuffer,
     int         nibbles
 ) {
     if (s_imageFormatData[image->format].write && !image->writeProtected)
-        s_imageFormatData[image->format].write(image, track, quarterTrack, trackImage, nibbles);
+        s_imageFormatData[image->format].write(image, quarterTrack, trackBuffer, nibbles);
 }
