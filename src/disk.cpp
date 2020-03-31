@@ -126,13 +126,10 @@ static void InstallController(int slot) {
 
 //===========================================================================
 static void ReadTrack(Drive * drive) {
-    if (drive->quarterTrack >= MAX_TRACKS * 4) {
-        drive->hasTrackData = false;
-        return;
-    }
     if (!drive->trackBuffer)
         drive->trackBuffer = new uint8_t[0x1a00];
-    if (drive->trackBuffer && drive->image) {
+
+    if (drive->image) {
         ImageReadTrack(
             drive->image,
             drive->quarterTrack,
@@ -244,8 +241,9 @@ static inline uint8_t GetDataRegister(Controller * controller) {
 
 //===========================================================================
 static uint8_t Load_ReadWriteProtect(Controller * controller, bool write, uint8_t value) {
-    // In write mode, load contents of the data bus into the controller data register.
-    // In read mode, shift the write-protect bit into the MSB of the data register.
+    // In write mode, load contents of the data bus into the controller data
+    // register. In read mode, shift the write-protect bit into the MSB of the
+    // data register.
 
     if (controller->writeMode) {
         if (write)
@@ -344,17 +342,17 @@ static uint8_t UpdateSteppingMotor(Controller * controller, int phase, bool on) 
     else
         drive->steppersEnabled &= ~(1 << phase);
 
-    // Convert the enabled steppers bit vector into a quarter-track step adjustment.
+    // Convert the enabled steppers bit vector into a quarter-track step
+    // adjustment.
     int step = 0;
     int quarterPhase = s_quarterPhaseTable[drive->steppersEnabled];
     if (quarterPhase != -1) {
-        int curr = drive->quarterTrack & 7;
         int diff = (quarterPhase - drive->quarterTrack + 8) & 7;
         step = s_diffToStep[diff];
     }
 
-    // Update the current quarter-track. Flush any unwritten data on the current
-    // quarter-track first.
+    // Update the current quarter-track. Flush any unwritten data on the
+    // current quarter-track first.
     if (step != 0) {
         int newQuarterTrack = MAX(0, MIN(MAX_TRACKS * 4 - 1, drive->quarterTrack + step));
         if (newQuarterTrack != drive->quarterTrack) {
@@ -497,7 +495,7 @@ void DiskInitialize() {
     // Use config to load the most recently used disk images.
     for (int slot = s_firstControllerSlot; s_controller[slot]; slot = s_controller[slot]->nextControllerSlot) {
         Controller * controller = s_controller[slot];
-        for (int drive = 0; drive < 2; ++drive) {
+        for (int drive = 0; drive < DRIVES; ++drive) {
             char diskConfig[16];
             StrPrintf(diskConfig, ARRSIZE(diskConfig), "Disk%d,%d", slot, drive);
 
@@ -572,7 +570,7 @@ void DiskSelect(int drive) {
 void DiskUpdatePosition(int cyclesSinceLastUpdate) {
     for (int slot = s_firstControllerSlot; s_controller[slot]; slot = s_controller[slot]->nextControllerSlot) {
         Controller * controller = s_controller[slot];
-        for (int driveNum = 0; driveNum < 2; ++driveNum) {
+        for (int driveNum = 0; driveNum < DRIVES; ++driveNum) {
             Drive * drive = &controller->drive[driveNum];
             if (drive->spinCounter && !drive->motorOn) {
                 drive->spinCounter = MAX(0, drive->spinCounter - cyclesSinceLastUpdate);

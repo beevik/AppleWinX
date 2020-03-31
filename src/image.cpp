@@ -9,6 +9,8 @@
 #include "pch.h"
 #pragma  hdrstop
 
+constexpr int TRACKS = 35;
+
 enum EImageMatch {
     IMAGEMATCH_FAIL  = 0,
     IMAGEMATCH_MAYBE = 1,
@@ -433,6 +435,11 @@ static EImageMatch DoDetect(uint8_t * imagePtr, int imageSize) {
 //===========================================================================
 static void DoRead(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int * nibbles) {
     int track = quarterTrack / 4;
+    if (track >= TRACKS) {
+        *nibbles = 0;
+        return;
+    }
+
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
 
     memset(s_workBuffer, 0, 0x1000);
@@ -447,6 +454,9 @@ static void DoRead(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int * n
 //===========================================================================
 static void DoWrite(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int nibbles) {
     int track = quarterTrack / 4;
+    if (track >= TRACKS)
+        return;
+
     DenibblizeTrack(trackBuffer, 1, nibbles);
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
     fwrite(s_workBuffer, 0x1000, 1, ptr->file);
@@ -467,6 +477,11 @@ static EImageMatch NibDetect(uint8_t * imagePtr, int imageSize) {
 //===========================================================================
 static void NibRead(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int * nibbles) {
     int track = quarterTrack / 4;
+    if (track >= TRACKS) {
+        *nibbles = 0;
+        return;
+    }
+
     fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
     *nibbles = (int)fread(trackBuffer, 1, 6656, ptr->file);
 }
@@ -474,6 +489,9 @@ static void NibRead(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int * 
 //===========================================================================
 static void NibWrite(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int nibbles) {
     int track = quarterTrack / 4;
+    if (track >= TRACKS)
+        return;
+
     fseek(ptr->file, ptr->offset + track * 6656, SEEK_SET);
     fwrite(trackBuffer, nibbles, 1, ptr->file);
 }
@@ -521,6 +539,11 @@ static EImageMatch PoDetect(uint8_t * imagePtr, int imageSize) {
 //===========================================================================
 static void PoRead(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int * nibbles) {
     int track = quarterTrack / 4;
+    if (track >= TRACKS) {
+        *nibbles = 0;
+        return;
+    }
+
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
     memset(s_workBuffer, 0, 0x1000);
     if (fread(s_workBuffer, 0x1000, 1, ptr->file) != 1)
@@ -533,6 +556,9 @@ static void PoRead(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int * n
 //===========================================================================
 static void PoWrite(Image * ptr, int quarterTrack, uint8_t * trackBuffer, int nibbles) {
     int track = quarterTrack / 4;
+    if (track >= TRACKS)
+        return;
+
     DenibblizeTrack(trackBuffer, 0, nibbles);
     fseek(ptr->file, ptr->offset + (track << 12), SEEK_SET);
     fwrite(s_workBuffer, 0x1000, 1, ptr->file);
