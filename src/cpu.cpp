@@ -18,8 +18,7 @@ constexpr uint8_t PS_RESERVED  = 1 << 5;
 constexpr uint8_t PS_OVERFLOW  = 1 << 6;
 constexpr uint8_t PS_SIGN      = 1 << 7;
 
-bool         cpuKill = false;
-CpuRegisters regs    = { 0 };
+CpuRegisters regs = { 0 };
 
 static ECpuType s_cpuType;
 
@@ -332,6 +331,20 @@ static inline uint8_t Asl(uint8_t val8) {
 }
 
 //===========================================================================
+static inline uint8_t Aso(uint8_t val8) {
+    SetFlagTo(PS_CARRY, val8 & 0x80);
+    val8 <<= 1;
+    val8 |= regs.a;
+    UpdateNZ(val8);
+    return val8;
+}
+
+//===========================================================================
+static inline uint8_t Axs(uint8_t val8) {
+    return regs.a & regs.x;
+}
+
+//===========================================================================
 static inline void Bit(uint8_t val8) {
     SetFlagTo(PS_ZERO, !(regs.a & val8));
     SetFlagTo(PS_SIGN, val8 & 0x80);
@@ -367,6 +380,14 @@ static inline void Cpy(uint8_t val8) {
 }
 
 //===========================================================================
+static inline uint8_t Dcm(uint8_t val8) {
+    val8--;
+    SetFlagTo(PS_CARRY, regs.a >= val8);
+    UpdateNZ(regs.a - val8);
+    return val8;
+}
+
+//===========================================================================
 static inline uint8_t Dec(uint8_t val8) {
     val8--;
     UpdateNZ(val8);
@@ -399,6 +420,13 @@ static inline uint8_t Inc(uint8_t val8) {
 }
 
 //===========================================================================
+static inline uint8_t Ins(uint8_t val8) {
+    val8 = regs.a - (val8 + 1);
+    UpdateNZ(val8);
+    return val8;
+}
+
+//===========================================================================
 static inline void Inx() {
     ++regs.x;
     UpdateNZ(regs.x);
@@ -424,6 +452,12 @@ static inline void Jsr(uint16_t addr) {
 }
 
 //===========================================================================
+static inline void Lax(uint8_t val8) {
+    regs.a = regs.x = val8;
+    UpdateNZ(regs.a);
+}
+
+//===========================================================================
 static inline void Lda(uint8_t val8) {
     regs.a = val8;
     UpdateNZ(regs.a);
@@ -442,12 +476,28 @@ static inline void Ldy(uint8_t val8) {
 }
 
 //===========================================================================
+static inline uint8_t Lse(uint8_t val8) {
+    SetFlagTo(PS_CARRY, val8 & 1);
+    ResetFlag(PS_SIGN);
+    val8 >>= 1;
+    val8 ^= regs.a;
+    SetFlagTo(PS_ZERO, !val8);
+    return val8;
+}
+
+//===========================================================================
 static inline uint8_t Lsr(uint8_t val8) {
     SetFlagTo(PS_CARRY, val8 & 1);
     ResetFlag(PS_SIGN);
     val8 >>= 1;
     SetFlagTo(PS_ZERO, !val8);
     return val8;
+}
+
+//===========================================================================
+static inline void Oal(uint8_t val8) {
+    regs.a = regs.x = (regs.a | 0xee) & val8;
+    UpdateNZ(regs.a);
 }
 
 //===========================================================================
@@ -518,6 +568,13 @@ static inline void Rts() {
 }
 
 //===========================================================================
+static inline void Sax(uint8_t val8) {
+    regs.x = (regs.a & regs.x) - val8;
+    SetFlagTo(PS_CARRY, regs.x >= val8);
+    UpdateNZ(regs.x - val8);
+}
+
+//===========================================================================
 static inline void Sbc6502(uint8_t val8) {
     uint32_t acc   = uint32_t(regs.a);
     uint32_t sub   = uint32_t(val8);
@@ -557,25 +614,6 @@ static inline void Sbc6502(uint8_t val8) {
 
     regs.a = uint8_t(newval);
     UpdateNZ(regs.a);
-}
-
-//===========================================================================
-static inline uint8_t Slo(uint8_t val8) {
-    SetFlagTo(PS_CARRY, val8 & 0x80);
-    val8 <<= 1;
-    val8 |= regs.a;
-    UpdateNZ(val8);
-    return val8;
-}
-
-//===========================================================================
-static inline uint8_t Sre(uint8_t val8) {
-    SetFlagTo(PS_CARRY, val8 & 1);
-    ResetFlag(PS_SIGN);
-    val8 >>= 1;
-    val8 ^= regs.a;
-    SetFlagTo(PS_ZERO, !val8);
-    return val8;
 }
 
 //===========================================================================
@@ -627,6 +665,12 @@ static inline void Tya() {
     UpdateNZ(regs.a);
 }
 
+//===========================================================================
+static inline void Xaa(uint8_t val8) {
+    regs.a = (regs.x & val8);
+    UpdateNZ(regs.a);
+}
+
 
 /****************************************************************************
 *
@@ -640,30 +684,35 @@ static int CpuStep6502() {
     uint16_t addr;
     uint8_t  val8;
 
-    if (cpuKill)
+    if (regs.halt)
         return 1000;
 
 #if 0
-    constexpr uint16_t DISKADDR = 0xc500;
-    if (regs.pc >= DISKADDR && regs.pc <= DISKADDR + 0x100) {
+    constexpr uint16_t DEBUGADDR = 0x1000;
+    static bool s_logging = false;
+    if (regs.pc >= DEBUGADDR && regs.pc <= DEBUGADDR + 0x100) {
+        s_logging = true;
+    }
+    if (s_logging) {
         static int s_count;
         ++s_count;
         if (s_count == 2232) {
             int foo = 0;
         }
-        char buf[64];
-        StrPrintf(
-            buf,
-            ARRSIZE(buf),
+        static bool s_dumped = false;
+        if (!s_dumped) {
+            DebugDumpMemory("c:\\Temp\\Mem1000.bin", 0x1000, 0x0100);
+            s_dumped = true;
+        }
+        DebugPrintf(
             "%8d: PC=%04X Op=%02X A=%02X X=%02X Y=%02X\n",
             s_count,
-            regs.pc - DISKADDR,
+            regs.pc,
             g_pageRead[regs.pc >> 8][regs.pc & 0xff],
             regs.a,
             regs.x,
             regs.y
         );
-        OutputDebugString(buf);
     }
 #endif
 
@@ -680,17 +729,17 @@ static int CpuStep6502() {
             Ora(val8);
             cycles += 6;
             break;
-        case 0x02: // *KIL
-            cpuKill = true;
+        case 0x02: // *HLT
+            regs.halt = true;
             break;
-        case 0x03: // *SLO (izx)
+        case 0x03: // *ASO (izx)
             addr = IndirectX();
             val8 = Read8(addr);
-            val8 = Slo(val8);
+            val8 = Aso(val8);
             Write8(addr, val8);
             cycles += 8;
             break;
-        case 0x04: // *NOP (zp)
+        case 0x04: // *SKB (zp)
             addr = ZeroPage();
             val8 = Read8(addr);
             cycles += 3;
@@ -708,10 +757,10 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 5;
             break;
-        case 0x07: // *SLO (zp)
+        case 0x07: // *ASO (zp)
             addr = ZeroPage();
             val8 = Read8(addr);
-            val8 = Slo(val8);
+            val8 = Aso(val8);
             Write8(addr, val8);
             cycles += 5;
             break;
@@ -735,7 +784,7 @@ static int CpuStep6502() {
             Anc(val8);
             cycles += 2;
             break;
-        case 0x0c: // *NOP (abs)
+        case 0x0c: // *SKW (abs)
             addr = Absolute();
             val8 = Read8(addr);
             cycles += 3;
@@ -753,10 +802,10 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 6;
             break;
-        case 0x0f: // *SLO (abs)
+        case 0x0f: // *ASO (abs)
             addr = Absolute();
             val8 = Read8(addr);
-            val8 = Slo(val8);
+            val8 = Aso(val8);
             Write8(addr, val8);
             cycles += 6;
             break;
@@ -771,17 +820,17 @@ static int CpuStep6502() {
             Ora(val8);
             cycles += 5;
             break;
-        case 0x12: // *KIL
-            cpuKill = true;
+        case 0x12: // *HLT
+            regs.halt = true;
             break;
-        case 0x13: // *SLO (izy)
+        case 0x13: // *ASO (izy)
             addr = IndirectY();
             val8 = Read8(addr);
-            val8 = Slo(val8);
+            val8 = Aso(val8);
             Write8(addr, val8);
             cycles += 8;
             break;
-        case 0x14: // *NOP (zpx)
+        case 0x14: // *SKB (zpx)
             addr = ZeroPageX();
             val8 = Read8(addr);
             cycles += 4;
@@ -799,10 +848,10 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 6;
             break;
-        case 0x17: // *SLO (zpx)
+        case 0x17: // *ASO (zpx)
             addr = ZeroPageX();
             val8 = Read8(addr);
-            val8 = Slo(val8);
+            val8 = Aso(val8);
             Write8(addr, val8);
             cycles += 6;
             break;
@@ -819,14 +868,14 @@ static int CpuStep6502() {
         case 0x1a: // *NOP
             cycles += 2;
             break;
-        case 0x1b: // *SLO (aby)
+        case 0x1b: // *ASO (aby)
             addr = AbsoluteY();
             val8 = Read8(addr);
-            val8 = Slo(val8);
+            val8 = Aso(val8);
             Write8(addr, val8);
             cycles += 7;
             break;
-        case 0x1c: // *NOP (abx)
+        case 0x1c: // *SKW (abx)
             addr = AbsoluteX(&cycles);
             val8 = Read8(addr);
             cycles += 4;
@@ -844,10 +893,10 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 7;
             break;
-        case 0x1f: // *SLO (abx)
+        case 0x1f: // *ASO (abx)
             addr = AbsoluteX();
             val8 = Read8(addr);
-            val8 = Slo(val8);
+            val8 = Aso(val8);
             Write8(addr, val8);
             cycles += 7;
             break;
@@ -862,8 +911,8 @@ static int CpuStep6502() {
             And(val8);
             cycles += 6;
             break;
-        case 0x22: // *KIL
-            cpuKill = true;
+        case 0x22: // *HLT
+            regs.halt = true;
             break;
         case 0x23: // *RLA (izx)
             addr = IndirectX();
@@ -955,8 +1004,8 @@ static int CpuStep6502() {
             And(val8);
             cycles += 5;
             break;
-        case 0x32: // *KIL
-            cpuKill = true;
+        case 0x32: // *HLT
+            regs.halt = true;
             break;
         case 0x33: // *RLA (izy)
             addr = IndirectY();
@@ -965,7 +1014,7 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 8;
             break;
-        case 0x34: // *NOP (zpx)
+        case 0x34: // *SKB (zpx)
             addr = ZeroPageX();
             val8 = Read8(addr);
             cycles += 4;
@@ -1010,7 +1059,7 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 7;
             break;
-        case 0x3c: // *NOP (abx)
+        case 0x3c: // *SKW (abx)
             addr = AbsoluteX(&cycles);
             val8 = Read8(addr);
             cycles += 4;
@@ -1045,17 +1094,17 @@ static int CpuStep6502() {
             Eor(val8);
             cycles += 6;
             break;
-        case 0x42: // *KIL
-            cpuKill = true;
+        case 0x42: // *HLT
+            regs.halt = true;
             break;
-        case 0x43: // *SRE (izx)
+        case 0x43: // *LSE (izx)
             addr = IndirectX();
             val8 = Read8(addr);
-            val8 = Sre(val8);
+            val8 = Lse(val8);
             Write8(addr, val8);
             cycles += 8;
             break;
-        case 0x44: // *NOP (zp)
+        case 0x44: // *SKB (zp)
             addr = ZeroPage();
             val8 = Read8(addr);
             cycles += 3;
@@ -1073,10 +1122,10 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 5;
             break;
-        case 0x47: // *SRE (zp)
+        case 0x47: // *LSE (zp)
             addr = ZeroPage();
             val8 = Read8(addr);
-            val8 = Sre(val8);
+            val8 = Lse(val8);
             Write8(addr, val8);
             cycles += 5;
             break;
@@ -1118,10 +1167,10 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 6;
             break;
-        case 0x4f: // *SRE (abs)
+        case 0x4f: // *LSE (abs)
             addr = Absolute();
             val8 = Read8(addr);
-            val8 = Sre(val8);
+            val8 = Lse(val8);
             Write8(addr, val8);
             cycles += 6;
             break;
@@ -1136,17 +1185,17 @@ static int CpuStep6502() {
             Eor(val8);
             cycles += 5;
             break;
-        case 0x52: // *KIL
-            cpuKill = true;
+        case 0x52: // *HLT
+            regs.halt = true;
             break;
-        case 0x53: // *SRE (izy)
+        case 0x53: // *LSE (izy)
             addr = IndirectY();
             val8 = Read8(addr);
-            val8 = Sre(val8);
+            val8 = Lse(val8);
             Write8(addr, val8);
             cycles += 8;
             break;
-        case 0x54: // *NOP (zpx)
+        case 0x54: // *SKB (zpx)
             addr = ZeroPageX();
             val8 = Read8(addr);
             cycles += 4;
@@ -1164,10 +1213,10 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 6;
             break;
-        case 0x57: // *SRE (zpx)
+        case 0x57: // *LSE (zpx)
             addr = ZeroPageX();
             val8 = Read8(addr);
-            val8 = Sre(val8);
+            val8 = Lse(val8);
             Write8(addr, val8);
             cycles += 6;
             break;
@@ -1184,14 +1233,14 @@ static int CpuStep6502() {
         case 0x5a: // *NOP
             cycles += 2;
             break;
-        case 0x5b: // *SRE (aby)
+        case 0x5b: // *LSE (aby)
             addr = AbsoluteY();
             val8 = Read8(addr);
-            val8 = Sre(val8);
+            val8 = Lse(val8);
             Write8(addr, val8);
             cycles += 7;
             break;
-        case 0x5c: // *NOP (abx)
+        case 0x5c: // *SKW (abx)
             addr = AbsoluteX(&cycles);
             val8 = Read8(addr);
             cycles += 4;
@@ -1209,10 +1258,10 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 7;
             break;
-        case 0x5f: // *SRE (abx)
+        case 0x5f: // *LSE (abx)
             addr = AbsoluteX();
             val8 = Read8(addr);
-            val8 = Sre(val8);
+            val8 = Lse(val8);
             Write8(addr, val8);
             cycles += 7;
             break;
@@ -1226,8 +1275,8 @@ static int CpuStep6502() {
             Adc6502(val8);
             cycles += 6;
             break;
-        case 0x62: // *KIL
-            cpuKill = true;
+        case 0x62: // *HLT
+            regs.halt = true;
             break;
         case 0x63: // *RRA (izx)
             addr = IndirectX();
@@ -1236,7 +1285,7 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 8;
             break;
-        case 0x64: // *NOP (zp)
+        case 0x64: // *SKB (zp)
             addr = ZeroPage();
             val8 = Read8(addr);
             cycles += 3;
@@ -1317,8 +1366,8 @@ static int CpuStep6502() {
             Adc6502(val8);
             cycles += 5;
             break;
-        case 0x72: // *KIL
-            cpuKill = true;
+        case 0x72: // *HLT
+            regs.halt = true;
             break;
         case 0x73: // *RRA (izy)
             addr = IndirectY();
@@ -1327,7 +1376,7 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 8;
             break;
-        case 0x74: // *NOP (zpx)
+        case 0x74: // *SKB (zpx)
             addr = ZeroPageX();
             val8 = Read8(addr);
             cycles += 4;
@@ -1372,7 +1421,7 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 7;
             break;
-        case 0x7c: // *NOP (abx)
+        case 0x7c: // *SKW (abx)
             addr = AbsoluteX(&cycles);
             val8 = Read8(addr);
             cycles += 4;
@@ -1397,7 +1446,7 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 7;
             break;
-        case 0x80: // *NOP (imm)
+        case 0x80: // *SKB (imm)
             addr = Immediate();
             val8 = Read8(addr);
             cycles += 2;
@@ -1405,6 +1454,18 @@ static int CpuStep6502() {
         case 0x81: // STA (izx)
             addr = IndirectX();
             Write8(addr, regs.a);
+            cycles += 6;
+            break;
+        case 0x82: // *SKB (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            cycles += 2;
+            break;
+        case 0x83: // *AXS (izx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            val8 = Axs(val8);
+            Write8(addr, val8);
             cycles += 6;
             break;
         case 0x84: // STY (zp)
@@ -1422,12 +1483,30 @@ static int CpuStep6502() {
             Write8(addr, regs.x);
             cycles += 3;
             break;
+        case 0x87: // *AXS (zp)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Axs(val8);
+            Write8(addr, val8);
+            cycles += 3;
+            break;
         case 0x88: // DEY
             Dey();
             cycles += 2;
             break;
+        case 0x89: // *SKB (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            cycles += 2;
+            break;
         case 0x8a: // TXA
             Txa();
+            cycles += 2;
+            break;
+        case 0x8b: // *XAA
+            addr = Immediate();
+            val8 = Read8(addr);
+            Xaa(val8);
             cycles += 2;
             break;
         case 0x8c: // STY (abs)
@@ -1445,6 +1524,13 @@ static int CpuStep6502() {
             Write8(addr, regs.x);
             cycles += 4;
             break;
+        case 0x8f: // *AXS (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            val8 = Axs(val8);
+            Write8(addr, val8);
+            cycles += 4;
+            break;
         case 0x90: // BCC
             addr = Relative();
             Branch(!(regs.ps & PS_CARRY), addr, &cycles);
@@ -1454,6 +1540,9 @@ static int CpuStep6502() {
             addr = IndirectY(&cycles);
             Write8(addr, regs.a);
             cycles += 6;
+            break;
+        case 0x92: // *HLT
+            regs.halt = true;
             break;
         case 0x94: // STY (zpx)
             addr = ZeroPageX();
@@ -1470,6 +1559,13 @@ static int CpuStep6502() {
             Write8(addr, regs.x);
             cycles += 4;
             break;
+        case 0x97: // *AXS (zpy)
+            addr = ZeroPageY();
+            val8 = Read8(addr);
+            val8 = Axs(val8);
+            Write8(addr, val8);
+            cycles += 4;
+            break;
         case 0x98: // TYA
             Tya();
             cycles += 2;
@@ -1482,6 +1578,11 @@ static int CpuStep6502() {
         case 0x9a: // TXS
             Txs();
             cycles += 2;
+            break;
+        case 0x9b: // *TAS (aby)
+            addr = AbsoluteY(&cycles);
+            // @@@ WRITE ME
+            cycles += 5;
             break;
         case 0x9d: // STA (abx)
             addr = AbsoluteX(&cycles);
@@ -1506,6 +1607,12 @@ static int CpuStep6502() {
             Ldx(val8);
             cycles += 2;
             break;
+        case 0xa3: // *LAX (izx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            Lax(val8);
+            cycles += 6;
+            break;
         case 0xa4: // LDY (zp)
             addr = ZeroPage();
             val8 = Read8(addr);
@@ -1524,6 +1631,12 @@ static int CpuStep6502() {
             Ldx(val8);
             cycles += 3;
             break;
+        case 0xa7: // *LAX (zp)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            Lax(val8);
+            cycles += 3;
+            break;
         case 0xa8: // TAY
             Tay();
             cycles += 2;
@@ -1534,8 +1647,14 @@ static int CpuStep6502() {
             Lda(val8);
             cycles += 2;
             break;
-        case 0xaa:
+        case 0xaa: // TAX
             Tax();
+            cycles += 2;
+            break;
+        case 0xab: // *OAL (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Oal(val8);
             cycles += 2;
             break;
         case 0xac: // LDY (abs)
@@ -1556,6 +1675,12 @@ static int CpuStep6502() {
             Ldx(val8);
             cycles += 4;
             break;
+        case 0xaf: // *LAX (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            Lax(val8);
+            cycles += 4;
+            break;
         case 0xb0: // BCS
             addr = Relative();
             Branch(regs.ps & PS_CARRY, addr, &cycles);
@@ -1565,6 +1690,15 @@ static int CpuStep6502() {
             addr = IndirectY(&cycles);
             val8 = Read8(addr);
             Lda(val8);
+            cycles += 5;
+            break;
+        case 0xb2: // *HLT
+            regs.halt = true;
+            break;
+        case 0xb3: // *LAX (izy)
+            addr = IndirectY(&cycles);
+            val8 = Read8(addr);
+            Lax(val8);
             cycles += 5;
             break;
         case 0xb4: // LDY (zpx)
@@ -1583,6 +1717,12 @@ static int CpuStep6502() {
             addr = ZeroPageY();
             val8 = Read8(addr);
             Ldx(val8);
+            cycles += 4;
+            break;
+        case 0xb7: // *LAX (zpy)
+            addr = ZeroPageY();
+            val8 = Read8(addr);
+            Lax(val8);
             cycles += 4;
             break;
         case 0xb8: // CLV
@@ -1617,6 +1757,12 @@ static int CpuStep6502() {
             Ldx(val8);
             cycles += 4;
             break;
+        case 0xbf: // *LAX (aby)
+            addr = IndirectY(&cycles);
+            val8 = Read8(addr);
+            Lax(val8);
+            cycles += 4;
+            break;
         case 0xc0: // CPY (imm)
             addr = Immediate();
             val8 = Read8(addr);
@@ -1628,6 +1774,18 @@ static int CpuStep6502() {
             val8 = Read8(addr);
             Cmp(val8);
             cycles += 6;
+            break;
+        case 0xc2: // *SKB (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            cycles += 2;
+            break;
+        case 0xc3: // *DCM (izx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            val8 = Dcm(val8);
+            Write8(addr, val8);
+            cycles += 8;
             break;
         case 0xc4: // CPY (zp)
             addr = ZeroPage();
@@ -1648,6 +1806,13 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 5;
             break;
+        case 0xc7: // *DCM (zp)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Dcm(val8);
+            Write8(addr, val8);
+            cycles += 5;
+            break;
         case 0xc8: // INY
             Iny();
             cycles += 2;
@@ -1660,6 +1825,12 @@ static int CpuStep6502() {
             break;
         case 0xca: // DEX
             Dex();
+            cycles += 2;
+            break;
+        case 0xcb: // *SAX (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            Sax(val8);
             cycles += 2;
             break;
         case 0xcc: // CPY (abs)
@@ -1681,6 +1852,13 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 5;
             break;
+        case 0xcf: // *DCM (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            val8 = Dcm(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
         case 0xd0: // BNE
             addr = Relative();
             Branch(!(regs.ps & PS_ZERO), addr, &cycles);
@@ -1691,6 +1869,21 @@ static int CpuStep6502() {
             val8 = Read8(addr);
             Cmp(val8);
             cycles += 5;
+            break;
+        case 0xd2: // *HLT
+            regs.halt = true;
+            break;
+        case 0xd3: // *DCM (izy)
+            addr = IndirectY();
+            val8 = Read8(addr);
+            val8 = Dcm(val8);
+            Write8(addr, val8);
+            cycles += 8;
+            break;
+        case 0xd4: // *SKB (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            cycles += 4;
             break;
         case 0xd5: // CMP (zpx)
             addr = ZeroPageX();
@@ -1705,6 +1898,13 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 6;
             break;
+        case 0xd7: // *DCM (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            val8 = Dcm(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
         case 0xd8: // CLD
             ResetFlag(PS_DECIMAL);
             cycles += 2;
@@ -1713,6 +1913,21 @@ static int CpuStep6502() {
             addr = AbsoluteY(&cycles);
             val8 = Read8(addr);
             Cmp(val8);
+            cycles += 4;
+            break;
+        case 0xda: // *NOP
+            cycles += 2;
+            break;
+        case 0xdb: // *DCM (aby)
+            addr = AbsoluteY();
+            val8 = Read8(addr);
+            val8 = Dcm(val8);
+            Write8(addr, val8);
+            cycles += 7;
+            break;
+        case 0xdc: // *SKW (abx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
             cycles += 4;
             break;
         case 0xdd: // CMP (abx)
@@ -1728,6 +1943,13 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 7;
             break;
+        case 0xdf: // *DCM (abx)
+            addr = AbsoluteX();
+            val8 = Read8(addr);
+            val8 = Dcm(val8);
+            Write8(addr, val8);
+            cycles += 7;
+            break;
         case 0xe0: // CPX (imm)
             addr = Immediate();
             val8 = Read8(addr);
@@ -1739,6 +1961,18 @@ static int CpuStep6502() {
             val8 = Read8(addr);
             Sbc6502(val8);
             cycles += 6;
+            break;
+        case 0xe2: // *SKB (imm)
+            addr = Immediate();
+            val8 = Read8(addr);
+            cycles += 2;
+            break;
+        case 0xe3: // *INS (izx)
+            addr = IndirectX();
+            val8 = Read8(addr);
+            val8 = Ins(val8);
+            Write8(addr, val8);
+            cycles += 8;
             break;
         case 0xe4: // CPX (zp)
             addr = ZeroPage();
@@ -1756,6 +1990,13 @@ static int CpuStep6502() {
             addr = ZeroPage();
             val8 = Read8(addr);
             val8 = Inc(val8);
+            Write8(addr, val8);
+            cycles += 5;
+            break;
+        case 0xe7: // *INS (zp)
+            addr = ZeroPage();
+            val8 = Read8(addr);
+            val8 = Ins(val8);
             Write8(addr, val8);
             cycles += 5;
             break;
@@ -1791,6 +2032,13 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 6;
             break;
+        case 0xef: // *INS (abs)
+            addr = Absolute();
+            val8 = Read8(addr);
+            val8 = Ins(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
         case 0xf0: // BEQ
             addr = Relative();
             Branch(regs.ps & PS_ZERO, addr, &cycles);
@@ -1801,6 +2049,21 @@ static int CpuStep6502() {
             val8 = Read8(addr);
             Sbc6502(val8);
             cycles += 5;
+            break;
+        case 0xf2: // *HLT
+            regs.halt = true;
+            break;
+        case 0xf3: // *INS (izy)
+            addr = IndirectY();
+            val8 = Read8(addr);
+            val8 = Ins(val8);
+            Write8(addr, val8);
+            cycles += 8;
+            break;
+        case 0xf4: // *SKB (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            cycles += 4;
             break;
         case 0xf5: // SBC (zpx)
             addr = ZeroPageX();
@@ -1815,6 +2078,13 @@ static int CpuStep6502() {
             Write8(addr, val8);
             cycles += 6;
             break;
+        case 0xf7: // *INS (zpx)
+            addr = ZeroPageX();
+            val8 = Read8(addr);
+            val8 = Ins(val8);
+            Write8(addr, val8);
+            cycles += 6;
+            break;
         case 0xf8: // SED
             SetFlag(PS_DECIMAL);
             cycles += 2;
@@ -1823,6 +2093,14 @@ static int CpuStep6502() {
             addr = AbsoluteY(&cycles);
             val8 = Read8(addr);
             Sbc6502(val8);
+            cycles += 4;
+            break;
+        case 0xfa: // *NOP
+            cycles += 2;
+            break;
+        case 0xfc: // *SKW (abx)
+            addr = AbsoluteX(&cycles);
+            val8 = Read8(addr);
             cycles += 4;
             break;
         case 0xfd: // SBC (abx)
@@ -1835,6 +2113,13 @@ static int CpuStep6502() {
             addr = AbsoluteX();
             val8 = Read8(addr);
             val8 = Inc(val8);
+            Write8(addr, val8);
+            cycles += 7;
+            break;
+        case 0xff: // *INS (abx)
+            addr = AbsoluteX();
+            val8 = Read8(addr);
+            val8 = Ins(val8);
             Write8(addr, val8);
             cycles += 7;
             break;

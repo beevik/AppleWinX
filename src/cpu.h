@@ -14,15 +14,15 @@ enum ECpuType {
 };
 
 struct CpuRegisters {
-    uint8_t  a;   // accumulator
-    uint8_t  x;   // index X
-    uint8_t  y;   // index Y
-    uint8_t  ps;  // processor status
-    uint16_t pc;  // program counter
-    uint16_t sp;  // stack pointer
+    uint8_t  a;    // accumulator
+    uint8_t  x;    // index X
+    uint8_t  y;    // index Y
+    uint8_t  ps;   // processor status
+    uint16_t pc;   // program counter
+    uint16_t sp;   // stack pointer
+    bool     halt; // CPU halted
 };
 
-extern bool         cpuKill;
 extern CpuRegisters regs;
 
 ECpuType CpuGetType();
