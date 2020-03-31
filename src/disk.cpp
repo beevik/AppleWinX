@@ -23,16 +23,16 @@ constexpr int MAX_TRACKS    = 40;
 struct Drive {
     Image *   image;
     uint8_t * trackBuffer;
-    int       quarterTrack;
-    int       byteCounter;
     uint8_t   steppersEnabled;
     bool      motorOn;
     bool      writeProtected;
     bool      hasTrackData;
     bool      trackDirty;
+    int       trackNibbles;
+    int       quarterTrack;
+    int       nibbleCounter;
     int       spinCounter;
     int       writeCounter;
-    int       nibbles;
 };
 
 struct Controller {
@@ -64,8 +64,32 @@ static void           ReadTrack(Drive * drive);
 static void           RemoveDisk(Drive * drive);
 static void           WriteTrack(Drive * drive);
 
-static const int8_t s_diffToStep[]        = { 0, +1, +2, 0, 0, 0, -2, -1 };
-static const int8_t s_quarterPhaseTable[] = { -1, 0, 2, 1, 4, -1, 3, -1, 6, 7, -1, -1, 5, -1, -1, -1 };
+// Stepper phase bits -> quarter-track target (mod 8)
+//
+// If phases 0+2 are on, they cancel out. Same for 1+3.
+//
+//       Phase      Q Target
+//      3 2 1 0     76543210
+//      =======     ========
+//      0 0 0 0     --------
+//      0 0 0 1     -------0
+//      0 0 1 0     -----2--
+//      0 0 1 1     ------1-
+//      0 1 0 0     ---4----
+//      0 1 0 1     --------
+//      0 1 1 0     ----3---
+//      0 1 1 1     -----2--
+//      1 0 0 0     -6------
+//      1 0 0 1     7-------
+//      1 0 1 0     --------
+//      1 0 1 1     -------0
+//      1 1 0 0     --5-----
+//      1 1 0 1     -6------
+//      1 1 1 0     ---4----
+//      1 1 1 1     --------
+
+static const int8_t s_quarterTarget[]     = { -1, 0, 2, 1, 4, -1, 3, 2, 6, 7, -1, 0, 5, 6, 4, -1 };
+static const int8_t s_quarterDiffToStep[] = { 0, +1, +2, +3, 0, -3, -2, -1 };
 
 
 /****************************************************************************
@@ -134,9 +158,9 @@ static void ReadTrack(Drive * drive) {
             drive->image,
             drive->quarterTrack,
             drive->trackBuffer,
-            &drive->nibbles
+            &drive->trackNibbles
         );
-        drive->hasTrackData = (drive->nibbles != 0);
+        drive->hasTrackData = (drive->trackNibbles != 0);
     }
 }
 
@@ -221,7 +245,7 @@ static void WriteTrack(Drive * drive) {
             drive->image,
             drive->quarterTrack,
             drive->trackBuffer,
-            drive->nibbles
+            drive->trackNibbles
         );
     }
     drive->trackDirty = false;
@@ -274,17 +298,17 @@ static uint8_t Shift_Read(Controller * controller) {
     if (!controller->writeMode || !drive->writeProtected) {
         if (controller->writeMode) {
             if (controller->dataRegister & 0x80) {
-                drive->trackBuffer[drive->byteCounter] = controller->dataRegister;
+                drive->trackBuffer[drive->nibbleCounter] = controller->dataRegister;
                 drive->trackDirty = true;
             }
         }
         else
-            result = drive->trackBuffer[drive->byteCounter];
+            result = drive->trackBuffer[drive->nibbleCounter];
     }
 
-    ++drive->byteCounter;
-    if (drive->byteCounter >= drive->nibbles)
-        drive->byteCounter = 0;
+    ++drive->nibbleCounter;
+    if (drive->nibbleCounter >= drive->trackNibbles)
+        drive->nibbleCounter = 0;
 
     return result;
 }
@@ -342,19 +366,19 @@ static uint8_t UpdateSteppingMotor(Controller * controller, int phase, bool on) 
     else
         drive->steppersEnabled &= ~(1 << phase);
 
-    // Convert the enabled steppers bit vector into a quarter-track step
-    // adjustment.
-    int step = 0;
-    int quarterPhase = s_quarterPhaseTable[drive->steppersEnabled];
-    if (quarterPhase != -1) {
-        int diff = (quarterPhase - drive->quarterTrack + 8) & 7;
-        step = s_diffToStep[diff];
+    // Convert the enabled steppers into a quarter-track target, then
+    // determine how many quarter-track steps are needed to reach it.
+    int quarterStep = 0;
+    int quarterTarget = s_quarterTarget[drive->steppersEnabled];
+    if (quarterTarget >= 0) {
+        int quarterDiff = (quarterTarget - drive->quarterTrack + 8) & 7;
+        quarterStep = s_quarterDiffToStep[quarterDiff];
     }
 
     // Update the current quarter-track. Flush any unwritten data on the
     // current quarter-track first.
-    if (step != 0) {
-        int newQuarterTrack = MAX(0, MIN(MAX_TRACKS * 4 - 1, drive->quarterTrack + step));
+    if (quarterStep != 0) {
+        int newQuarterTrack = MAX(0, MIN(MAX_TRACKS * 4 - 1, drive->quarterTrack + quarterStep));
         if (newQuarterTrack != drive->quarterTrack) {
             if (drive->trackDirty && drive->trackBuffer)
                 WriteTrack(drive);
@@ -585,9 +609,9 @@ void DiskUpdatePosition(int cyclesSinceLastUpdate) {
                     FrameRefreshStatus();
             }
             if (!g_optEnhancedDisk && !controller->diskAccessed && drive->spinCounter) {
-                drive->byteCounter += (cyclesSinceLastUpdate >> 5);
-                if (drive->byteCounter >= drive->nibbles)
-                    drive->byteCounter -= drive->nibbles;
+                drive->nibbleCounter += (cyclesSinceLastUpdate >> 5);
+                if (drive->nibbleCounter >= drive->trackNibbles)
+                    drive->nibbleCounter -= drive->trackNibbles;
             }
         }
         controller->diskAccessed = false;
