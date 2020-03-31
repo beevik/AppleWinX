@@ -33,6 +33,7 @@
 #include "comm.h"
 #include "config.h"
 #include "cpu.h"
+#include "debug.h"
 #include "disk.h"
 #include "frame.h"
 #include "image.h"
