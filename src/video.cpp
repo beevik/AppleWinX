@@ -359,22 +359,24 @@ static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
 
     // Handle flashing text (1.87Hz blink rate)
     constexpr DWORD BLINK_PERIOD = (DWORD)(CPU_CYCLES_PER_MS * 1000.0 / 1.87);
-    if (ch >= 64 && ch < 96) {
-        if (g_cyclesEmulated % BLINK_PERIOD > BLINK_PERIOD / 2)
-            ch += 128;
-    }
-    else if (ch >= 96 && ch < 128) {
-        if (g_cyclesEmulated % BLINK_PERIOD > BLINK_PERIOD / 2)
-            ch += 64;
-        else
-            ch -= 64;
+    if (s_charOffset == 0) {
+        if (ch >= 64 && ch < 96) {
+            if (g_cyclesEmulated % BLINK_PERIOD > BLINK_PERIOD / 2)
+                ch += 128;
+        }
+        else if (ch >= 96 && ch < 128) {
+            if (g_cyclesEmulated % BLINK_PERIOD > BLINK_PERIOD / 2)
+                ch += 64;
+            else
+                ch -= 64;
+        }
     }
 
     BitBltCell(
         xpixel, ypixel,
         14, 16,
-        SRCX_40COL + ((ch & 0x0F) << 4),
-        (ch & 0xF0) + s_charOffset
+        SRCX_40COL + ((ch & 0x0f) << 4),
+        (ch & 0xf0) + s_charOffset
     );
 }
 
