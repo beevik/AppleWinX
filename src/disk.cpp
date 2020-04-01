@@ -120,7 +120,8 @@ static bool InsertDisk(Controller * controller, int driveNum, const char * image
         RemoveDisk(drive);
 
     memset(drive, 0, sizeof(Drive));
-    return ImageOpen(imageFilename, &drive->image, &drive->writeProtected);
+    drive->image = ImageOpen(imageFilename, &drive->writeProtected);
+    return drive->image != nullptr;
 }
 
 //===========================================================================
@@ -154,12 +155,7 @@ static void ReadTrack(Drive * drive) {
         drive->trackBuffer = new uint8_t[0x1a00];
 
     if (drive->image) {
-        ImageReadTrack(
-            drive->image,
-            drive->quarterTrack,
-            drive->trackBuffer,
-            &drive->trackNibbles
-        );
+        drive->image->ReadTrack(drive->quarterTrack, drive->trackBuffer, &drive->trackNibbles);
         drive->hasTrackData = (drive->trackNibbles != 0);
     }
 }
@@ -188,8 +184,7 @@ static void RemoveDisk(Drive * drive) {
     if (drive->image) {
         if (drive->trackBuffer && drive->trackDirty)
             WriteTrack(drive);
-        ImageClose(drive->image);
-        drive->image = nullptr;
+        ImageClose(&drive->image);
     }
     if (drive->trackBuffer) {
         delete[] drive->trackBuffer;
@@ -241,12 +236,7 @@ static void UpdateDriveMotor(Controller * controller, int driveNum, bool on) {
 //===========================================================================
 static void WriteTrack(Drive * drive) {
     if (drive->trackBuffer && drive->image) {
-        ImageWriteTrack(
-            drive->image,
-            drive->quarterTrack,
-            drive->trackBuffer,
-            drive->trackNibbles
-        );
+        drive->image->WriteTrack(drive->quarterTrack, drive->trackBuffer, drive->trackNibbles);
     }
     drive->trackDirty = false;
 }
@@ -465,14 +455,12 @@ void DiskGetStatus(EDiskStatus * statusDrive1, EDiskStatus * statusDrive2) {
 }
 
 //===========================================================================
-const char * DiskGetName(int drive) {
+const char * DiskGetName(int driveNum) {
     Controller * controller = s_controller[s_lastControllerSlot];
     if (!controller)
         return "";
-    Image * image = controller->drive[drive].image;
-    if (image == nullptr)
-        return "";
-    return ImageGetName(image);
+    Image * image = controller->drive[driveNum].image;
+    return image ? image->Name() : "";
 }
 
 //===========================================================================

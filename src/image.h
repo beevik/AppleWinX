@@ -8,12 +8,17 @@
 
 #pragma once
 
-struct Image;
+class Image;
 
-void ImageClose(Image * image);
 void ImageDestroy();
-const char * ImageGetName(Image * image);
 void ImageInitialize();
-bool ImageOpen(const char * imageFilename, Image ** image, bool * writeProtected);
-void ImageReadTrack(Image * image, int quarterTrack, uint8_t * trackBuffer, int * nibbles);
-void ImageWriteTrack(Image * image, int quarterTrack, uint8_t * trackBuffer, int nibbles);
+
+Image * ImageOpen(const char * imageFilename, bool * writeProtected);
+void ImageClose(Image ** image);
+
+class Image {
+public:
+    virtual const char * Name() const = 0;
+    virtual void ReadTrack(int quarterTrack, uint8_t * buffer, int * nibblesRead) = 0;
+    virtual void WriteTrack(int quarterTrack, const uint8_t * buffer, int nibbles) = 0;
+};
