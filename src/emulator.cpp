@@ -15,8 +15,14 @@
 *
 ***/
 
-int64_t   g_cyclesEmulated;
 HINSTANCE g_instance;
+Memory2 * g_memory;
+Cpu *     g_cpu;
+
+#define EMUV   0
+#define EMUBRK 15444206
+#define EMUMIN 15250000
+#define EMUMAX (EMUMIN + 0)
 
 static EAppleType    s_appleType;
 static bool          s_behind;
@@ -46,14 +52,24 @@ static void AdvanceUntil(int64_t stopCycle) {
 
     // Step the CPU until the next scheduled event.
     int64_t nextEventCycle = MIN(g_scheduler.PeekTime(), stopCycle);
-    while (g_cyclesEmulated < nextEventCycle)
-        g_cyclesEmulated += CpuStep();
+    while (g_cpu->Cycle() < nextEventCycle) {
+#if EMUV == 0
+        auto regs = g_cpu->Registers();
+        g_cpu->Step();
+#else
+        g_cpu->AddCycles(CpuStep());
+#endif
+
+        ++s_counter;
+        if (s_counter >= EMUMIN && s_counter < EMUMAX)
+            DebugPrintf("%-8d PC=%04X S=%04X PS=%02X A=%02X X=%02X Y=%02X\n", s_counter, regs.pc, regs.sp, regs.ps, regs.a, regs.x, regs.y);
+    }
 
     // Process all scheduled events happening before or on the current
     // cycle.
     int64_t cycle;
     FEvent eventFunc;
-    while (g_scheduler.Dequeue(g_cyclesEmulated, &cycle, &eventFunc))
+    while (g_scheduler.Dequeue(g_cpu->Cycle(), &cycle, &eventFunc))
         eventFunc(cycle);
 }
 
@@ -62,23 +78,23 @@ static void Advance() {
     // When switching back to normal speed, reset the timer.
     bool fullSpeed = TimerIsFullSpeed();
     if (s_lastFullSpeed && !fullSpeed)
-        TimerReset();
+        TimerReset(g_cpu->Cycle());
     s_lastFullSpeed = fullSpeed;
 
     if (fullSpeed) {
         // In full speed mode, advance 32ms worth of cycles at a time without
         // delays.
-        int64_t stopCycle = g_cyclesEmulated + 32 * CPU_CYCLES_PER_MS;
-        while (g_cyclesEmulated < stopCycle && TimerIsFullSpeed())
+        int64_t stopCycle = g_cpu->Cycle() + 32 * CPU_CYCLES_PER_MS;
+        while (g_cpu->Cycle() < stopCycle && TimerIsFullSpeed())
             AdvanceUntil(stopCycle);
     }
     else {
         // In normal mode, advance the emulator until we catch up to the
         // expected number of elapsed cycles.  Run at most 16ms worth of cycles.
         int64_t elapsedCycles = TimerUpdateElapsedCycles();
-        int64_t stopCycle = MIN(elapsedCycles, g_cyclesEmulated + 16 * CPU_CYCLES_PER_MS);
+        int64_t stopCycle = MIN(elapsedCycles, g_cpu->Cycle() + 16 * CPU_CYCLES_PER_MS);
         s_behind = (elapsedCycles > stopCycle);
-        while (g_cyclesEmulated < stopCycle && !TimerIsFullSpeed())
+        while (g_cpu->Cycle() < stopCycle && !TimerIsFullSpeed())
             AdvanceUntil(stopCycle);
 
         // Delay until the next emulator tick (unless the emulator has fallen
@@ -172,7 +188,9 @@ void EmulatorRequestRestart() {
 void EmulatorReset() {
     MemReset();
     CpuInitialize();
+    g_cpu->Initialize();
     VideoResetState();
+    SpkrReset();
     CommReset();
     JoyReset();
 }
@@ -200,7 +218,7 @@ void EmulatorSetMode(EEmulatorMode mode) {
 
     s_mode = mode;
     if (s_mode == EMULATOR_MODE_RUNNING)
-        TimerReset();
+        TimerReset(g_cpu->Cycle());
 }
 
 //===========================================================================
@@ -212,6 +230,10 @@ void EmulatorSetSpeed(int newSpeed) {
 //===========================================================================
 int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     g_instance = inst;
+
+    g_memory = new Memory2();
+    g_cpu = new Cpu(g_memory);
+
     GdiSetBatchLimit(512);
     GetProgramDirectory();
     LoadConfiguration();
@@ -221,11 +243,11 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         return 1;
     SpkrInitialize();
 
+
     do {
         s_behind = false;
         s_lastFullSpeed = false;
         s_restartRequested = false;
-        g_cyclesEmulated = 0;
         TimerInitialize(1);
         g_scheduler.Enqueue(CPU_CYCLES_PER_MS, UpdateEmulator);
 
@@ -234,6 +256,7 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         JoyInitialize();
         MemInitialize();
         CpuInitialize();
+        g_cpu->Initialize();
         DiskInitialize();
         VideoInitialize();
         FrameCreateWindow();
@@ -263,5 +286,8 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     WindowDestroy();
     ConfigSave();
     DebugDestroy();
+
+    delete g_cpu;
+    delete g_memory;
     return 0;
 }

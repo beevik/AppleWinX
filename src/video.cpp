@@ -361,11 +361,11 @@ static void Update40ColCell(int x, int y, int xpixel, int ypixel, int offset) {
     constexpr DWORD BLINK_PERIOD = (DWORD)(CPU_CYCLES_PER_MS * 1000.0 / 1.87);
     if (s_charOffset == 0) {
         if (ch >= 64 && ch < 96) {
-            if (g_cyclesEmulated % BLINK_PERIOD > BLINK_PERIOD / 2)
+            if (g_cpu->Cycle() % BLINK_PERIOD > BLINK_PERIOD / 2)
                 ch += 128;
         }
         else if (ch >= 96 && ch < 128) {
-            if (g_cyclesEmulated % BLINK_PERIOD > BLINK_PERIOD / 2)
+            if (g_cpu->Cycle() % BLINK_PERIOD > BLINK_PERIOD / 2)
                 ch += 64;
             else
                 ch -= 64;
@@ -515,7 +515,7 @@ BYTE VideoCheckMode(WORD, BYTE address, BYTE, BYTE) {
 
 //===========================================================================
 BYTE VideoCheckVbl(WORD pc, BYTE address, BYTE write, BYTE value) {
-    int64_t frameCycle = g_cyclesEmulated % (CYCLES_PER_SCANLINE * NTSC_SCANLINES);
+    int64_t frameCycle = g_cpu->Cycle() % (CYCLES_PER_SCANLINE * NTSC_SCANLINES);
     return MemReturnRandomData(frameCycle < (CYCLES_PER_SCANLINE * DISPLAY_LINES));
 }
 

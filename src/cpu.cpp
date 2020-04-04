@@ -786,21 +786,27 @@ static int CpuStep6502() {
             break;
         case 0x0c: // *SKW (abs)
             addr = Absolute();
-            val8 = Read8(addr);
             cycles += 3;
+            val8 = Read8(addr);
+            cycles += 1;
             break;
         case 0x0d: // ORA (abs)
             addr = Absolute();
+            cycles += 3;
             val8 = Read8(addr);
             Ora(val8);
-            cycles += 4;
+            cycles += 1;
             break;
         case 0x0e: // ASL (abs)
             addr = Absolute();
+            cycles += 3;
             val8 = Read8(addr);
+            cycles += 1;
+            Write8(addr, val8);
+            cycles += 1;
             val8 = Asl(val8);
             Write8(addr, val8);
-            cycles += 6;
+            cycles += 1;
             break;
         case 0x0f: // *ASO (abs)
             addr = Absolute();
@@ -1516,8 +1522,9 @@ static int CpuStep6502() {
             break;
         case 0x8d: // STA (abs)
             addr = Absolute();
+            cycles += 3;
             Write8(addr, regs.a);
-            cycles += 4;
+            cycles += 1;
             break;
         case 0x8e: // STX (abs)
             addr = Absolute();
@@ -1571,7 +1578,7 @@ static int CpuStep6502() {
             cycles += 2;
             break;
         case 0x99: // STA (aby)
-            addr = AbsoluteY(&cycles);
+            addr = AbsoluteY();
             Write8(addr, regs.a);
             cycles += 5;
             break;
@@ -1585,7 +1592,7 @@ static int CpuStep6502() {
             cycles += 5;
             break;
         case 0x9d: // STA (abx)
-            addr = AbsoluteX(&cycles);
+            addr = AbsoluteX();
             Write8(addr, regs.a);
             cycles += 5;
             break;
@@ -1659,15 +1666,17 @@ static int CpuStep6502() {
             break;
         case 0xac: // LDY (abs)
             addr = Absolute();
+            cycles += 3;
             val8 = Read8(addr);
             Ldy(val8);
-            cycles += 4;
+            cycles += 1;
             break;
         case 0xad: // LDA (abs)
             addr = Absolute();
+            cycles += 3;
             val8 = Read8(addr);
             Lda(val8);
-            cycles += 4;
+            cycles += 1;
             break;
         case 0xae: // LDX (abs)
             addr = Absolute();

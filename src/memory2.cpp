@@ -6,9 +6,6 @@
 *
 ***/
 
-#pragma once
+#include "pch.h"
+#pragma  hdrstop
 
-void    SpkrDestroy();
-void    SpkrInitialize();
-void    SpkrReset();
-uint8_t SpkrToggle();

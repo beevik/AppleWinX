@@ -811,7 +811,7 @@ static void ProcessButtonClick(int button) {
             );
             break;
     }
-    TimerReset();
+    TimerReset(g_cpu->Cycle());
 }
 
 //===========================================================================

@@ -8,7 +8,9 @@
 
 #pragma once
 
-void    SpkrDestroy();
-void    SpkrInitialize();
-void    SpkrReset();
-uint8_t SpkrToggle();
+class Memory2 {
+public:
+    uint8_t  Read8(uint16_t address);
+    uint16_t Read16(uint16_t address);
+    void     Write8(uint16_t address, uint8_t value);
+};

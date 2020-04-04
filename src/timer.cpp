@@ -34,6 +34,7 @@ static int64_t  s_lastUpdateCount;
 static int64_t  s_perfFreqMs;
 static double   s_cyclesPerTick;
 static uint32_t s_fullSpeedBits;
+static float    s_speedMultiplier;
 static int64_t  s_startCount;
 static int64_t  s_ticksPerSecond;
 static HANDLE   s_timer;
@@ -154,13 +155,18 @@ int64_t TimerGetMsElapsed() {
 }
 
 //===========================================================================
+float TimerGetSpeedMultiplier() {
+    return s_speedMultiplier;
+}
+
+//===========================================================================
 bool TimerIsFullSpeed() {
     return s_fullSpeedBits != 0;
 }
 
 //===========================================================================
-void TimerReset() {
-    s_cyclesElapsed = double(g_cyclesEmulated);
+void TimerReset(int64_t cyclesEmulated) {
+    s_cyclesElapsed = double(cyclesEmulated);
 
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
@@ -179,7 +185,8 @@ void TimerSetMode(ETimerMode mode) {
 //===========================================================================
 void TimerSetSpeedMultiplier(float multiplier) {
     UpdateElapsedCycles();
-    s_cyclesPerTick = multiplier * CPU_HZ / s_ticksPerSecond;
+    s_speedMultiplier = multiplier;
+    s_cyclesPerTick = s_speedMultiplier * CPU_HZ / s_ticksPerSecond;
 }
 
 //===========================================================================

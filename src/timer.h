@@ -25,8 +25,9 @@ int     TimerBenchmarkStop(int64_t handle); // returns elapsed microseconds
 void    TimerDestroy();
 void    TimerInitialize(int periodMs);
 int64_t TimerGetMsElapsed();
+float   TimerGetSpeedMultiplier();
 bool    TimerIsFullSpeed();
-void    TimerReset();
+void    TimerReset(int64_t cyclesEmulated);
 void    TimerSetMode(ETimerMode mode);
 void    TimerSetSpeedMultiplier(float multiplier);
 void    TimerSleepUs(int us);

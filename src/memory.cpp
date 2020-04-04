@@ -317,7 +317,7 @@ static uint8_t IoSwitchC01xWrite(uint8_t address, bool, uint8_t value) {
 
 //===========================================================================
 static uint8_t IoSwitchC03x(uint8_t address, bool write, uint8_t value) {
-    return SpkrToggle(0, address, write, value);
+    return SpkrToggle();
 }
 
 //===========================================================================
@@ -684,4 +684,32 @@ void MemWriteWord(uint16_t address, uint16_t value) {
 //===========================================================================
 void MemWriteDword(uint16_t address, uint32_t value) {
     *(uint32_t *)(g_pageWrite[address >> 8] + (address & 0xff)) = value;
+}
+
+
+/****************************************************************************
+*
+*   Memory implementation
+*
+***/
+
+//===========================================================================
+uint8_t Memory2::Read8(uint16_t address) {
+    if ((address >> 8) == 0xc0)
+        return MemIoRead(address);
+    else
+        return g_pageRead[address >> 8][address & 0xff];
+}
+
+//===========================================================================
+uint16_t Memory2::Read16(uint16_t address) {
+    return *(uint16_t *)(g_pageRead[address >> 8] + (address & 0xff));
+}
+
+//===========================================================================
+void Memory2::Write8(uint16_t address, uint8_t value) {
+    if (address >> 8 == 0xc0)
+        MemIoWrite(address, value);
+    else
+        g_pageWrite[address >> 8][address & 0xff] = value;
 }

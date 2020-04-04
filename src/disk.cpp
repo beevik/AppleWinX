@@ -41,6 +41,7 @@ struct Controller {
     bool    diskAccessed;
     uint8_t dataRegister;
     uint8_t selectedDrive;
+    uint8_t sequencerState;
     uint8_t nextControllerSlot;
     Drive   drive[DRIVES];
 };
@@ -91,6 +92,310 @@ static void           WriteTrack(Drive * drive);
 static const int8_t s_quarterTarget[]     = { -1, 0, 2, 1, 4, -1, 3, 2, 6, 7, -1, 0, 5, 6, 4, -1 };
 static const int8_t s_quarterDiffToStep[] = { 0, +1, +2, +3, 0, -3, -2, -1 };
 
+const uint8_t NOP = 0;  // no operation
+const uint8_t CLR = 1;  // clear data register
+const uint8_t LD  = 2;  // load data register from data bus
+const uint8_t SL0 = 3;  // shift zero left into data register
+const uint8_t SL1 = 4;  // shift one left into data register
+const uint8_t SR  = 5;  // shift WP right into data register
+
+// WRITE=1/READ=0
+// RP=1/RP'=0
+// LOAD=1/SHIFT=0
+// QA=1/QA'=0
+
+#define ST(n) ((uint8_t)(n << 4))
+
+static const uint8_t s_sequencerTable[] = {
+    // READ, RP', SHIFT, QA' (col 2)
+    ST(1)  | NOP, // 0
+    ST(2)  | SL1, // 1
+    ST(3)  | NOP, // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(8)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(2)  | SL0, // 9
+    ST(11) | SL1, // 10
+    ST(5)  | SL0, // 11
+    ST(13) | SL0, // 12
+    ST(0)  | NOP, // 13
+    ST(15) | SL1, // 14
+    ST(4)  | SL1, // 15
+
+    // READ, RP', SHIFT, QA (col 4)
+    ST(1)  | NOP, // 0
+    ST(3)  | NOP, // 1
+    ST(2)  | NOP, // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(8)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(10) | NOP, // 9
+    ST(11) | NOP, // 10
+    ST(12) | NOP, // 11
+    ST(10) | CLR, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(14) | CLR, // 15
+
+    // READ, RP', LOAD, QA' (col 6)
+    ST(0)  | SR,  // 0
+    ST(0)  | SR,  // 1
+    ST(0)  | SR,  // 2
+    ST(0)  | SR,  // 3
+    ST(0)  | SR,  // 4
+    ST(0)  | SR,  // 5
+    ST(0)  | SR,  // 6
+    ST(0)  | SR,  // 7
+    ST(0)  | SR,  // 8
+    ST(0)  | SR,  // 9
+    ST(0)  | SR,  // 10
+    ST(0)  | SR,  // 11
+    ST(0)  | SR,  // 12
+    ST(0)  | SR,  // 13
+    ST(0)  | SR,  // 14
+    ST(0)  | SR,  // 15
+
+    // READ, RP', LOAD, QA (col 8)
+    ST(0)  | SR,  // 0
+    ST(0)  | SR,  // 1
+    ST(0)  | SR,  // 2
+    ST(0)  | SR,  // 3
+    ST(0)  | SR,  // 4
+    ST(0)  | SR,  // 5
+    ST(0)  | SR,  // 6
+    ST(0)  | SR,  // 7
+    ST(0)  | SR,  // 8
+    ST(0)  | SR,  // 9
+    ST(0)  | SR,  // 10
+    ST(0)  | SR,  // 11
+    ST(0)  | SR,  // 12
+    ST(0)  | SR,  // 13
+    ST(0)  | SR,  // 14
+    ST(0)  | SR,  // 15
+
+    // READ, RP, SHIFT, QA' (col 1)
+    ST(1)  | NOP, // 0
+    ST(2)  | SL1, // 1
+    ST(13) | NOP, // 2
+    ST(13) | NOP, // 3
+    ST(13) | NOP, // 4
+    ST(13) | NOP, // 5
+    ST(13) | NOP, // 6
+    ST(13) | NOP, // 7
+    ST(13) | NOP, // 8
+    ST(13) | NOP, // 9
+    ST(12) | SL1, // 10
+    ST(13) | SL0, // 11
+    ST(13) | SL0, // 12
+    ST(13) | NOP, // 13
+    ST(15) | SL1, // 14
+    ST(13) | SL1, // 15
+
+    // READ, RP, SHIFT, QA (col 3)
+    ST(1)  | NOP, // 0
+    ST(3)  | NOP, // 1
+    ST(0)  | NOP, // 2
+    ST(4)  | NOP, // 3
+    ST(13) | NOP, // 4
+    ST(13) | NOP, // 5
+    ST(13) | NOP, // 6
+    ST(13) | NOP, // 7
+    ST(13) | NOP, // 8
+    ST(13) | NOP, // 9
+    ST(12) | NOP, // 10
+    ST(13) | NOP, // 11
+    ST(13) | NOP, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(14) | CLR, // 15
+
+    // READ, RP, LOAD, QA' (col 5)
+    ST(0)  | SR,  // 0
+    ST(0)  | SR,  // 1
+    ST(0)  | SR,  // 2
+    ST(0)  | SR,  // 3
+    ST(0)  | SR,  // 4
+    ST(0)  | SR,  // 5
+    ST(0)  | SR,  // 6
+    ST(0)  | SR,  // 7
+    ST(0)  | SR,  // 8
+    ST(0)  | SR,  // 9
+    ST(0)  | SR,  // 10
+    ST(0)  | SR,  // 11
+    ST(0)  | SR,  // 12
+    ST(0)  | SR,  // 13
+    ST(0)  | SR,  // 14
+    ST(0)  | SR,  // 15
+
+    // READ, RP, LOAD, QA (col 7)
+    ST(0)  | SR,  // 0
+    ST(0)  | SR,  // 1
+    ST(0)  | SR,  // 2
+    ST(0)  | SR,  // 3
+    ST(0)  | SR,  // 4
+    ST(0)  | SR,  // 5
+    ST(0)  | SR,  // 6
+    ST(0)  | SR,  // 7
+    ST(0)  | SR,  // 8
+    ST(0)  | SR,  // 9
+    ST(0)  | SR,  // 10
+    ST(0)  | SR,  // 11
+    ST(0)  | SR,  // 12
+    ST(0)  | SR,  // 13
+    ST(0)  | SR,  // 14
+    ST(0)  | SR,  // 15
+
+    // WRITE, RP', SHIFT, QA'
+    ST(1)  | NOP, // 0
+    ST(2)  | NOP, // 1
+    ST(3)  | SL0, // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(0)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(10) | NOP, // 9
+    ST(11) | SL0, // 10
+    ST(12) | NOP, // 11
+    ST(13) | NOP, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(8)  | NOP, // 15
+
+    // WRITE, RP', SHIFT, QA
+    ST(1)  | NOP, // 0
+    ST(2)  | NOP, // 1
+    ST(3)  | SL0, // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(8)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(10) | NOP, // 9
+    ST(11) | SL0, // 10
+    ST(12) | NOP, // 11
+    ST(13) | NOP, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(0)  | NOP, // 15
+
+    // WRITE, RP', LOAD, QA'
+    ST(1)  | NOP, // 0
+    ST(2)  | NOP, // 1
+    ST(3)  | LD,  // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(0)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(10) | NOP, // 9
+    ST(11) | LD,  // 10
+    ST(12) | NOP, // 11
+    ST(13) | NOP, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(8)  | NOP, // 15
+
+    // WRITE, RP', LOAD, QA
+    ST(1)  | NOP, // 0
+    ST(2)  | NOP, // 1
+    ST(3)  | LD,  // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(8)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(10) | NOP, // 9
+    ST(11) | LD,  // 10
+    ST(12) | NOP, // 11
+    ST(13) | NOP, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(0)  | NOP, // 15
+
+    // WRITE, RP, SHIFT, QA'
+    ST(1)  | NOP, // 0
+    ST(2)  | NOP, // 1
+    ST(3)  | SL0, // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(0)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(10) | NOP, // 9
+    ST(11) | SL0, // 10
+    ST(12) | NOP, // 11
+    ST(13) | NOP, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(8)  | NOP, // 15
+
+    // WRITE, RP, SHIFT, QA
+    ST(1)  | NOP, // 0
+    ST(2)  | NOP, // 1
+    ST(3)  | SL0, // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(8)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(10) | NOP, // 9
+    ST(11) | SL0, // 10
+    ST(12) | NOP, // 11
+    ST(13) | NOP, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(0)  | NOP, // 15
+
+    // WRITE, RP, LOAD, QA'
+    ST(1)  | NOP, // 0
+    ST(2)  | NOP, // 1
+    ST(3)  | LD,  // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(0)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(10) | NOP, // 9
+    ST(11) | LD,  // 10
+    ST(12) | NOP, // 11
+    ST(13) | NOP, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(8)  | NOP, // 15
+
+    // WRITE, RP, LOAD, QA
+    ST(1)  | NOP, // 0
+    ST(2)  | NOP, // 1
+    ST(3)  | LD,  // 2
+    ST(4)  | NOP, // 3
+    ST(5)  | NOP, // 4
+    ST(6)  | NOP, // 5
+    ST(7)  | NOP, // 6
+    ST(8)  | NOP, // 7
+    ST(9)  | NOP, // 8
+    ST(10) | NOP, // 9
+    ST(11) | LD,  // 10
+    ST(12) | NOP, // 11
+    ST(13) | NOP, // 12
+    ST(14) | NOP, // 13
+    ST(15) | NOP, // 14
+    ST(0)  | NOP, // 15
+};
+
 
 /****************************************************************************
 *
@@ -133,6 +438,7 @@ static void InstallController(int slot) {
     controller->diskAccessed       = false;
     controller->dataRegister       = 0;
     controller->selectedDrive      = 0;
+    controller->sequencerState     = 0;
     controller->nextControllerSlot = 0;
     memset(controller->drive, 0, sizeof(controller->drive));
 
