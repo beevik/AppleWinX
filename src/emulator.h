@@ -43,11 +43,11 @@ constexpr double  CPU_CYCLES_PER_US = CPU_HZ * 0.000001;
 #define  ARRSIZE(x) (sizeof(x) / sizeof(x[0]))
 #define  REF(x)     ((void)x)
 
-class Memory2;
+class Memory;
 class Cpu;
 
 extern HINSTANCE g_instance;
-extern Memory2 * g_memory;
+extern Memory * g_memory;
 extern Cpu *     g_cpu;
 
 EAppleType    EmulatorGetAppleType();

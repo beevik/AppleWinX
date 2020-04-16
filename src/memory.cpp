@@ -51,8 +51,8 @@ constexpr uint32_t SF_PREWRITE   = 1 << 31; // toggle for high memory mode count
 *
 ***/
 
-uint8_t * g_pageRead[0x100];
-uint8_t * g_pageWrite[0x100];
+static uint8_t * s_pageRead[0x100];
+static uint8_t * s_pageWrite[0x100];
 
 static uint8_t * s_memMain;
 static uint8_t * s_memAux;
@@ -77,13 +77,13 @@ static void InitializePageTables() {
 
     // Initialize writes to $Cxxx to be ignored. This will never change.
     for (size_t page = 0xc0; page < 0xd0; ++page)
-        g_pageWrite[page] = s_memNull;
+        s_pageWrite[page] = s_memNull;
 
     UpdatePageTables();
 }
 
 //===========================================================================
-static uint8_t ReturnRandomData(bool hiBit) {
+static uint8_t ReturnRandomData(bool setHiBit) {
     static const uint8_t retval[16] = {
         0x00, 0x2D, 0x2D, 0x30, 0x30, 0x32, 0x32, 0x34,
         0x35, 0x39, 0x43, 0x43, 0x43, 0x60, 0x7F, 0x7F
@@ -91,9 +91,9 @@ static uint8_t ReturnRandomData(bool hiBit) {
 
     uint8_t r = (uint8_t)rand();
     if (r <= 170)
-        return 0x20 | (hiBit ? 0x80 : 0);
+        return 0x20 | (setHiBit ? 0x80 : 0);
     else
-        return retval[r & 15] | (hiBit ? 0x80 : 0);
+        return retval[r & 15] | (setHiBit ? 0x80 : 0);
 }
 
 //===========================================================================
@@ -107,7 +107,7 @@ static void UpdatePageTables() {
     uint8_t * zpBank = SW_ALTZP() ? s_memAux : s_memMain;
     if (updateMask & SF_ALTZP) {
         for (size_t page = 0x00; page < 0x02; ++page)
-            g_pageRead[page] = g_pageWrite[page] = zpBank + (page << 8);
+            s_pageRead[page] = s_pageWrite[page] = zpBank + (page << 8);
     }
 
     // Low memory excluding first text and hi-res pages ($0200..$03FF,
@@ -116,16 +116,16 @@ static void UpdatePageTables() {
     uint8_t * lowBankWrite = SW_RAMWRT() ? s_memAux : s_memMain;
     if (updateMask & (SF_RAMRD | SF_RAMWRT)) {
         for (size_t page = 0x02; page < 0x04; ++page) {
-            g_pageRead[page]  = lowBankRead + (page << 8);
-            g_pageWrite[page] = lowBankWrite + (page << 8);
+            s_pageRead[page]  = lowBankRead + (page << 8);
+            s_pageWrite[page] = lowBankWrite + (page << 8);
         }
         for (size_t page = 0x08; page < 0x20; ++page) {
-            g_pageRead[page]  = lowBankRead + (page << 8);
-            g_pageWrite[page] = lowBankWrite + (page << 8);
+            s_pageRead[page]  = lowBankRead + (page << 8);
+            s_pageWrite[page] = lowBankWrite + (page << 8);
         }
         for (size_t page = 0x40; page < 0xc0; ++page) {
-            g_pageRead[page]  = lowBankRead + (page << 8);
-            g_pageWrite[page] = lowBankWrite + (page << 8);
+            s_pageRead[page]  = lowBankRead + (page << 8);
+            s_pageWrite[page] = lowBankWrite + (page << 8);
         }
     }
 
@@ -136,8 +136,8 @@ static void UpdatePageTables() {
         if (SW_80STORE())
             pageBankRead = pageBankWrite = SW_PAGE2() ? s_memAux : s_memMain;
         for (size_t page = 0x04; page < 0x08; ++page) {
-            g_pageRead[page]  = pageBankRead + (page << 8);
-            g_pageWrite[page] = pageBankWrite + (page << 8);
+            s_pageRead[page]  = pageBankRead + (page << 8);
+            s_pageWrite[page] = pageBankWrite + (page << 8);
         }
     }
 
@@ -148,8 +148,8 @@ static void UpdatePageTables() {
         if ((s_switches & (SF_80STORE | SF_HIRES)) == (SF_80STORE | SF_HIRES))
             pageBankRead = pageBankWrite = SW_PAGE2() ? s_memAux : s_memMain;
         for (size_t page = 0x20; page < 0x40; ++page) {
-            g_pageRead[page]  = pageBankRead + (page << 8);
-            g_pageWrite[page] = pageBankWrite + (page << 8);
+            s_pageRead[page]  = pageBankRead + (page << 8);
+            s_pageWrite[page] = pageBankWrite + (page << 8);
         }
     }
 
@@ -157,15 +157,15 @@ static void UpdatePageTables() {
     if (updateMask & (SF_INTCXROM | SF_SLOTC3ROM)) {
         if (SW_INTCXROM()) {
             for (size_t page = 0xc0; page < 0xd0; ++page)
-                g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
+                s_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
         }
         else {
             for (size_t page = 0xc0; page < 0xc8; ++page)
-                g_pageRead[page] = s_memSlotRom + ((page - 0xc0) << 8);
+                s_pageRead[page] = s_memSlotRom + ((page - 0xc0) << 8);
             if (!SW_SLOTC3ROM())
-                g_pageRead[0xc3] = s_memSystemRom + 0x0300;
+                s_pageRead[0xc3] = s_memSystemRom + 0x0300;
             for (size_t page = 0xc8; page < 0xd0; ++page)
-                g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8); // need to handle slot strobe remapping here
+                s_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8); // need to handle slot strobe remapping here
         }
     }
 
@@ -176,25 +176,25 @@ static void UpdatePageTables() {
         for (size_t page = 0xd0; page < 0xe0; ++page) {
             size_t bankOffset = SW_BANK2() ? 0 : 0x1000;
             if (SW_HRAMRD())
-                g_pageRead[page] = zpBank - bankOffset + (page << 8);
+                s_pageRead[page] = zpBank - bankOffset + (page << 8);
             else
-                g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
+                s_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
             if (SW_HRAMWRT())
-                g_pageWrite[page] = zpBank - bankOffset + (page << 8);
+                s_pageWrite[page] = zpBank - bankOffset + (page << 8);
             else
-                g_pageWrite[page] = s_memNull;
+                s_pageWrite[page] = s_memNull;
         }
 
         // Last 8K of high memory ($E000..$FFFF)
         for (size_t page = 0xe0; page < 0x100; ++page) {
             if (SW_HRAMRD())
-                g_pageRead[page] = zpBank + (page << 8);
+                s_pageRead[page] = zpBank + (page << 8);
             else
-                g_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
+                s_pageRead[page] = s_memSystemRom + ((page - 0xc0) << 8);
             if (SW_HRAMWRT())
-                g_pageWrite[page] = zpBank + (page << 8);
+                s_pageWrite[page] = zpBank + (page << 8);
             else
-                g_pageWrite[page] = s_memNull;
+                s_pageWrite[page] = s_memNull;
         }
     }
 
@@ -592,7 +592,7 @@ bool MemIsPage2() {
 void MemInstallPeripheralRom(int slot, const char * romResourceName, FIoSwitch switchFunc) {
     int size;
     const void * rom = ResourceLoad(romResourceName, "ROM", &size);
-    if (rom == nullptr) {
+    if (rom == nullptr || slot < 1 || slot > 7) {
         char msg[256];
         StrPrintf(
             msg,
@@ -627,30 +627,18 @@ void MemInstallPeripheralRom(int slot, const char * romResourceName, FIoSwitch s
 }
 
 //===========================================================================
-uint8_t MemIoRead(uint16_t address) {
-    uint8_t offset = uint8_t(address);
-    return s_switchRead[offset >> 4](offset, false, 0);
-}
-
-//===========================================================================
-void MemIoWrite(uint16_t address, uint8_t value) {
-    uint8_t offset = uint8_t(address);
-    s_switchWrite[offset >> 4](offset, true, value);
-}
-
-//===========================================================================
 uint8_t MemReadByte(uint16_t address) {
-    return g_pageRead[address >> 8][address & 0xff];
+    return s_pageRead[address >> 8][address & 0xff];
 }
 
 //===========================================================================
 uint16_t MemReadWord(uint16_t address) {
-    return *(uint16_t *)(g_pageRead[address >> 8] + (address & 0xff));
+    return *(uint16_t *)(s_pageRead[address >> 8] + (address & 0xff));
 }
 
 //===========================================================================
 uint32_t MemReadDword(uint16_t address) {
-    return *(uint32_t *)(g_pageRead[address >> 8] + (address & 0xff));
+    return *(uint32_t *)(s_pageRead[address >> 8] + (address & 0xff));
 }
 
 //===========================================================================
@@ -658,8 +646,8 @@ void MemReset() {
     memset(s_memMain,   0, 0x10000);
     memset(s_memAux,    0, 0x10000);
     memset(s_memNull,   0, 0x100);
-    memset(g_pageRead,  0, sizeof(g_pageRead));
-    memset(g_pageWrite, 0, sizeof(g_pageWrite));
+    memset(s_pageRead,  0, sizeof(s_pageRead));
+    memset(s_pageWrite, 0, sizeof(s_pageWrite));
 
     // Initialize I/O switches and update memory page tables.
     s_switches = SF_BANK2 | SF_HRAMWRT;
@@ -667,23 +655,18 @@ void MemReset() {
 }
 
 //===========================================================================
-uint8_t MemReturnRandomData(bool hiBit) {
-    return ReturnRandomData(hiBit);
+uint8_t MemReturnRandomData(bool setHiBit) {
+    return ReturnRandomData(setHiBit);
 }
 
 //===========================================================================
 void MemWriteByte(uint16_t address, uint8_t value) {
-    g_pageWrite[address >> 8][address & 0xff] = value;
-}
-
-//===========================================================================
-void MemWriteWord(uint16_t address, uint16_t value) {
-    *(uint16_t *)(g_pageWrite[address >> 8] + (address & 0xff)) = value;
+    s_pageWrite[address >> 8][address & 0xff] = value;
 }
 
 //===========================================================================
 void MemWriteDword(uint16_t address, uint32_t value) {
-    *(uint32_t *)(g_pageWrite[address >> 8] + (address & 0xff)) = value;
+    *(uint32_t *)(s_pageWrite[address >> 8] + (address & 0xff)) = value;
 }
 
 
@@ -694,22 +677,26 @@ void MemWriteDword(uint16_t address, uint32_t value) {
 ***/
 
 //===========================================================================
-uint8_t Memory2::Read8(uint16_t address) {
-    if ((address >> 8) == 0xc0)
-        return MemIoRead(address);
+uint8_t Memory::Read8(uint16_t address) {
+    if ((address >> 8) == 0xc0) {
+        uint8_t offset = uint8_t(address);
+        return s_switchRead[offset >> 4](offset, false, 0);
+    }
     else
-        return g_pageRead[address >> 8][address & 0xff];
+        return s_pageRead[address >> 8][address & 0xff];
 }
 
 //===========================================================================
-uint16_t Memory2::Read16(uint16_t address) {
-    return *(uint16_t *)(g_pageRead[address >> 8] + (address & 0xff));
+uint16_t Memory::Read16(uint16_t address) {
+    return *(uint16_t *)(s_pageRead[address >> 8] + (address & 0xff));
 }
 
 //===========================================================================
-void Memory2::Write8(uint16_t address, uint8_t value) {
-    if (address >> 8 == 0xc0)
-        MemIoWrite(address, value);
+void Memory::Write8(uint16_t address, uint8_t value) {
+    if (address >> 8 == 0xc0) {
+        uint8_t offset = uint8_t(address);
+        s_switchWrite[offset >> 4](offset, true, value);
+    }
     else
-        g_pageWrite[address >> 8][address & 0xff] = value;
+        s_pageWrite[address >> 8][address & 0xff] = value;
 }

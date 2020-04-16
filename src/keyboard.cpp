@@ -279,10 +279,7 @@ void KeybQueueKeypress(int virtkey, bool extended) {
     }
     if (((virtkey == VK_CANCEL) || (virtkey == VK_F12)) &&
         ((EmulatorGetAppleType() != APPLE_TYPE_IIE) || (GetKeyState(VK_CONTROL) < 0))) {
-        if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
-            EmulatorReset();
-        else
-            regs.pc = *(uint16_t *)(g_pageRead[0xff] + 0xfc);
+        EmulatorReset();
     }
     if ((virtkey & 0x7F) > 0x6F)
         return;
@@ -303,12 +300,8 @@ void KeybQueueKeypressSdl(SDL_Scancode scanCode, uint16_t mod) {
     }
 
     // ctrl-shift-backspace is the same as ctrl-openapple-reset.
-    if (scanCode == SDL_SCANCODE_BACKSPACE && (mod & KMOD_CTRL) && (mod & KMOD_SHIFT)) {
-        if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
-            EmulatorReset();
-        else
-            CpuInitialize();
-    }
+    if (scanCode == SDL_SCANCODE_BACKSPACE && (mod & KMOD_CTRL) && (mod & KMOD_SHIFT))
+        EmulatorReset();
 
     int code = (int)scanCode;
     if (code > 0x64)

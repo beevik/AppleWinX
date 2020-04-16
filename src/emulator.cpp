@@ -16,13 +16,8 @@
 ***/
 
 HINSTANCE g_instance;
-Memory2 * g_memory;
+Memory *  g_memory;
 Cpu *     g_cpu;
-
-#define EMUV   0
-#define EMUBRK 15444206
-#define EMUMIN 15250000
-#define EMUMAX (EMUMIN + 0)
 
 static EAppleType    s_appleType;
 static bool          s_behind;
@@ -52,18 +47,8 @@ static void AdvanceUntil(int64_t stopCycle) {
 
     // Step the CPU until the next scheduled event.
     int64_t nextEventCycle = MIN(g_scheduler.PeekTime(), stopCycle);
-    while (g_cpu->Cycle() < nextEventCycle) {
-#if EMUV == 0
-        auto regs = g_cpu->Registers();
+    while (g_cpu->Cycle() < nextEventCycle)
         g_cpu->Step();
-#else
-        g_cpu->AddCycles(CpuStep());
-#endif
-
-        ++s_counter;
-        if (s_counter >= EMUMIN && s_counter < EMUMAX)
-            DebugPrintf("%-8d PC=%04X S=%04X PS=%02X A=%02X X=%02X Y=%02X\n", s_counter, regs.pc, regs.sp, regs.ps, regs.a, regs.x, regs.y);
-    }
 
     // Process all scheduled events happening before or on the current
     // cycle.
@@ -187,7 +172,6 @@ void EmulatorRequestRestart() {
 //===========================================================================
 void EmulatorReset() {
     MemReset();
-    CpuInitialize();
     g_cpu->Initialize();
     VideoResetState();
     SpkrReset();
@@ -202,11 +186,11 @@ void EmulatorSetAppleType(EAppleType type) {
     switch (s_appleType) {
         case APPLE_TYPE_II:
         case APPLE_TYPE_IIPLUS:
-            CpuSetType(CPU_TYPE_6502);
+            g_cpu->SetType(CPU_TYPE_6502);
             break;
         case APPLE_TYPE_IIE:
         default:
-            CpuSetType(CPU_TYPE_65C02);
+            g_cpu->SetType(CPU_TYPE_65C02);
             break;
     }
 }
@@ -231,7 +215,7 @@ void EmulatorSetSpeed(int newSpeed) {
 int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     g_instance = inst;
 
-    g_memory = new Memory2();
+    g_memory = new Memory();
     g_cpu = new Cpu(g_memory);
 
     GdiSetBatchLimit(512);
@@ -255,7 +239,6 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         EmulatorSetSpeed(SPEED_NORMAL);
         JoyInitialize();
         MemInitialize();
-        CpuInitialize();
         g_cpu->Initialize();
         DiskInitialize();
         VideoInitialize();
