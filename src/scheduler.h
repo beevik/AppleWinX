@@ -8,17 +8,26 @@
 
 #pragma once
 
-using FEvent = void (*)(int64_t scheduledTime);
+template<typename T>
+class Scheduler {
+private:
+    struct Event {
+        int64_t cycle;
+        T       value;
+        Event(int64_t cycle, T value) : cycle(cycle), value(value) {}
+    };
 
-struct Event {
-    int64_t cycle = 0;
-    FEvent  func  = nullptr;
+    std::vector<Event> m_queue;
 
-    Event() { }
-    Event(int64_t cycle, FEvent func) : cycle(cycle), func(func) { }
+public:
+    void Clear();
+    bool Dequeue(int64_t elapsedCycles, int64_t * eventCycle, T * value);
+    bool Enqueue(int64_t cycle, T value);
+    int64_t PeekTime() const;
 };
 
-bool    SchedulerDequeue(int64_t elapsedCycles, Event * event);
-bool    SchedulerEnqueue(int64_t cycle, FEvent func);
-void    SchedulerInitialize();
-int64_t SchedulerPeekTime();
+using FEvent = void (*)(int64_t scheduledTime);
+
+extern Scheduler<FEvent> g_scheduler;
+
+#include "scheduler.inl"

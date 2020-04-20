@@ -146,6 +146,7 @@ project("AppleWinX")
     files {
         path.join(srcDir, "*.h"),
         path.join(srcDir, "*.cpp"),
+        path.join(srcDir, "*.inl"),
         path.join(rsrcDir, "*.rc"),
     }
 

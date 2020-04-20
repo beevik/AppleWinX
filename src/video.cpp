@@ -486,7 +486,7 @@ static void UpdateVideoScreen(int64_t cycle) {
     else
         VideoRefreshScreen();
 
-    SchedulerEnqueue(cycle + CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen);
+    g_scheduler.Enqueue(cycle + CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen);
 }
 
 
@@ -689,7 +689,7 @@ void VideoInitialize() {
     VideoResetState();
 
     s_lastRefreshMs = TimerGetMsElapsed();
-    SchedulerEnqueue(CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen);
+    g_scheduler.Enqueue(CYCLES_PER_SCANLINE * NTSC_SCANLINES, UpdateVideoScreen);
 }
 
 //===========================================================================

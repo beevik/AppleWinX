@@ -45,15 +45,16 @@ static void AdvanceUntil(int64_t stopCycle) {
     static int64_t s_counter = 0;
 
     // Step the CPU until the next scheduled event.
-    int64_t nextEventCycle = MIN(SchedulerPeekTime(), stopCycle);
+    int64_t nextEventCycle = MIN(g_scheduler.PeekTime(), stopCycle);
     while (g_cyclesEmulated < nextEventCycle)
         g_cyclesEmulated += CpuStep();
 
     // Process all scheduled events happening before or on the current
     // cycle.
-    Event event;
-    while (SchedulerDequeue(g_cyclesEmulated, &event))
-        event.func(event.cycle);
+    int64_t cycle;
+    FEvent eventFunc;
+    while (g_scheduler.Dequeue(g_cyclesEmulated, &cycle, &eventFunc))
+        eventFunc(cycle);
 }
 
 //===========================================================================
@@ -91,7 +92,7 @@ static void Advance() {
 static void UpdateEmulator(int64_t cycle) {
     // Interrupt the emulator once every millisecond.
     DiskUpdatePosition(CPU_CYCLES_PER_MS);
-    SchedulerEnqueue(cycle + CPU_CYCLES_PER_MS, UpdateEmulator);
+    g_scheduler.Enqueue(cycle + CPU_CYCLES_PER_MS, UpdateEmulator);
 }
 
 //===========================================================================
@@ -225,9 +226,8 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         s_lastFullSpeed = false;
         s_restartRequested = false;
         g_cyclesEmulated = 0;
-        SchedulerInitialize();
         TimerInitialize(1);
-        SchedulerEnqueue(CPU_CYCLES_PER_MS, UpdateEmulator);
+        g_scheduler.Enqueue(CPU_CYCLES_PER_MS, UpdateEmulator);
 
         EmulatorSetMode(EMULATOR_MODE_LOGO);
         EmulatorSetSpeed(SPEED_NORMAL);
@@ -254,6 +254,7 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
         CommDestroy();
         DiskDestroy();
         MemDestroy();
+        g_scheduler.Clear();
         TimerDestroy();
     } while (s_restartRequested);
 
