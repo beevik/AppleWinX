@@ -41,50 +41,19 @@ static_assert(ARRSIZE(s_appleTypeNames) == APPLE_TYPES, "apple type name mismatc
 ***/
 
 //===========================================================================
-static void AdvanceNormal() {
-    // Advance the emulator until we catch up to the expected number of elapsed
-    // cycles.  Run at most 16ms worth of cycles.
-    int64_t elapsedCycles = TimerUpdateElapsedCycles();
-    int64_t stopCycle = MIN(elapsedCycles, g_cyclesEmulated + 16 * CPU_CYCLES_PER_MS);
-    s_behind = (elapsedCycles > stopCycle);
-    while (g_cyclesEmulated < stopCycle && !TimerIsFullSpeed()) {
+static void AdvanceUntil(int64_t stopCycle) {
+    static int64_t s_counter = 0;
 
-        // Step the CPU until the next scheduled event.
-        int64_t nextEventCycle = MIN(SchedulerPeekTime(), stopCycle);
-        while (g_cyclesEmulated < nextEventCycle)
-            g_cyclesEmulated += CpuStep();
+    // Step the CPU until the next scheduled event.
+    int64_t nextEventCycle = MIN(SchedulerPeekTime(), stopCycle);
+    while (g_cyclesEmulated < nextEventCycle)
+        g_cyclesEmulated += CpuStep();
 
-        // Process all scheduled events happening before or on the current
-        // cycle.
-        Event event;
-        while (SchedulerDequeue(g_cyclesEmulated, &event))
-            event.func(event.cycle);
-    }
-
-    // Delay until the next emulator tick (unless the emulator has fallen
-    // significantly behind the wall clock).
-    if (!s_behind)
-        TimerWait();
-}
-
-//===========================================================================
-static void AdvanceFullSpeed() {
-    // In full speed mode, advance 32ms worth of cycles at a time without
-    // delays.
-    int64_t stopCycle = g_cyclesEmulated + 32 * CPU_CYCLES_PER_MS;
-    while (g_cyclesEmulated < stopCycle && TimerIsFullSpeed()) {
-
-        // Step the CPU until the next scheduled event.
-        int64_t nextEventCycle = MIN(SchedulerPeekTime(), stopCycle);
-        while (g_cyclesEmulated < nextEventCycle)
-            g_cyclesEmulated += CpuStep();
-
-        // Process all scheduled events happening before or on the current
-        // cycle.
-        Event event;
-        while (SchedulerDequeue(g_cyclesEmulated, &event))
-            event.func(event.cycle);
-    }
+    // Process all scheduled events happening before or on the current
+    // cycle.
+    Event event;
+    while (SchedulerDequeue(g_cyclesEmulated, &event))
+        event.func(event.cycle);
 }
 
 //===========================================================================
@@ -95,10 +64,27 @@ static void Advance() {
         TimerReset();
     s_lastFullSpeed = fullSpeed;
 
-    if (fullSpeed)
-        AdvanceFullSpeed();
-    else
-        AdvanceNormal();
+    if (fullSpeed) {
+        // In full speed mode, advance 32ms worth of cycles at a time without
+        // delays.
+        int64_t stopCycle = g_cyclesEmulated + 32 * CPU_CYCLES_PER_MS;
+        while (g_cyclesEmulated < stopCycle && TimerIsFullSpeed())
+            AdvanceUntil(stopCycle);
+    }
+    else {
+        // In normal mode, advance the emulator until we catch up to the
+        // expected number of elapsed cycles.  Run at most 16ms worth of cycles.
+        int64_t elapsedCycles = TimerUpdateElapsedCycles();
+        int64_t stopCycle = MIN(elapsedCycles, g_cyclesEmulated + 16 * CPU_CYCLES_PER_MS);
+        s_behind = (elapsedCycles > stopCycle);
+        while (g_cyclesEmulated < stopCycle && !TimerIsFullSpeed())
+            AdvanceUntil(stopCycle);
+
+        // Delay until the next emulator tick (unless the emulator has fallen
+        // significantly behind the wall clock).
+        if (!s_behind)
+            TimerWait();
+    }
 }
 
 //===========================================================================
