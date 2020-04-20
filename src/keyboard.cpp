@@ -9,7 +9,7 @@
 #include "pch.h"
 #pragma  hdrstop
 
-static const BYTE keyCodes[0x65][4] = {
+static const uint8_t s_keyCodes[0x65][4] = {
     { 0x00, 0x00, 0x00, 0x00 }, // 0x00 unused
     { 0x00, 0x00, 0x00, 0x00 }, // 0x01 unused
     { 0x00, 0x00, 0x00, 0x00 }, // 0x02 unused
@@ -113,7 +113,7 @@ static const BYTE keyCodes[0x65][4] = {
     { 0x60, 0x60, 0x7E, 0x7E }, // 0x64 NONUS_BACKSLASH ` ~
 };
 
-static const BYTE asciiCode[0x70][4] = {
+static const uint8_t s_asciiCode[0x70][4] = {
     { 0x00, 0x00, 0x00, 0x00 }, // 0x00
     { 0x00, 0x00, 0x00, 0x00 }, // 0x01
     { 0x00, 0x00, 0x00, 0x00 }, // 0x02
@@ -228,11 +228,10 @@ static const BYTE asciiCode[0x70][4] = {
     { 0x2F, 0x2F, 0x2F, 0x2F }, // 0x6F VK_DIVIDE
 };
 
-static BOOL  capsLock        = TRUE;
-static DWORD keyboardQueries = 0;
-static BYTE  keyCode         = 0;
-static BOOL  keyWaiting      = FALSE;
-static int   lastScanCode    = 0;
+static bool    s_capsLock        = true;
+static uint8_t s_keyCode         = 0;
+static bool    s_keyWaiting      = false;
+static int     s_lastScanCode    = 0;
 
 
 //
@@ -240,51 +239,42 @@ static int   lastScanCode    = 0;
 //
 
 //===========================================================================
-void KeybGetCapsStatus(BOOL * status) {
-    *status = capsLock;
+bool KeybGetCapsStatus() {
+    return s_capsLock;
 }
 
 //===========================================================================
-BYTE KeybGetKeycode() {
-    return keyCode;
+uint8_t KeybGetKeycode() {
+    return s_keyCode;
 }
 
 //===========================================================================
-DWORD KeybGetNumQueries() {
-    DWORD result = keyboardQueries;
-    keyboardQueries = 0;
-    return result;
+uint8_t KeybReadData() {
+    return s_keyCode | (s_keyWaiting ? 0x80 : 0);
 }
 
 //===========================================================================
-BYTE KeybReadData(WORD pc, BYTE address, BYTE write, BYTE value) {
-    keyboardQueries++;
-    return keyCode | (keyWaiting ? 0x80 : 0);
-}
-
-//===========================================================================
-BYTE KeybReadFlag(WORD pc, BYTE address, BYTE write, BYTE value) {
-    keyboardQueries++;
-    keyWaiting = 0;
+uint8_t KeybReadFlag() {
+    s_keyWaiting = false;
     int keys;
     const uint8_t * state = SDL_GetKeyboardState(&keys);
-    if (lastScanCode < keys && state[lastScanCode])
-        return keyCode | 0x80;
+    if (s_lastScanCode < keys && state[s_lastScanCode])
+        return s_keyCode | 0x80;
     else
-        return keyCode;
+        return s_keyCode;
 }
 
 //===========================================================================
-bool KeybIsKeyDown(SDL_Scancode scancode) {
+bool KeybIsKeyDown(SDL_Scancode scanCode) {
     int keys;
     const uint8_t * state = SDL_GetKeyboardState(&keys);
-    return state[scancode] != 0;
+    return state[scanCode] != 0;
 }
 
 //===========================================================================
-void KeybQueueKeypress(int virtkey, BOOL extended) {
+void KeybQueueKeypress(int virtkey, bool extended) {
     if (virtkey == VK_CAPITAL && EmulatorGetAppleType() == APPLE_TYPE_IIE) {
-        capsLock = (GetKeyState(VK_CAPITAL) & 1);
+        s_capsLock = (GetKeyState(VK_CAPITAL) & 1) != 0;
         FrameRefreshStatus();
     }
     if (((virtkey == VK_CANCEL) || (virtkey == VK_F12)) &&
@@ -298,42 +288,42 @@ void KeybQueueKeypress(int virtkey, BOOL extended) {
         return;
     int ctrl = (GetKeyState(VK_CONTROL) < 0);
     int shift = (GetKeyState(VK_SHIFT) < 0);
-    if ((virtkey >= 'A') && (virtkey <= 'Z') && (capsLock || EmulatorGetAppleType() != APPLE_TYPE_IIE))
+    if ((virtkey >= 'A') && (virtkey <= 'Z') && (s_capsLock || EmulatorGetAppleType() != APPLE_TYPE_IIE))
         shift = 1;
-    keyCode = asciiCode[virtkey & 0x7F][ctrl | (shift << 1)];
-    keyWaiting = (keyCode != 0);
+    s_keyCode = s_asciiCode[virtkey & 0x7F][ctrl | (shift << 1)];
+    s_keyWaiting = (s_keyCode != 0);
 }
 
 //===========================================================================
-void KeybQueueKeypressSdl(const SDL_Keysym & sym) {
+void KeybQueueKeypressSdl(SDL_Scancode scanCode, uint16_t mod) {
     // Use system's actual capsLock state to update emulator capsLock state.
-    if (sym.scancode == SDL_SCANCODE_CAPSLOCK && EmulatorGetAppleType() == APPLE_TYPE_IIE) {
-        capsLock =  (SDL_GetModState() & KMOD_CAPS) ? TRUE : FALSE;
+    if (scanCode == SDL_SCANCODE_CAPSLOCK && EmulatorGetAppleType() == APPLE_TYPE_IIE) {
+        s_capsLock = (SDL_GetModState() & KMOD_CAPS) != 0;
         FrameRefreshStatus();
     }
 
     // ctrl-shift-backspace is the same as ctrl-openapple-reset.
-    if (sym.scancode == SDL_SCANCODE_BACKSPACE && (sym.mod & KMOD_CTRL) && (sym.mod & KMOD_SHIFT)) {
+    if (scanCode == SDL_SCANCODE_BACKSPACE && (mod & KMOD_CTRL) && (mod & KMOD_SHIFT)) {
         if (EmulatorGetAppleType() == APPLE_TYPE_IIE)
             EmulatorReset();
         else
             CpuInitialize();
     }
 
-    if (sym.scancode > 0x64)
+    int code = (int)scanCode;
+    if (code > 0x64)
         return;
 
-    int scancode = sym.scancode;
-    int ctrl  = (sym.mod & KMOD_CTRL) ? 1 : 0;
-    int shift = (sym.mod & KMOD_SHIFT) ? 1 : 0;
-    if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z && (capsLock || EmulatorGetAppleType() != APPLE_TYPE_IIE))
+    int ctrl  = (mod & KMOD_CTRL) ? 1 : 0;
+    int shift = (mod & KMOD_SHIFT) ? 1 : 0;
+    if (code >= SDL_SCANCODE_A && code <= SDL_SCANCODE_Z && (s_capsLock || EmulatorGetAppleType() != APPLE_TYPE_IIE))
         shift = 1;
-    if (scancode >= SDL_SCANCODE_KP_1 && scancode <= SDL_SCANCODE_KP_0) {
+    if (code >= SDL_SCANCODE_KP_1 && code <= SDL_SCANCODE_KP_0) {
         if (SDL_GetModState() & KMOD_NUM)
-            scancode = scancode - SDL_SCANCODE_KP_1 + SDL_SCANCODE_1;
+            code = code - SDL_SCANCODE_KP_1 + SDL_SCANCODE_1;
     }
-    lastScanCode = scancode;
 
-    keyCode = keyCodes[scancode][ctrl | shift << 1];
-    keyWaiting = (keyCode != 0);
+    s_lastScanCode = code;
+    s_keyCode      = s_keyCodes[code][ctrl | shift << 1];
+    s_keyWaiting   = (s_keyCode != 0);
 }

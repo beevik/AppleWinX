@@ -448,9 +448,8 @@ static void DrawStatusArea(HDC passdc, BOOL drawbackground) {
 
     if (EmulatorGetAppleType() == APPLE_TYPE_IIE) {
         RECT rect = { 0,0,30,8 };
-        BOOL caps = 0;
-        KeybGetCapsStatus(&caps);
-        DrawBitmapRect(dc, x + 7, y + 19, &rect, capsbitmap[caps != 0]);
+        bool caps = KeybGetCapsStatus();
+        DrawBitmapRect(dc, x + 7, y + 19, &rect, capsbitmap[caps ? 1 : 0]);
     }
 
     if (!passdc)

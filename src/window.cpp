@@ -46,7 +46,7 @@ static inline bool IsUnmodified(uint16_t mod) {
 static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
     switch (key.keysym.scancode) {
         case SDL_SCANCODE_CAPSLOCK:
-            KeybQueueKeypressSdl(key.keysym);
+            KeybQueueKeypressSdl(key.keysym.scancode, key.keysym.mod);
             return;
 
         case SDL_SCANCODE_F2:
@@ -105,7 +105,7 @@ static void ProcessEventKeyDown(const SDL_KeyboardEvent & key)  {
 
     EEmulatorMode mode = EmulatorGetMode();
     if (mode == EMULATOR_MODE_RUNNING || mode == EMULATOR_MODE_STEPPING) {
-        KeybQueueKeypressSdl(key.keysym);
+        KeybQueueKeypressSdl(key.keysym.scancode, key.keysym.mod);
     }
     else if (mode == EMULATOR_MODE_DEBUG) {
         // DebugProcessCommandSdl(key.keysym);

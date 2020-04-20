@@ -254,7 +254,7 @@ static uint8_t IoNull(uint8_t address, bool write, uint8_t value) {
 
 //===========================================================================
 static uint8_t IoSwitchC00xRead(uint8_t address, bool, uint8_t value) {
-    return KeybReadData(0, address, 0, 0);
+    return KeybReadData();
 }
 
 //===========================================================================
@@ -298,7 +298,7 @@ static uint8_t IoSwitchC01xRead(uint8_t address, bool, uint8_t value) {
         case 0x1d: result = SW_HIRES();      break;
 
         case 0x10:
-            return KeybReadFlag(0, address, 0, 0);
+            return KeybReadFlag();
         case 0x19:
             return VideoCheckVbl(0, address, 0, 0);
         case 0x1a:
@@ -312,7 +312,7 @@ static uint8_t IoSwitchC01xRead(uint8_t address, bool, uint8_t value) {
 
 //===========================================================================
 static uint8_t IoSwitchC01xWrite(uint8_t address, bool, uint8_t value) {
-    return KeybReadFlag(0, address, 0, 0);
+    return KeybReadFlag();
 }
 
 //===========================================================================

@@ -8,12 +8,11 @@
 
 #pragma once
 
-void  KeybGetCapsStatus(BOOL * status);
-BYTE  KeybGetKeycode();
-DWORD KeybGetNumQueries();
-bool  KeybIsKeyDown(SDL_Scancode scancode);
-void  KeybQueueKeypress(int virtkey, BOOL extended);
-void  KeybQueueKeypressSdl(const SDL_Keysym & sym);
+bool    KeybGetCapsStatus();
+uint8_t KeybGetKeycode();
+bool    KeybIsKeyDown(SDL_Scancode scanCode);
+void    KeybQueueKeypress(int virtkey, bool extended);
+void    KeybQueueKeypressSdl(SDL_Scancode scanCode, uint16_t mod);
 
-BYTE KeybReadData(WORD pc, BYTE address, BYTE write, BYTE value);
-BYTE KeybReadFlag(WORD pc, BYTE address, BYTE write, BYTE value);
+uint8_t KeybReadData();
+uint8_t KeybReadFlag();
