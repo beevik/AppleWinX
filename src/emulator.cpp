@@ -261,5 +261,6 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     ImageDestroy();
     WindowDestroy();
     ConfigSave();
+    DebugDestroy();
     return 0;
 }

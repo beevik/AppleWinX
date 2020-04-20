@@ -2,6 +2,7 @@
 .vscode/
 build/
 
+genie/*.log
 genie/*.sln
 genie/*.vcxproj*
 genie/Makefile
