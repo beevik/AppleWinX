@@ -10,6 +10,12 @@
 
 template<typename T>
 class Scheduler {
+public:
+    void Clear();
+    bool Dequeue(int64_t elapsedCycles, int64_t * eventCycle, T * value);
+    bool Enqueue(int64_t cycle, T value);
+    int64_t PeekTime() const;
+
 private:
     struct Event {
         int64_t cycle;
@@ -18,12 +24,6 @@ private:
     };
 
     std::vector<Event> m_queue;
-
-public:
-    void Clear();
-    bool Dequeue(int64_t elapsedCycles, int64_t * eventCycle, T * value);
-    bool Enqueue(int64_t cycle, T value);
-    int64_t PeekTime() const;
 };
 
 using FEvent = void (*)(int64_t scheduledTime);
